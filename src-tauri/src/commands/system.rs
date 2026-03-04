@@ -83,6 +83,8 @@ pub struct GeneralConfig {
     pub kiro_quota_alert_enabled: bool,
     /// Kiro 配额预警阈值（百分比）
     pub kiro_quota_alert_threshold: i32,
+    /// 自动刷新模式："all", "current"
+    pub auto_refresh_mode: String,
 }
 
 #[tauri::command]
@@ -188,6 +190,7 @@ pub fn save_network_config(ws_enabled: bool, ws_port: u16) -> Result<bool, Strin
         windsurf_quota_alert_threshold: current.windsurf_quota_alert_threshold,
         kiro_quota_alert_enabled: current.kiro_quota_alert_enabled,
         kiro_quota_alert_threshold: current.kiro_quota_alert_threshold,
+        auto_refresh_mode: current.auto_refresh_mode,
     };
 
     config::save_user_config(&new_config)?;
@@ -241,6 +244,7 @@ pub fn get_general_config() -> Result<GeneralConfig, String> {
         windsurf_quota_alert_threshold: user_config.windsurf_quota_alert_threshold,
         kiro_quota_alert_enabled: user_config.kiro_quota_alert_enabled,
         kiro_quota_alert_threshold: user_config.kiro_quota_alert_threshold,
+        auto_refresh_mode: user_config.auto_refresh_mode,
     })
 }
 
@@ -278,6 +282,7 @@ pub fn save_general_config(
     windsurf_quota_alert_threshold: Option<i32>,
     kiro_quota_alert_enabled: Option<bool>,
     kiro_quota_alert_threshold: Option<i32>,
+    auto_refresh_mode: Option<String>,
 ) -> Result<(), String> {
     let current = config::get_user_config();
     let normalized_opencode_path = opencode_app_path.trim().to_string();
@@ -355,6 +360,7 @@ pub fn save_general_config(
             .unwrap_or(current.kiro_quota_alert_enabled),
         kiro_quota_alert_threshold: kiro_quota_alert_threshold
             .unwrap_or(current.kiro_quota_alert_threshold),
+        auto_refresh_mode: auto_refresh_mode.unwrap_or(current.auto_refresh_mode),
     };
 
     config::save_user_config(&new_config)?;

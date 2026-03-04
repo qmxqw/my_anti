@@ -23,6 +23,7 @@ interface GeneralConfig {
   windsurf_app_path?: string;
   opencode_sync_on_switch?: boolean;
   codex_launch_on_switch?: boolean;
+  auto_refresh_mode?: string;
 }
 
 export function useAutoRefresh() {
@@ -142,6 +143,7 @@ export function useAutoRefresh() {
                     windsurfAppPath: config.windsurf_app_path ?? '',
                     opencodeSyncOnSwitch: config.opencode_sync_on_switch ?? true,
                     codexLaunchOnSwitch: config.codex_launch_on_switch ?? true,
+                    autoRefreshMode: config.auto_refresh_mode,
                   });
                   config.auto_refresh_minutes = 2;
                 }
@@ -168,9 +170,15 @@ export function useAutoRefresh() {
               agRefreshingRef.current = true;
 
               try {
-                console.log('[AutoRefresh] 触发定时配额刷新...');
+                console.log(`[AutoRefresh] 触发定时配额刷新 (模式: ${config.auto_refresh_mode === 'current' ? '仅当前账号' : '全部账号'})...`);
                 await syncCurrentFromClient();
-                await refreshAllQuotas();
+                if (config.auto_refresh_mode === 'current') {
+                  await invoke('refresh_current_quota');
+                  await fetchAccounts();
+                  await fetchCurrentAccount();
+                } else {
+                  await refreshAllQuotas();
+                }
               } catch (e) {
                 console.error('[AutoRefresh] 刷新失败:', e);
               } finally {

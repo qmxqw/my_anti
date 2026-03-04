@@ -57,6 +57,7 @@ interface GeneralConfig {
   windsurf_quota_alert_threshold: number;
   kiro_quota_alert_enabled: boolean;
   kiro_quota_alert_threshold: number;
+  auto_refresh_mode: string;
 }
 
 type AppPathTarget = 'antigravity' | 'codex' | 'vscode' | 'opencode' | 'windsurf' | 'kiro';
@@ -144,6 +145,7 @@ export function SettingsPage() {
   const [windsurfQuotaAlertThreshold, setWindsurfQuotaAlertThreshold] = useState('20');
   const [kiroQuotaAlertEnabled, setKiroQuotaAlertEnabled] = useState(false);
   const [kiroQuotaAlertThreshold, setKiroQuotaAlertThreshold] = useState('20');
+  const [autoRefreshMode, setAutoRefreshMode] = useState('all');
   const [autoRefreshCustomMode, setAutoRefreshCustomMode] = useState(false);
   const [codexAutoRefreshCustomMode, setCodexAutoRefreshCustomMode] = useState(false);
   const [ghcpAutoRefreshCustomMode, setGhcpAutoRefreshCustomMode] = useState(false);
@@ -307,6 +309,7 @@ export function SettingsPage() {
           windsurfAutoRefreshMinutes: windsurfAutoRefreshNum,
           kiroAutoRefreshMinutes: kiroAutoRefreshNum,
           closeBehavior,
+          autoRefreshMode,
           hideDockIcon,
           opencodeAppPath,
           antigravityAppPath,
@@ -380,6 +383,7 @@ export function SettingsPage() {
     windsurfQuotaAlertThreshold,
     kiroQuotaAlertEnabled,
     kiroQuotaAlertThreshold,
+    autoRefreshMode,
     t,
   ]);
 
@@ -555,6 +559,7 @@ export function SettingsPage() {
       setWindsurfQuotaAlertThreshold(String(config.windsurf_quota_alert_threshold ?? 20));
       setKiroQuotaAlertEnabled(config.kiro_quota_alert_enabled ?? false);
       setKiroQuotaAlertThreshold(String(config.kiro_quota_alert_threshold ?? 20));
+      setAutoRefreshMode(config.auto_refresh_mode || 'all');
       setAutoRefreshCustomMode(false);
       setCodexAutoRefreshCustomMode(false);
       setGhcpAutoRefreshCustomMode(false);
@@ -951,6 +956,15 @@ export function SettingsPage() {
                         <option value="custom" disabled={hasActiveResetTasks}>{t('settings.general.autoRefreshCustom')}</option>
                       </select>
                     )}
+                  <select
+                    className="settings-select"
+                    style={{ minWidth: '120px', width: 'auto' }}
+                    value={autoRefreshMode}
+                    onChange={(e) => setAutoRefreshMode(e.target.value)}
+                  >
+                    <option value="all">{t('settings.general.autoRefreshModeAll')}</option>
+                    <option value="current">{t('settings.general.autoRefreshModeCurrent')}</option>
+                  </select>
                   </div>
                   
                   {hasActiveResetTasks && (
