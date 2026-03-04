@@ -3,14 +3,12 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 interface UseEasterEggTriggerOptions {
   threshold?: number;
   windowMs?: number;
-  onTrigger: () => void;
 }
 
 export function useEasterEggTrigger({
   threshold = 20,
   windowMs = 8000,
-  onTrigger,
-}: UseEasterEggTriggerOptions) {
+}: UseEasterEggTriggerOptions = {}) {
   const [count, setCount] = useState(0);
   const timestampsRef = useRef<number[]>([]);
   const resetTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -43,12 +41,11 @@ export function useEasterEggTrigger({
     }, windowMs);
 
     if (next.length >= threshold) {
-      onTrigger();
       timestampsRef.current = [];
       setCount(0);
       clearResetTimer();
     }
-  }, [clearResetTimer, onTrigger, threshold, windowMs]);
+  }, [clearResetTimer, threshold, windowMs]);
 
   useEffect(() => {
     return () => {

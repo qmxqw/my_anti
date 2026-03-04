@@ -12,7 +12,6 @@ interface SideNavProps {
   onOpenPlatformLayout: () => void;
   easterEggClickCount: number;
   onEasterEggTriggerClick: () => void;
-  hasBreakoutSession: boolean;
   updateActionState: 'hidden' | 'available' | 'downloading' | 'ready';
   updateProgress: number;
   onUpdateActionClick: () => void;
@@ -37,7 +36,6 @@ export function SideNav({
   onOpenPlatformLayout,
   easterEggClickCount,
   onEasterEggTriggerClick,
-  hasBreakoutSession,
   updateActionState,
   updateProgress,
   onUpdateActionClick,
@@ -60,25 +58,19 @@ export function SideNav({
   const isMoreActive = !!currentPlatformId && !sidebarVisiblePlatformIds.includes(currentPlatformId);
 
   const handleLogoClick = useCallback(() => {
-    if (hasBreakoutSession) {
-      onEasterEggTriggerClick();
-      return;
-    }
-
     const newRocket: FlyingRocket = {
       id: rocketIdRef.current++,
-      x: (Math.random() - 0.5) * 40, // 随机水平偏移
+      x: (Math.random() - 0.5) * 40,
     };
 
     setFlyingRockets(prev => [...prev, newRocket]);
 
-    // 动画完成后移除火箭 (1.5秒)
     setTimeout(() => {
       setFlyingRockets(prev => prev.filter(r => r.id !== newRocket.id));
     }, 1500);
 
     onEasterEggTriggerClick();
-  }, [hasBreakoutSession, onEasterEggTriggerClick]);
+  }, [onEasterEggTriggerClick]);
 
   useEffect(() => {
     if (!showMore) return;
@@ -139,38 +131,35 @@ export function SideNav({
       )}
 
       <div className="nav-brand" style={{ position: 'relative', zIndex: 10 }}>
-         <div 
-           ref={logoRef}
-           className={`brand-logo rocket-easter-egg${hasBreakoutSession ? ' rocket-easter-egg-active' : ''}`}
-           onClick={handleLogoClick}
-           title={hasBreakoutSession ? t('breakout.resumeGameNav', '继续游戏') : undefined}
-         >
-           <Rocket size={20} />
-           {hasBreakoutSession && <span className="rocket-session-indicator" aria-hidden="true" />}
-           {/* 点击计数器保持在里面，跟随缩放 */}
-           {!hasBreakoutSession && easterEggClickCount > 0 && (
-             <span className="rocket-click-count">{easterEggClickCount}</span>
-           )}
-         </div>
+        <div
+          ref={logoRef}
+          className="brand-logo rocket-easter-egg"
+          onClick={handleLogoClick}
+        >
+          <Rocket size={20} />
+          {easterEggClickCount > 0 && (
+            <span className="rocket-click-count">{easterEggClickCount}</span>
+          )}
+        </div>
 
-         {/* 把火箭层移到外面，放在后面以自然层叠在上方，使用 pointer-events-none 防止遮挡点击 */}
-         <div style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '100%', pointerEvents: 'none' }}>
-           {flyingRockets.map(rocket => (
-             <span 
-               key={rocket.id} 
-               className="flying-rocket"
-               style={{ '--rocket-x': `${rocket.x}px` } as React.CSSProperties}
-             >
-               🚀
-             </span>
-           ))}
-         </div>
+        {/* 把火箭层移到外面，放在后面以自然层叠在上方，使用 pointer-events-none 防止遮挡点击 */}
+        <div style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '100%', pointerEvents: 'none' }}>
+          {flyingRockets.map(rocket => (
+            <span
+              key={rocket.id}
+              className="flying-rocket"
+              style={{ '--rocket-x': `${rocket.x}px` } as React.CSSProperties}
+            >
+              🚀
+            </span>
+          ))}
+        </div>
       </div>
-      
+
       <div className="nav-items">
 
-        <button 
-          className={`nav-item ${page === 'dashboard' ? 'active' : ''}`} 
+        <button
+          className={`nav-item ${page === 'dashboard' ? 'active' : ''}`}
           onClick={() => setPage('dashboard')}
           title={t('nav.dashboard')}
         >

@@ -86,9 +86,7 @@ const VersionJumpNotification = lazy(() =>
 const CloseConfirmDialog = lazy(() =>
   import('./components/CloseConfirmDialog').then((module) => ({ default: module.CloseConfirmDialog })),
 );
-const BreakoutModal = lazy(() =>
-  import('./components/easter-egg/BreakoutModal').then((module) => ({ default: module.BreakoutModal })),
-);
+
 
 interface GeneralConfigTheme {
   theme: string;
@@ -106,9 +104,9 @@ interface GeneralConfig extends GeneralConfigTheme {
 type AppPathMissingDetail = {
   app: 'antigravity' | 'codex' | 'vscode' | 'windsurf' | 'kiro';
   retry?:
-    | { kind: 'default' }
-    | { kind: 'instance'; instanceId?: string }
-    | { kind: 'switchAccount'; accountId?: string };
+  | { kind: 'default' }
+  | { kind: 'instance'; instanceId?: string }
+  | { kind: 'switchAccount'; accountId?: string };
 };
 
 const WAKEUP_ENABLED_KEY = 'agtools.wakeup.enabled';
@@ -229,8 +227,7 @@ function App() {
   const [updateCheckSource, setUpdateCheckSource] = useState<UpdateCheckSource>('auto');
   const [showCloseDialog, setShowCloseDialog] = useState(false);
   const [showPlatformLayoutModal, setShowPlatformLayoutModal] = useState(false);
-  const [showBreakout, setShowBreakout] = useState(false);
-  const [hasBreakoutSession, setHasBreakoutSession] = useState(false);
+
   const [appPathMissing, setAppPathMissing] = useState<AppPathMissingDetail | null>(null);
   const [appPathSetting, setAppPathSetting] = useState(false);
   const [appPathDetecting, setAppPathDetecting] = useState(false);
@@ -259,39 +256,14 @@ function App() {
   const updateDownloadOwnerRef = useRef<'none' | 'shared' | 'silent'>('none');
   const { showModal, closeModal } = useGlobalModal();
   const trayRefreshInFlightRef = useRef(false);
-  const openBreakout = useCallback(() => {
-    setHasBreakoutSession(true);
-    setShowBreakout(true);
-  }, []);
-  const handleBreakoutMinimize = useCallback(() => {
-    setShowBreakout(false);
-  }, []);
-  const handleBreakoutTerminate = useCallback(() => {
-    setShowBreakout(false);
-    setHasBreakoutSession(false);
-  }, []);
-  const handleResumeBreakout = useCallback(() => {
-    if (!hasBreakoutSession) return;
-    setShowBreakout(true);
-  }, [hasBreakoutSession]);
   const {
     count: easterEggClickCount,
     registerClick: handleEasterEggTriggerClick,
-    reset: resetEasterEggTrigger,
   } = useEasterEggTrigger({
     threshold: 20,
     windowMs: 8000,
-    onTrigger: openBreakout,
   });
-  const handleBreakoutEntryTriggerClick = useCallback(() => {
-    if (hasBreakoutSession) {
-      resetEasterEggTrigger();
-      handleResumeBreakout();
-      return;
-    }
-    handleEasterEggTriggerClick();
-  }, [handleEasterEggTriggerClick, handleResumeBreakout, hasBreakoutSession, resetEasterEggTrigger]);
-  
+
   // 启用自动刷新 hook
   useAutoRefresh();
 
@@ -305,14 +277,14 @@ function App() {
   }, []);
 
   const writeUpdateLog = useCallback((level: 'info' | 'warn' | 'error', message: string) => {
-    void invoke('update_log', { level, message }).catch(() => {});
+    void invoke('update_log', { level, message }).catch(() => { });
   }, []);
 
   const closeUpdaterHandle = useCallback(async (handle: UpdaterUpdate | null | undefined) => {
     if (!handle) {
       return;
     }
-    await handle.close().catch(() => {});
+    await handle.close().catch(() => { });
   }, []);
 
   const handleApplyPendingUpdate = useCallback(async () => {
@@ -893,7 +865,7 @@ function App() {
                     return candidate;
                   } catch (error) {
                     if (candidate) {
-                      await candidate.close().catch(() => {});
+                      await candidate.close().catch(() => { });
                     }
                     throw error;
                   }
@@ -1111,50 +1083,50 @@ function App() {
           },
           ...(hasRecommendation
             ? [{
-                id: 'quota-alert-switch',
-                label: t('quotaAlert.modal.switchNow', '快捷切号到 {{email}}', {
-                  email: payload.recommended_email as string,
-                }),
-                variant: 'primary' as const,
-                autoClose: false,
-                onClick: async () => {
-                  try {
-                    const targetAccountId = payload.recommended_account_id as string;
-                    if (platform === 'codex') {
-                      await useCodexAccountStore.getState().switchAccount(targetAccountId);
-                      setPage('codex');
-                    } else if (platform === 'github_copilot') {
-                      await useGitHubCopilotAccountStore.getState().switchAccount(targetAccountId);
-                      setPage('github-copilot');
-                    } else if (platform === 'windsurf') {
-                      await useWindsurfAccountStore.getState().switchAccount(targetAccountId);
-                      setPage('windsurf');
-                    } else if (platform === 'kiro') {
-                      await useKiroAccountStore.getState().switchAccount(targetAccountId);
-                      setPage('kiro');
-                    } else {
-                      await useAccountStore.getState().switchAccount(targetAccountId);
-                      setPage('overview');
-                    }
-                    closeModal();
-                  } catch (error) {
-                    showModal({
-                      title: t('quotaAlert.modal.switchFailedTitle', '切号失败'),
-                      description: t('quotaAlert.modal.switchFailedBody', '快捷切号失败：{{error}}', {
-                        error: String(error),
-                      }),
-                      width: 'sm',
-                      actions: [
-                        {
-                          id: 'quota-alert-switch-failed-ok',
-                          label: t('common.confirm', '确定'),
-                          variant: 'primary',
-                        },
-                      ],
-                    });
+              id: 'quota-alert-switch',
+              label: t('quotaAlert.modal.switchNow', '快捷切号到 {{email}}', {
+                email: payload.recommended_email as string,
+              }),
+              variant: 'primary' as const,
+              autoClose: false,
+              onClick: async () => {
+                try {
+                  const targetAccountId = payload.recommended_account_id as string;
+                  if (platform === 'codex') {
+                    await useCodexAccountStore.getState().switchAccount(targetAccountId);
+                    setPage('codex');
+                  } else if (platform === 'github_copilot') {
+                    await useGitHubCopilotAccountStore.getState().switchAccount(targetAccountId);
+                    setPage('github-copilot');
+                  } else if (platform === 'windsurf') {
+                    await useWindsurfAccountStore.getState().switchAccount(targetAccountId);
+                    setPage('windsurf');
+                  } else if (platform === 'kiro') {
+                    await useKiroAccountStore.getState().switchAccount(targetAccountId);
+                    setPage('kiro');
+                  } else {
+                    await useAccountStore.getState().switchAccount(targetAccountId);
+                    setPage('overview');
                   }
-                },
-              }]
+                  closeModal();
+                } catch (error) {
+                  showModal({
+                    title: t('quotaAlert.modal.switchFailedTitle', '切号失败'),
+                    description: t('quotaAlert.modal.switchFailedBody', '快捷切号失败：{{error}}', {
+                      error: String(error),
+                    }),
+                    width: 'sm',
+                    actions: [
+                      {
+                        id: 'quota-alert-switch-failed-ok',
+                        label: t('common.confirm', '确定'),
+                        variant: 'primary',
+                      },
+                    ],
+                  });
+                }
+              },
+            }]
             : []),
         ],
       });
@@ -1372,9 +1344,9 @@ function App() {
               ? config.vscode_app_path
               : appPathMissing.app === 'windsurf'
                 ? config.windsurf_app_path
-              : appPathMissing.app === 'kiro'
-                ? config.kiro_app_path
-              : config.antigravity_app_path;
+                : appPathMissing.app === 'kiro'
+                  ? config.kiro_app_path
+                  : config.antigravity_app_path;
         if (active) {
           setAppPathDraft(currentPath || '');
         }
@@ -1489,22 +1461,22 @@ function App() {
   useEffect(() => {
     let unlisten: UnlistenFn | undefined;
 
-        listen<string>('tray:navigate', (event) => {
-          const target = String(event.payload || '');
-          switch (target) {
-            case 'overview':
-            case 'codex':
-            case 'github-copilot':
-            case 'windsurf':
-            case 'kiro':
-            case 'manual':
-            case 'settings':
-              setPage(target as Page);
-              break;
-            default:
-              break;
-          }
-        }).then((fn) => { unlisten = fn; });
+    listen<string>('tray:navigate', (event) => {
+      const target = String(event.payload || '');
+      switch (target) {
+        case 'overview':
+        case 'codex':
+        case 'github-copilot':
+        case 'windsurf':
+        case 'kiro':
+        case 'manual':
+        case 'settings':
+          setPage(target as Page);
+          break;
+        default:
+          break;
+      }
+    }).then((fn) => { unlisten = fn; });
 
     return () => {
       if (unlisten) {
@@ -1587,7 +1559,7 @@ function App() {
                   updateAction.requiresInstall;
 
                 if (!keepRequiresInstall && pendingSilentUpdateRef.current) {
-                  void pendingSilentUpdateRef.current.close().catch(() => {});
+                  void pendingSilentUpdateRef.current.close().catch(() => { });
                   pendingSilentUpdateRef.current = null;
                 }
                 setUpdateRetryStatus('');
@@ -1643,15 +1615,7 @@ function App() {
         </Suspense>
       )}
 
-      {hasBreakoutSession && (
-        <Suspense fallback={null}>
-          <BreakoutModal
-            open={showBreakout}
-            onMinimize={handleBreakoutMinimize}
-            onTerminate={handleBreakoutTerminate}
-          />
-        </Suspense>
-      )}
+
 
       {appPathMissing && (
         <div className="qs-overlay">
@@ -1747,11 +1711,11 @@ function App() {
           </div>
         </div>
       )}
-      
+
       {/* 顶部固定拖拽区域 */}
-      <div 
+      <div
         className="drag-region"
-        data-tauri-drag-region 
+        data-tauri-drag-region
         onMouseDown={handleDragStart}
       />
 
@@ -1761,8 +1725,7 @@ function App() {
         setPage={setPage}
         onOpenPlatformLayout={() => setShowPlatformLayoutModal(true)}
         easterEggClickCount={easterEggClickCount}
-        onEasterEggTriggerClick={handleBreakoutEntryTriggerClick}
-        hasBreakoutSession={hasBreakoutSession}
+        onEasterEggTriggerClick={handleEasterEggTriggerClick}
         updateActionState={updateAction.state}
         updateProgress={updateAction.progress}
         onUpdateActionClick={handleQuickUpdateActionClick}
@@ -1779,7 +1742,7 @@ function App() {
             <DashboardPage
               onNavigate={setPage}
               onOpenPlatformLayout={() => setShowPlatformLayoutModal(true)}
-              onEasterEggTriggerClick={handleBreakoutEntryTriggerClick}
+              onEasterEggTriggerClick={handleEasterEggTriggerClick}
             />
           )}
           {page === 'overview' && <AccountsPage onNavigate={setPage} />}
