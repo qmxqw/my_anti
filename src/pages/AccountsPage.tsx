@@ -885,11 +885,60 @@ export function AccountsPage({ onNavigate }: AccountsPageProps) {
     })
   }
 
+  // 寻找建议切换的帐号：额度最高优先，并列则取最快被重置的
+  const findSuggestedAccount = (): Account | null => {
+    if (!currentAccount) return null
+
+    const candidates = accounts.filter(acc =>
+      acc.id !== currentAccount.id &&
+      !acc.disabled &&
+      !acc.quota?.is_forbidden
+    )
+
+    if (candidates.length === 0) return null
+
+    const getEarliestResetMs = (acc: Account): number => {
+      if (!acc.quota?.models?.length) return Infinity
+      const now = Date.now()
+      let earliest = Infinity
+      for (const model of acc.quota.models) {
+        if (!model.reset_time) continue
+        const resetMs = new Date(model.reset_time).getTime()
+        if (isNaN(resetMs)) continue
+        const remaining = resetMs - now
+        if (remaining < earliest) earliest = remaining
+      }
+      return earliest
+    }
+
+    const scored = candidates.map(acc => ({
+      account: acc,
+      overallQuota: calculateOverallQuota(getAccountQuotas(acc)),
+      earliestResetMs: getEarliestResetMs(acc),
+    }))
+
+    scored.sort((a, b) => {
+      if (a.overallQuota !== b.overallQuota) return b.overallQuota - a.overallQuota
+      return a.earliestResetMs - b.earliestResetMs
+    })
+
+    return scored[0].account
+  }
+
   const handleSwitch = async (accountId: string) => {
     setMessage(null)
-    setSwitching(accountId)
+
+    // 如果目标帐号就是当前帐号，切换到建议帐号
+    let targetId = accountId
+    if (currentAccount && accountId === currentAccount.id) {
+      const suggested = findSuggestedAccount()
+      if (!suggested) return // 无可用帐号，静默取消
+      targetId = suggested.id
+    }
+
+    setSwitching(targetId)
     try {
-      const account = await switchAccount(accountId)
+      const account = await switchAccount(targetId)
       await fetchCurrentAccount()
       setMessage({ text: t('messages.switched', { email: maskAccountText(account.email) }) })
     } catch (e) {
