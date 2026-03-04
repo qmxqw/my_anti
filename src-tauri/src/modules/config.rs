@@ -134,7 +134,7 @@ pub struct UserConfig {
     /// Kiro 配额预警阈值（百分比）
     #[serde(default = "default_kiro_quota_alert_threshold")]
     pub kiro_quota_alert_threshold: i32,
-    /// Antigravity 自动刷新模式："all" 表示刷新所有账号，"current" 表示仅刷新当前账号
+    /// 自动刷新模式（全局）："all" 表示刷新所有账号，"current" 表示仅刷新当前账号
     #[serde(default = "default_auto_refresh_mode")]
     pub auto_refresh_mode: String,
 }

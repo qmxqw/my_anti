@@ -36,6 +36,7 @@ interface GeneralConfig {
   windsurf_quota_alert_threshold: number;
   kiro_quota_alert_enabled: boolean;
   kiro_quota_alert_threshold: number;
+  auto_refresh_mode: string;
 }
 
 export type QuickSettingsType = 'antigravity' | 'codex' | 'github_copilot' | 'windsurf' | 'kiro';
@@ -172,6 +173,7 @@ export function QuickSettingsPopover({ type }: QuickSettingsPopoverProps) {
           windsurfQuotaAlertThreshold: merged.windsurf_quota_alert_threshold,
           kiroQuotaAlertEnabled: merged.kiro_quota_alert_enabled,
           kiroQuotaAlertThreshold: merged.kiro_quota_alert_threshold,
+          autoRefreshMode: merged.auto_refresh_mode,
         });
         window.dispatchEvent(new Event('config-updated'));
       } catch (err) {
@@ -559,6 +561,22 @@ export function QuickSettingsPopover({ type }: QuickSettingsPopoverProps) {
                     <option value="custom">{t('quickSettings.customInput', '自定义')}</option>
                   </select>
                 )}
+                {/* ─── Refresh Mode (global) ─── */}
+                <div className="qs-row" style={{ marginTop: 8 }}>
+                  <div className="qs-row-label">
+                    <span>{t('settings.general.autoRefreshMode', '刷新模式')}</span>
+                  </div>
+                  <div className="qs-row-control">
+                    <select
+                      className="qs-select"
+                      value={config.auto_refresh_mode || 'all'}
+                      onChange={(e) => saveConfig({ auto_refresh_mode: e.target.value })}
+                    >
+                      <option value="all">{t('settings.general.autoRefreshModeAll')}</option>
+                      <option value="current">{t('settings.general.autoRefreshModeCurrent')}</option>
+                    </select>
+                  </div>
+                </div>
               </div>
             </div>
 

@@ -33,6 +33,8 @@ export function useAutoRefresh() {
   const fetchCurrentAccount = useAccountStore((state) => state.fetchCurrentAccount);
 
   const refreshAllCodexQuotas = useCodexAccountStore((state) => state.refreshAllQuotas);
+  const fetchCodexAccounts = useCodexAccountStore((state) => state.fetchAccounts);
+  const fetchCodexCurrentAccount = useCodexAccountStore((state) => state.fetchCurrentAccount);
   const refreshAllGhcpTokens = useGitHubCopilotAccountStore((state) => state.refreshAllTokens);
   const refreshAllWindsurfTokens = useWindsurfAccountStore((state) => state.refreshAllTokens);
   const refreshAllKiroTokens = useKiroAccountStore((state) => state.refreshAllTokens);
@@ -200,8 +202,14 @@ export function useAutoRefresh() {
               codexRefreshingRef.current = true;
 
               try {
-                console.log('[AutoRefresh] 触发 Codex 配额刷新...');
-                await refreshAllCodexQuotas();
+                console.log(`[AutoRefresh] 触发 Codex 配额刷新 (模式: ${config.auto_refresh_mode === 'current' ? '仅当前账号' : '全部账号'})...`);
+                if (config.auto_refresh_mode === 'current') {
+                  await invoke('refresh_current_codex_quota');
+                  await fetchCodexAccounts();
+                  await fetchCodexCurrentAccount();
+                } else {
+                  await refreshAllCodexQuotas();
+                }
               } catch (e) {
                 console.error('[AutoRefresh] Codex 刷新失败:', e);
               } finally {
@@ -315,6 +323,8 @@ export function useAutoRefresh() {
     clearAllIntervals,
     fetchAccounts,
     fetchCurrentAccount,
+    fetchCodexAccounts,
+    fetchCodexCurrentAccount,
     refreshAllCodexQuotas,
     refreshAllGhcpTokens,
     refreshAllKiroTokens,

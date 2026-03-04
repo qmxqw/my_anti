@@ -888,6 +888,23 @@ export function SettingsPage() {
                   </button>
                 </div>
               </div>
+
+              <div className="settings-row">
+                <div className="row-label">
+                  <div className="row-title">{t('settings.general.autoRefreshMode', '配额刷新模式')}</div>
+                  <div className="row-desc">{t('settings.general.autoRefreshModeDesc', '设置自动刷新配额时，是刷新所有账号还是仅刷新当前账号（全局生效）')}</div>
+                </div>
+                <div className="row-control">
+                  <select
+                    className="settings-select"
+                    value={autoRefreshMode}
+                    onChange={(e) => setAutoRefreshMode(e.target.value)}
+                  >
+                    <option value="all">{t('settings.general.autoRefreshModeAll')}</option>
+                    <option value="current">{t('settings.general.autoRefreshModeCurrent')}</option>
+                  </select>
+                </div>
+              </div>
             </div>
 
             <div style={{ display: 'flex', flexDirection: 'column' }}>
@@ -956,15 +973,7 @@ export function SettingsPage() {
                         <option value="custom" disabled={hasActiveResetTasks}>{t('settings.general.autoRefreshCustom')}</option>
                       </select>
                     )}
-                  <select
-                    className="settings-select"
-                    style={{ minWidth: '120px', width: 'auto' }}
-                    value={autoRefreshMode}
-                    onChange={(e) => setAutoRefreshMode(e.target.value)}
-                  >
-                    <option value="all">{t('settings.general.autoRefreshModeAll')}</option>
-                    <option value="current">{t('settings.general.autoRefreshModeCurrent')}</option>
-                  </select>
+
                   </div>
                   
                   {hasActiveResetTasks && (
