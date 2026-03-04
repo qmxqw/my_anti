@@ -1,0 +1,19 @@
+# Auto detect text files and ensure consistent line endings
+* text=auto eol=crlf
+
+# Force specific file types
+*.rs text eol=crlf
+*.tsx text eol=crlf
+*.ts text eol=crlf
+*.json text eol=crlf
+*.css text eol=crlf
+*.html text eol=crlf
+*.md text eol=crlf
+*.toml text eol=crlf
+
+# Binary files
+*.png binary
+*.jpg binary
+*.ico binary
+*.woff binary
+*.woff2 binary
