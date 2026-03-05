@@ -945,7 +945,7 @@
       "accountsEmpty": "Hesap yok",
       "customPrompt": "Özel istem",
       "promptPlaceholder": "Varsayılan {{word}}",
-      "promptHint": "Varsayılan istemi ({{word}}) kullanmak için boş bırakın.",
+      "promptHint": "Varsayılan istemi ({{word}}) kullanmak için boş bırakın. Rastgele seçim için birden fazla adayı | ile ayırın.",
       "maxTokens": "Maksimum çıktı tokeni",
       "maxTokensHint": "Varsayılan 0 (sınırsız).",
       "repeatMode": "Tekrarlama modu",

@@ -945,7 +945,7 @@
       "accountsEmpty": "アカウントがありません",
       "customPrompt": "カスタムウェイクアップ語",
       "promptPlaceholder": "デフォルト {{word}}",
-      "promptHint": "空欄の場合はデフォルト {{word}} を使用します。",
+      "promptHint": "空欄の場合はデフォルト {{word}} を使用します。| で区切ると複数の候補からランダムに選択されます。",
       "maxTokens": "最大出力トークン",
       "maxTokensHint": "デフォルト 0（無制限）",
       "repeatMode": "繰り返し",

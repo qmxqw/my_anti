@@ -945,7 +945,7 @@
       "accountsEmpty": "Aucun compte",
       "customPrompt": "Invite personnalisée",
       "promptPlaceholder": "Par défaut {{word}}",
-      "promptHint": "Laisser vide pour utiliser l'invite par défaut {{word}}.",
+      "promptHint": "Laisser vide pour utiliser l'invite par défaut {{word}}. Utilisez | pour séparer plusieurs candidats pour une sélection aléatoire.",
       "maxTokens": "Tokens max",
       "maxTokensHint": "Par défaut 0 (illimité).",
       "repeatMode": "Mode de répétition",

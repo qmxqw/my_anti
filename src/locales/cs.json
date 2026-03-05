@@ -945,7 +945,7 @@
       "accountsEmpty": "Žádné účty",
       "customPrompt": "Vlastní výzva",
       "promptPlaceholder": "Výchozí {{word}}",
-      "promptHint": "Ponechte prázdné pro výchozí výzvu {{word}}.",
+      "promptHint": "Ponechte prázdné pro výchozí výzvu {{word}}. Použijte | k oddělení více kandidátů pro náhodný výběr.",
       "maxTokens": "Maximální počet tokenů",
       "maxTokensHint": "Výchozí 0 (bez limitu).",
       "repeatMode": "Režim opakování",

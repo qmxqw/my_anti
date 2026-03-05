@@ -945,7 +945,7 @@
       "accountsEmpty": "계정 없음",
       "customPrompt": "사용자 프롬프트",
       "promptPlaceholder": "기본 {{word}}",
-      "promptHint": "비워두면 기본 프롬프트 {{word}} 사용.",
+      "promptHint": "비워두면 기본 프롬프트 {{word}} 사용. | 로 구분하면 여러 후보 중 무작위로 선택됩니다.",
       "maxTokens": "최대 출력 토큰",
       "maxTokensHint": "기본값 0 (무제한).",
       "repeatMode": "반복 방식",

@@ -945,7 +945,7 @@
       "accountsEmpty": "No hay cuentas",
       "customPrompt": "Prompt personalizado",
       "promptPlaceholder": "Predeterminado {{word}}",
-      "promptHint": "Déjalo vacío para usar el prompt predeterminado {{word}}.",
+      "promptHint": "Déjalo vacío para usar el prompt predeterminado {{word}}. Usa | para separar múltiples candidatos para selección aleatoria.",
       "maxTokens": "Máximo de tokens",
       "maxTokensHint": "Predeterminado 0 (ilimitado).",
       "repeatMode": "Modo de repetición",

@@ -945,7 +945,7 @@
       "accountsEmpty": "Brak kont",
       "customPrompt": "Własny prompt",
       "promptPlaceholder": "Domyślnie {{word}}",
-      "promptHint": "Pozostaw puste, aby użyć domyślnego promptu {{word}}.",
+      "promptHint": "Pozostaw puste, aby użyć domyślnego promptu {{word}}. Użyj | do rozdzielenia wielu kandydatów do losowego wyboru.",
       "maxTokens": "Maks. liczba tokenów",
       "maxTokensHint": "Domyślnie 0 (bez limitu).",
       "repeatMode": "Tryb powtarzania",

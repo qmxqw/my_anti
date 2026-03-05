@@ -945,7 +945,7 @@
       "accountsEmpty": "Không có tài khoản",
       "customPrompt": "Từ đánh thức tùy chỉnh",
       "promptPlaceholder": "Mặc định {{word}}",
-      "promptHint": "Để trống để sử dụng từ đánh thức mặc định {{word}}.",
+      "promptHint": "Để trống để sử dụng từ đánh thức mặc định {{word}}. Dùng | để phân tách nhiều ứng viên cho lựa chọn ngẫu nhiên.",
       "maxTokens": "Token đầu ra tối đa",
       "maxTokensHint": "Mặc định 0 (không giới hạn).",
       "repeatMode": "Chế độ lặp lại",

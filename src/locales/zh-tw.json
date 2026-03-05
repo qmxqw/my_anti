@@ -945,7 +945,7 @@
       "accountsEmpty": "暫無帳號",
       "customPrompt": "自訂喚醒詞",
       "promptPlaceholder": "預設 {{word}}",
-      "promptHint": "留空將使用預設喚醒詞 {{word}}。",
+      "promptHint": "留空將使用預設喚醒詞 {{word}}。使用 | 分隔可設定多個候選字詞隨機使用。",
       "maxTokens": "最大輸出 Token",
       "maxTokensHint": "預設 0（不限）。",
       "repeatMode": "重複方式",

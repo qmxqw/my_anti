@@ -3,6 +3,7 @@ use std::sync::{Mutex, OnceLock};
 use std::time::Duration;
 
 use chrono::{DateTime, Datelike, Local, TimeZone, Timelike};
+use rand::seq::SliceRandom;
 use serde::{Deserialize, Serialize};
 use tauri::{AppHandle, Emitter};
 use tokio::time::sleep;
@@ -605,10 +606,23 @@ async fn run_task_with_models(
         .custom_prompt
         .as_ref()
         .and_then(|p| {
-            if p.trim().is_empty() {
+            let trimmed = p.trim();
+            if trimmed.is_empty() {
                 None
+            } else if trimmed.contains('|') {
+                let candidates: Vec<&str> = trimmed
+                    .split('|')
+                    .map(|s| s.trim())
+                    .filter(|s| !s.is_empty())
+                    .collect();
+                if candidates.is_empty() {
+                    None
+                } else {
+                    let mut rng = rand::thread_rng();
+                    candidates.choose(&mut rng).map(|s| s.to_string())
+                }
             } else {
-                Some(p.trim().to_string())
+                Some(trimmed.to_string())
             }
         })
         .unwrap_or_else(|| DEFAULT_PROMPT.to_string());

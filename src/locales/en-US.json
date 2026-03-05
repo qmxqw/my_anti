@@ -945,7 +945,7 @@
       "accountsEmpty": "No accounts",
       "customPrompt": "Custom prompt",
       "promptPlaceholder": "Default {{word}}",
-      "promptHint": "Leave empty to use default prompt {{word}}.",
+      "promptHint": "Leave empty to use default prompt {{word}}. Use | to separate multiple candidates for random selection.",
       "maxTokens": "Max output tokens",
       "maxTokensHint": "Default 0 (unlimited).",
       "repeatMode": "Repeat mode",

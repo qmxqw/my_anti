@@ -949,7 +949,7 @@
       "accountsEmpty": "暂无账号",
       "customPrompt": "自定义唤醒词",
       "promptPlaceholder": "默认 {{word}}",
-      "promptHint": "留空将使用默认唤醒词 {{word}}。",
+      "promptHint": "留空将使用默认唤醒词 {{word}}。使用 | 分隔可设置多个候选词随机使用。",
       "maxTokens": "最大输出 Token",
       "maxTokensHint": "默认 0（不限）。",
       "repeatMode": "重复方式",

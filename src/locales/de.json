@@ -945,7 +945,7 @@
       "accountsEmpty": "Keine Konten",
       "customPrompt": "Benutzerdefinierter Prompt",
       "promptPlaceholder": "Standard {{word}}",
-      "promptHint": "Leer lassen, um den Standard-Prompt {{word}} zu verwenden.",
+      "promptHint": "Leer lassen, um den Standard-Prompt {{word}} zu verwenden. Verwenden Sie | zur Trennung mehrerer Kandidaten für zufällige Auswahl.",
       "maxTokens": "Max. Ausgabe-Tokens",
       "maxTokensHint": "Standard 0 (unbegrenzt).",
       "repeatMode": "Wiederholungsmodus",
