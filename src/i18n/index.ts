@@ -5,49 +5,17 @@ type LocaleModule = { default: Record<string, unknown> };
 
 const languageAliases: Record<string, string> = {
   'zh-CN': 'zh-cn',
-  'zh-TW': 'zh-tw',
   'en-US': 'en',
-  'pt-BR': 'pt-br',
-  'vi-VN': 'vi',
-  'vi-vn': 'vi',
 };
 
 export const supportedLanguages = [
-  'en',
   'zh-cn',
-  'zh-tw',
-  'ja',
-  'es',
-  'de',
-  'fr',
-  'pt-br',
-  'ru',
-  'ko',
-  'it',
-  'tr',
-  'pl',
-  'cs',
-  'vi',
-  'ar',
+  'en',
 ];
 
 const localeLoaders: Record<string, () => Promise<LocaleModule>> = {
-  en: () => import('../locales/en.json'),
   'zh-cn': () => import('../locales/zh-CN.json'),
-  'zh-tw': () => import('../locales/zh-tw.json'),
-  ja: () => import('../locales/ja.json'),
-  es: () => import('../locales/es.json'),
-  de: () => import('../locales/de.json'),
-  fr: () => import('../locales/fr.json'),
-  'pt-br': () => import('../locales/pt-br.json'),
-  ru: () => import('../locales/ru.json'),
-  ko: () => import('../locales/ko.json'),
-  it: () => import('../locales/it.json'),
-  tr: () => import('../locales/tr.json'),
-  pl: () => import('../locales/pl.json'),
-  cs: () => import('../locales/cs.json'),
-  vi: () => import('../locales/vi.json'),
-  ar: () => import('../locales/ar.json'),
+  en: () => import('../locales/en.json'),
 };
 
 const loadedLanguages = new Set<string>();
@@ -73,7 +41,7 @@ export function normalizeLanguage(lang: string): string {
 
 function resolveSupportedLanguage(lang: string): string {
   const normalized = normalizeLanguage(lang);
-  return supportedLanguages.includes(normalized) ? normalized : 'en';
+  return supportedLanguages.includes(normalized) ? normalized : 'zh-cn';
 }
 
 async function ensureLanguageResources(lang: string): Promise<string> {
@@ -82,7 +50,7 @@ async function ensureLanguageResources(lang: string): Promise<string> {
     return resolved;
   }
 
-  const loader = localeLoaders[resolved] ?? localeLoaders.en;
+  const loader = localeLoaders[resolved] ?? localeLoaders['zh-cn'];
   const module = await loader();
   i18n.addResourceBundle(resolved, 'translation', module.default, true, true);
   loadedLanguages.add(resolved);
@@ -96,15 +64,15 @@ export async function initI18n(): Promise<void> {
 
   initPromise = (async () => {
     const savedLanguage = resolveSupportedLanguage(
-      localStorage.getItem('app-language') || 'en',
+      localStorage.getItem('app-language') || 'zh-cn',
     );
 
     await i18n
       .use(initReactI18next)
       .init({
         resources: {},
-        lng: 'en',
-        fallbackLng: 'en',
+        lng: 'zh-cn',
+        fallbackLng: 'zh-cn',
         supportedLngs: supportedLanguages,
         lowerCaseLng: true,
         load: 'currentOnly',
@@ -113,8 +81,8 @@ export async function initI18n(): Promise<void> {
         },
       });
 
-    await ensureLanguageResources('en');
-    if (savedLanguage !== 'en') {
+    await ensureLanguageResources('zh-cn');
+    if (savedLanguage !== 'zh-cn') {
       await ensureLanguageResources(savedLanguage);
     }
     await i18n.changeLanguage(savedLanguage);
