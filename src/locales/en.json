@@ -164,9 +164,9 @@
   },
   "platformLayout": {
     "title": "Platform Layout",
-    "sidebarSelected": "Sidebar selected {{count}}/{{max}}",
+    "sidebarSelected": "Sidebar selected {{count}}",
     "reset": "Reset to default",
-    "tip": "Drag to reorder. Up to two platforms can be shown in the sidebar. If only one is selected, only one is shown.",
+    "tip": "Drag to reorder. Check platforms to show them in the sidebar.",
     "sidebarToggle": "Show in sidebar",
     "dashboardToggle": "Show in dashboard",
     "trayToggle": "Show in tray",

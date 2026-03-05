@@ -85,8 +85,7 @@ function normalizeHidden(hidden: PlatformId[]): PlatformId[] {
 }
 
 function normalizeSidebar(sidebar: PlatformId[], hidden: PlatformId[]): PlatformId[] {
-  const normalized = sanitizePlatformIds(sidebar).filter((id) => !hidden.includes(id));
-  return normalized.slice(0, 2);
+  return sanitizePlatformIds(sidebar).filter((id) => !hidden.includes(id));
 }
 
 function normalizeTray(tray: PlatformId[]): PlatformId[] {
@@ -204,10 +203,8 @@ export const usePlatformLayoutStore = create<PlatformLayoutState>((set, get) => 
 
     if (current.includes(id)) {
       nextSidebar = current.filter((item) => item !== id);
-    } else if (current.length < 2) {
-      nextSidebar = [...current, id];
     } else {
-      return;
+      nextSidebar = [...current, id];
     }
 
     const sidebarPlatformIds = normalizeSidebar(nextSidebar, hiddenPlatformIds);

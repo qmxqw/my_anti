@@ -164,9 +164,9 @@
   },
   "platformLayout": {
     "title": "平台布局",
-    "sidebarSelected": "侧边栏已选择 {{count}}/{{max}}",
+    "sidebarSelected": "侧边栏已选择 {{count}} 个",
     "reset": "恢复默认",
-    "tip": "拖拽可排序；最多选择两个平台显示在侧边栏。若只选择一个，侧边栏只显示一个。",
+    "tip": "拖拽可排序；勾选平台以显示在侧边栏。",
     "sidebarToggle": "侧边栏显示",
     "dashboardToggle": "仪表盘显示",
     "trayToggle": "菜单栏显示",

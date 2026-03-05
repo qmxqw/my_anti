@@ -83,8 +83,7 @@ export function PlatformLayoutModal({ open, onClose }: PlatformLayoutModalProps)
             <span>
               {t('platformLayout.sidebarSelected', {
                 count: sidebarPlatformIds.length,
-                max: 2,
-                defaultValue: '侧边栏已选择 {{count}}/{{max}}',
+                defaultValue: '侧边栏已选择 {{count}} 个',
               })}
             </span>
             <button className="btn btn-secondary" onClick={resetPlatformLayout}>
@@ -107,8 +106,7 @@ export function PlatformLayoutModal({ open, onClose }: PlatformLayoutModalProps)
             {orderedPlatformIds.map((platformId) => {
               const hidden = hiddenSet.has(platformId);
               const selected = sidebarSet.has(platformId);
-              const sidebarFull = sidebarPlatformIds.length >= 2;
-              const sidebarDisabled = hidden || (!selected && sidebarFull);
+              const sidebarDisabled = hidden;
               const rowClass = [
                 'platform-layout-row',
                 hidden ? 'is-hidden' : '',
