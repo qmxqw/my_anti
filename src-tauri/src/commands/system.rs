@@ -63,6 +63,8 @@ pub struct GeneralConfig {
     pub auto_switch_enabled: bool,
     /// 自动切号阈值（百分比）
     pub auto_switch_threshold: i32,
+    /// 自动切号前是否弹窗确认
+    pub auto_switch_confirm: bool,
     /// 是否启用配额预警通知
     pub quota_alert_enabled: bool,
     /// 配额预警阈值（百分比）
@@ -182,6 +184,7 @@ pub fn save_network_config(ws_enabled: bool, ws_port: u16) -> Result<bool, Strin
         codex_launch_on_switch: current.codex_launch_on_switch,
         auto_switch_enabled: current.auto_switch_enabled,
         auto_switch_threshold: current.auto_switch_threshold,
+        auto_switch_confirm: current.auto_switch_confirm,
         quota_alert_enabled: current.quota_alert_enabled,
         quota_alert_threshold: current.quota_alert_threshold,
         codex_quota_alert_enabled: current.codex_quota_alert_enabled,
@@ -237,6 +240,7 @@ pub fn get_general_config() -> Result<GeneralConfig, String> {
         codex_launch_on_switch: user_config.codex_launch_on_switch,
         auto_switch_enabled: user_config.auto_switch_enabled,
         auto_switch_threshold: user_config.auto_switch_threshold,
+        auto_switch_confirm: user_config.auto_switch_confirm,
         quota_alert_enabled: user_config.quota_alert_enabled,
         quota_alert_threshold: user_config.quota_alert_threshold,
         codex_quota_alert_enabled: user_config.codex_quota_alert_enabled,
@@ -276,6 +280,7 @@ pub fn save_general_config(
     codex_launch_on_switch: bool,
     auto_switch_enabled: Option<bool>,
     auto_switch_threshold: Option<i32>,
+    auto_switch_confirm: Option<bool>,
     quota_alert_enabled: Option<bool>,
     quota_alert_threshold: Option<i32>,
     codex_quota_alert_enabled: Option<bool>,
@@ -347,6 +352,7 @@ pub fn save_general_config(
         codex_launch_on_switch,
         auto_switch_enabled: auto_switch_enabled.unwrap_or(current.auto_switch_enabled),
         auto_switch_threshold: auto_switch_threshold.unwrap_or(current.auto_switch_threshold),
+        auto_switch_confirm: auto_switch_confirm.unwrap_or(current.auto_switch_confirm),
         quota_alert_enabled: quota_alert_enabled.unwrap_or(current.quota_alert_enabled),
         quota_alert_threshold: quota_alert_threshold.unwrap_or(current.quota_alert_threshold),
         codex_quota_alert_enabled: codex_quota_alert_enabled

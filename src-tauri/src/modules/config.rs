@@ -104,6 +104,9 @@ pub struct UserConfig {
     /// 自动切号阈值（百分比），任意模型配额低于此值触发
     #[serde(default = "default_auto_switch_threshold")]
     pub auto_switch_threshold: i32,
+    /// 自动切号前是否弹窗确认
+    #[serde(default = "default_auto_switch_confirm")]
+    pub auto_switch_confirm: bool,
     /// 是否启用配额预警通知
     #[serde(default = "default_quota_alert_enabled")]
     pub quota_alert_enabled: bool,
@@ -242,6 +245,9 @@ fn default_auto_switch_enabled() -> bool {
 fn default_auto_switch_threshold() -> i32 {
     5
 }
+fn default_auto_switch_confirm() -> bool {
+    true
+}
 fn default_quota_alert_enabled() -> bool {
     false
 }
@@ -304,6 +310,7 @@ impl Default for UserConfig {
             codex_launch_on_switch: default_codex_launch_on_switch(),
             auto_switch_enabled: default_auto_switch_enabled(),
             auto_switch_threshold: default_auto_switch_threshold(),
+            auto_switch_confirm: default_auto_switch_confirm(),
             quota_alert_enabled: default_quota_alert_enabled(),
             quota_alert_threshold: default_quota_alert_threshold(),
             codex_quota_alert_enabled: default_codex_quota_alert_enabled(),

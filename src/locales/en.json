@@ -1275,7 +1275,9 @@
       "enable": "Enable Auto Switch",
       "threshold": "Switch Threshold",
       "thresholdDesc": "Auto switch when any model quota falls below this percentage",
-      "hint": "Automatically switch to the account with the highest quota when any model quota is below the threshold."
+      "hint": "Automatically switch to the account with the highest quota when any model quota is below the threshold.",
+      "confirm": "Confirm before switch",
+      "confirmHint": "When enabled, a confirmation dialog will appear before auto switching. When disabled, switching happens silently."
     },
     "quotaAlert": {
       "title": "Quota Alert",
@@ -1320,6 +1322,21 @@
       "switchNow": "Quick switch to {{email}}",
       "switchFailedTitle": "Switch failed",
       "switchFailedBody": "Quick switch failed: {{error}}"
+    }
+  },
+  "autoSwitch": {
+    "confirm": {
+      "title": "Auto Switch Confirmation",
+      "desc": "The current account quota is low. It is recommended to switch to an account with more quota.",
+      "currentAccount": "Current account",
+      "threshold": "Switch threshold",
+      "lowest": "Current lowest",
+      "models": "Low quota models",
+      "targetAccount": "Switch target",
+      "cancel": "Not now",
+      "switchNow": "Switch to {{email}}",
+      "switchFailedTitle": "Switch failed",
+      "switchFailedBody": "Auto switch failed: {{error}}"
     }
   },
   "windsurf": {

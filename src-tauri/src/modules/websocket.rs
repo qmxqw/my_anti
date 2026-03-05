@@ -779,6 +779,7 @@ fn handle_set_language(language: &str, source: Option<&str>) -> Result<String, S
         codex_launch_on_switch: current.codex_launch_on_switch,
         auto_switch_enabled: current.auto_switch_enabled,
         auto_switch_threshold: current.auto_switch_threshold,
+        auto_switch_confirm: current.auto_switch_confirm,
         quota_alert_enabled: current.quota_alert_enabled,
         quota_alert_threshold: current.quota_alert_threshold,
         codex_quota_alert_enabled: current.codex_quota_alert_enabled,

@@ -26,6 +26,7 @@ interface GeneralConfig {
   codex_launch_on_switch: boolean;
   auto_switch_enabled: boolean;
   auto_switch_threshold: number;
+  auto_switch_confirm: boolean;
   quota_alert_enabled: boolean;
   quota_alert_threshold: number;
   codex_quota_alert_enabled: boolean;
@@ -163,6 +164,7 @@ export function QuickSettingsPopover({ type }: QuickSettingsPopoverProps) {
           codexLaunchOnSwitch: merged.codex_launch_on_switch,
           autoSwitchEnabled: merged.auto_switch_enabled,
           autoSwitchThreshold: merged.auto_switch_threshold,
+          autoSwitchConfirm: merged.auto_switch_confirm,
           quotaAlertEnabled: merged.quota_alert_enabled,
           quotaAlertThreshold: merged.quota_alert_threshold,
           codexQuotaAlertEnabled: merged.codex_quota_alert_enabled,
@@ -745,6 +747,24 @@ export function QuickSettingsPopover({ type }: QuickSettingsPopoverProps) {
                           </select>
                         )}
                       </div>
+                    </div>
+                  </div>
+                )}
+
+                {config.auto_switch_enabled && (
+                  <div className="qs-row" style={{ marginTop: 6 }}>
+                    <div className="qs-row-label">
+                      <span>{t('quickSettings.autoSwitch.confirm', '切号前确认')}</span>
+                    </div>
+                    <div className="qs-row-control">
+                      <label className="qs-switch">
+                        <input
+                          type="checkbox"
+                          checked={config.auto_switch_confirm}
+                          onChange={(e) => saveConfig({ auto_switch_confirm: e.target.checked })}
+                        />
+                        <span className="qs-switch-slider"></span>
+                      </label>
                     </div>
                   </div>
                 )}

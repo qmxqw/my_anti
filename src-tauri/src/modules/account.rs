@@ -831,6 +831,18 @@ pub struct QuotaAlertPayload {
     pub triggered_at: i64,
 }
 
+#[derive(Debug, Clone, Serialize)]
+pub struct AutoSwitchConfirmPayload {
+    pub current_account_id: String,
+    pub current_email: String,
+    pub target_account_id: String,
+    pub target_email: String,
+    pub threshold: i32,
+    pub lowest_percentage: i32,
+    pub low_models: Vec<String>,
+    pub triggered_at: i64,
+}
+
 fn normalize_auto_switch_threshold(raw: i32) -> i32 {
     raw.clamp(0, 100)
 }
@@ -1250,6 +1262,7 @@ async fn run_auto_switch_if_needed_inner() -> Result<Option<Account>, String> {
     }
 
     let mut candidates: Vec<Account> = accounts
+        .clone()
         .into_iter()
         .filter(|a| can_be_auto_switch_candidate(a, &current_id, threshold))
         .collect();
@@ -1265,15 +1278,68 @@ async fn run_auto_switch_if_needed_inner() -> Result<Option<Account>, String> {
     sort_candidates_by_best(&mut candidates);
 
     let target = &candidates[0];
-    modules::logger::log_info(&format!(
-        "[AutoSwitch] 触发自动切号: current_id={}, target_id={}, threshold={}%",
-        current_id, target.id, threshold
-    ));
 
-    let switched = switch_account_internal(&target.id).await?;
-    modules::websocket::broadcast_account_switched(&switched.id, &switched.email);
-    modules::websocket::broadcast_data_changed("auto_switch");
-    Ok(Some(switched))
+    // 需要确认则发送事件到前端，否则直接切换
+    if cfg.auto_switch_confirm {
+        modules::logger::log_info(&format!(
+            "[AutoSwitch] 需要自动切号，发送确认请求: current_id={}, target_id={}, threshold={}%",
+            current_id, target.id, threshold
+        ));
+
+        // 收集当前账号的低额度模型信息
+        let low_models: Vec<String> = if current.disabled {
+            vec!["all".to_string()]
+        } else if let Some(ref quota) = current.quota {
+            if quota.is_forbidden {
+                vec!["all".to_string()]
+            } else {
+                quota
+                    .models
+                    .iter()
+                    .filter(|m| m.percentage <= threshold)
+                    .map(|m| m.name.clone())
+                    .collect()
+            }
+        } else {
+            Vec::new()
+        };
+
+        let lowest_percentage = current
+            .quota
+            .as_ref()
+            .map(|q| q.models.iter().map(|m| m.percentage).min().unwrap_or(0))
+            .unwrap_or(0);
+
+        let payload = AutoSwitchConfirmPayload {
+            current_account_id: current_id.clone(),
+            current_email: current.email.clone(),
+            target_account_id: target.id.clone(),
+            target_email: target.email.clone(),
+            threshold,
+            lowest_percentage,
+            low_models,
+            triggered_at: chrono::Utc::now().timestamp(),
+        };
+
+        // 发送确认事件到前端，不直接切换
+        if let Some(app_handle) = crate::get_app_handle() {
+            use tauri::Emitter;
+            let _ = app_handle.emit("quota:auto_switch_confirm", &payload);
+        }
+
+        // 返回 None 表示本次未实际切换（等待用户确认）
+        Ok(None)
+    } else {
+        modules::logger::log_info(&format!(
+            "[AutoSwitch] 触发自动切号: current_id={}, target_id={}, threshold={}%",
+            current_id, target.id, threshold
+        ));
+
+        let switched = switch_account_internal(&target.id).await?;
+        modules::websocket::broadcast_account_switched(&switched.id, &switched.email);
+        modules::websocket::broadcast_data_changed("auto_switch");
+        Ok(Some(switched))
+    }
 }
 
 pub async fn run_auto_switch_if_needed() -> Result<Option<Account>, String> {
