@@ -898,15 +898,47 @@ fn average_quota_percentage(account: &Account) -> f64 {
     sum as f64 / quota.models.len() as f64
 }
 
-/// 取账号所有模型中最早的重置时间戳（秒）。
-/// 无有效 reset_time 时返回 i64::MAX，使其在排序中自然排到最后。
-fn earliest_reset_timestamp(account: &Account) -> i64 {
+/// 判断一个模型是否属于 Claude 家族。
+/// 兼容桌面端小写格式 (`claude-xxx`) 和插件端大写格式 (`MODEL_CLAUDE_xxx`)。
+fn is_claude_model(model: &crate::models::quota::ModelQuota) -> bool {
+    let name_lower = model.name.to_lowercase();
+    if name_lower.starts_with("claude-") || name_lower.starts_with("model_claude") {
+        return true;
+    }
+    if let Some(ref display_name) = model.display_name {
+        if display_name.trim().to_lowercase().starts_with("claude ") {
+            return true;
+        }
+    }
+    // MODEL_PLACEHOLDER_M12 / M26 也是 Claude（Opus 系列）
+    name_lower == "model_placeholder_m12" || name_lower == "model_placeholder_m26"
+}
+
+/// 取账号所有 Claude 模型中的最低 percentage。
+/// 无 Claude 模型时返回 -1。
+fn claude_min_percentage(account: &Account) -> i32 {
+    let Some(quota) = account.quota.as_ref() else {
+        return -1;
+    };
+    quota
+        .models
+        .iter()
+        .filter(|m| is_claude_model(m))
+        .map(|m| m.percentage)
+        .min()
+        .unwrap_or(-1)
+}
+
+/// 取账号所有 Claude 模型中最早的重置时间戳（秒）。
+/// 无 Claude 模型或无有效 reset_time 时返回 i64::MAX。
+fn claude_reset_timestamp(account: &Account) -> i64 {
     let Some(quota) = account.quota.as_ref() else {
         return i64::MAX;
     };
     quota
         .models
         .iter()
+        .filter(|m| is_claude_model(m))
         .filter_map(|m| {
             chrono::DateTime::parse_from_rfc3339(&m.reset_time)
                 .ok()
@@ -917,28 +949,31 @@ fn earliest_reset_timestamp(account: &Account) -> i64 {
 }
 
 /// 对候选账号按"最优"排序（就地排序）。
-/// 排序规则：平均配额降序 → 最早重置时间升序 → last_used 升序（兜底）。
+/// 排序规则：Claude 最早重置时间升序 → 平均配额降序 → last_used 升序（兜底）。
 fn sort_candidates_by_best(candidates: &mut [Account]) {
     candidates.sort_by(|a, b| {
-        let avg_a = average_quota_percentage(a);
-        let avg_b = average_quota_percentage(b);
-        avg_b
-            .partial_cmp(&avg_a)
-            .unwrap_or(std::cmp::Ordering::Equal)
+        let reset_a = claude_reset_timestamp(a);
+        let reset_b = claude_reset_timestamp(b);
+        let reset_ord = if reset_a == i64::MAX && reset_b == i64::MAX {
+            std::cmp::Ordering::Equal
+        } else {
+            reset_a.cmp(&reset_b)
+        };
+        reset_ord
             .then_with(|| {
-                let reset_a = earliest_reset_timestamp(a);
-                let reset_b = earliest_reset_timestamp(b);
-                if reset_a == i64::MAX && reset_b == i64::MAX {
-                    a.last_used.cmp(&b.last_used)
-                } else {
-                    reset_a.cmp(&reset_b)
-                }
+                let avg_a = average_quota_percentage(a);
+                let avg_b = average_quota_percentage(b);
+                avg_b
+                    .partial_cmp(&avg_a)
+                    .unwrap_or(std::cmp::Ordering::Equal)
             })
+            .then_with(|| a.last_used.cmp(&b.last_used))
     });
 }
 
 /// 寻找建议切换的最优账号（不受 auto_switch 开关和 threshold 限制）。
-/// 仅排除当前账号、disabled、forbidden 的账号。
+/// 按 Claude 重置时间排序，取第一个 Claude 额度 >= 50% 的账号。
+/// 如果没有满足条件的账号，回退到排序后的第一个。
 pub fn find_suggested_account() -> Result<Option<Account>, String> {
     let current_id = match get_current_account_id()? {
         Some(id) => id,
@@ -964,8 +999,15 @@ pub fn find_suggested_account() -> Result<Option<Account>, String> {
     }
 
     sort_candidates_by_best(&mut candidates);
-    Ok(Some(candidates.swap_remove(0)))
+
+    // 取第一个 Claude 额度 >= 50% 的账号；均不满足则回退到排序首位
+    let idx = candidates
+        .iter()
+        .position(|a| claude_min_percentage(a) >= 50)
+        .unwrap_or(0);
+    Ok(Some(candidates.swap_remove(idx)))
 }
+
 
 fn build_quota_alert_cooldown_key(account_id: &str, threshold: i32) -> String {
     format!("{}:{}", account_id, threshold)
