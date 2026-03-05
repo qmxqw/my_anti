@@ -898,6 +898,24 @@ fn average_quota_percentage(account: &Account) -> f64 {
     sum as f64 / quota.models.len() as f64
 }
 
+/// 取账号所有模型中最早的重置时间戳（秒）。
+/// 无有效 reset_time 时返回 i64::MAX，使其在排序中自然排到最后。
+fn earliest_reset_timestamp(account: &Account) -> i64 {
+    let Some(quota) = account.quota.as_ref() else {
+        return i64::MAX;
+    };
+    quota
+        .models
+        .iter()
+        .filter_map(|m| {
+            chrono::DateTime::parse_from_rfc3339(&m.reset_time)
+                .ok()
+                .map(|dt| dt.timestamp())
+        })
+        .min()
+        .unwrap_or(i64::MAX)
+}
+
 fn build_quota_alert_cooldown_key(account_id: &str, threshold: i32) -> String {
     format!("{}:{}", account_id, threshold)
 }
@@ -940,7 +958,15 @@ fn pick_quota_alert_recommendation(accounts: &[Account], current_id: &str) -> Op
         avg_b
             .partial_cmp(&avg_a)
             .unwrap_or(std::cmp::Ordering::Equal)
-            .then_with(|| a.last_used.cmp(&b.last_used))
+            .then_with(|| {
+                let reset_a = earliest_reset_timestamp(a);
+                let reset_b = earliest_reset_timestamp(b);
+                if reset_a == i64::MAX && reset_b == i64::MAX {
+                    a.last_used.cmp(&b.last_used)
+                } else {
+                    reset_a.cmp(&reset_b)
+                }
+            })
     });
 
     candidates.into_iter().next()
@@ -1164,7 +1190,15 @@ async fn run_auto_switch_if_needed_inner() -> Result<Option<Account>, String> {
         avg_b
             .partial_cmp(&avg_a)
             .unwrap_or(std::cmp::Ordering::Equal)
-            .then_with(|| a.last_used.cmp(&b.last_used))
+            .then_with(|| {
+                let reset_a = earliest_reset_timestamp(a);
+                let reset_b = earliest_reset_timestamp(b);
+                if reset_a == i64::MAX && reset_b == i64::MAX {
+                    a.last_used.cmp(&b.last_used)
+                } else {
+                    reset_a.cmp(&reset_b)
+                }
+            })
     });
 
     let target = &candidates[0];
