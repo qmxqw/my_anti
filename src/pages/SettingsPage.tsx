@@ -58,6 +58,7 @@ interface GeneralConfig {
   kiro_quota_alert_enabled: boolean;
   kiro_quota_alert_threshold: number;
   auto_refresh_mode: string;
+  batch_refresh_skip_reset: boolean;
 }
 
 type AppPathTarget = 'antigravity' | 'codex' | 'vscode' | 'opencode' | 'windsurf' | 'kiro';
@@ -132,6 +133,7 @@ export function SettingsPage() {
   const [kiroQuotaAlertEnabled, setKiroQuotaAlertEnabled] = useState(false);
   const [kiroQuotaAlertThreshold, setKiroQuotaAlertThreshold] = useState('20');
   const [autoRefreshMode, setAutoRefreshMode] = useState('all');
+  const [batchRefreshSkipReset, setBatchRefreshSkipReset] = useState(false);
   const [autoRefreshCustomMode, setAutoRefreshCustomMode] = useState(false);
   const [codexAutoRefreshCustomMode, setCodexAutoRefreshCustomMode] = useState(false);
   const [ghcpAutoRefreshCustomMode, setGhcpAutoRefreshCustomMode] = useState(false);
@@ -296,6 +298,7 @@ export function SettingsPage() {
           kiroAutoRefreshMinutes: kiroAutoRefreshNum,
           closeBehavior,
           autoRefreshMode,
+          batchRefreshSkipReset,
           hideDockIcon,
           opencodeAppPath,
           antigravityAppPath,
@@ -370,6 +373,7 @@ export function SettingsPage() {
     kiroQuotaAlertEnabled,
     kiroQuotaAlertThreshold,
     autoRefreshMode,
+    batchRefreshSkipReset,
     t,
   ]);
 
@@ -546,6 +550,7 @@ export function SettingsPage() {
       setKiroQuotaAlertEnabled(config.kiro_quota_alert_enabled ?? false);
       setKiroQuotaAlertThreshold(String(config.kiro_quota_alert_threshold ?? 20));
       setAutoRefreshMode(config.auto_refresh_mode || 'all');
+      setBatchRefreshSkipReset(config.batch_refresh_skip_reset ?? false);
       setAutoRefreshCustomMode(false);
       setCodexAutoRefreshCustomMode(false);
       setGhcpAutoRefreshCustomMode(false);
@@ -889,6 +894,19 @@ export function SettingsPage() {
                       <option value="all">{t('settings.general.autoRefreshModeAll')}</option>
                       <option value="current">{t('settings.general.autoRefreshModeCurrent')}</option>
                     </select>
+                  </div>
+                </div>
+
+                <div className="settings-row">
+                  <div className="row-label">
+                    <div className="row-title">{t('settings.general.batchRefreshSkipReset', '批量刷新跳过已重置账号')}</div>
+                    <div className="row-desc">{t('settings.general.batchRefreshSkipResetDesc', '批量刷新时跳过配额已满的账号，防止刷新后获得新额度造成浪费')}</div>
+                  </div>
+                  <div className="row-control">
+                    <label className="settings-toggle">
+                      <input type="checkbox" checked={batchRefreshSkipReset} onChange={(e) => setBatchRefreshSkipReset(e.target.checked)} />
+                      <span className="toggle-slider" />
+                    </label>
                   </div>
                 </div>
               </div>

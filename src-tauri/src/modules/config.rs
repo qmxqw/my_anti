@@ -137,6 +137,9 @@ pub struct UserConfig {
     /// 自动刷新模式（全局）："all" 表示刷新所有账号，"current" 表示仅刷新当前账号
     #[serde(default = "default_auto_refresh_mode")]
     pub auto_refresh_mode: String,
+    /// 批量刷新时是否跳过已重置（配额已满）的账号
+    #[serde(default = "default_batch_refresh_skip_reset")]
+    pub batch_refresh_skip_reset: bool,
 }
 
 /// 窗口关闭行为
@@ -272,6 +275,9 @@ fn default_kiro_quota_alert_threshold() -> i32 {
 fn default_auto_refresh_mode() -> String {
     "all".to_string()
 }
+fn default_batch_refresh_skip_reset() -> bool {
+    false
+}
 
 impl Default for UserConfig {
     fn default() -> Self {
@@ -309,6 +315,7 @@ impl Default for UserConfig {
             kiro_quota_alert_enabled: default_kiro_quota_alert_enabled(),
             kiro_quota_alert_threshold: default_kiro_quota_alert_threshold(),
             auto_refresh_mode: default_auto_refresh_mode(),
+            batch_refresh_skip_reset: default_batch_refresh_skip_reset(),
         }
     }
 }

@@ -370,6 +370,8 @@
       "every1hour": "Every hour",
       "minutes": "min",
       "refreshIntervalLimited": "Quota reset wakeup enabled, minimum refresh interval is 2 minutes",
+      "batchRefreshSkipReset": "Skip fully-reset accounts in batch refresh",
+      "batchRefreshSkipResetDesc": "Skip accounts where all model quotas are at 100% during batch refresh to prevent waste",
       "closeBehavior": "Close behavior",
       "closeBehaviorDesc": "Choose the default action when closing the window",
       "closeBehaviorAsk": "Ask every time",

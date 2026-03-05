@@ -373,6 +373,8 @@
       "autoRefreshModeDesc": "设置自动刷新配额时，是刷新所有账号还是仅刷新当前账号（全局生效）",
       "autoRefreshModeAll": "刷新所有账号",
       "autoRefreshModeCurrent": "仅当前账号",
+      "batchRefreshSkipReset": "批量刷新跳过已重置账号",
+      "batchRefreshSkipResetDesc": "批量刷新时跳过配额已满的账号，防止刷新后获得新额度造成浪费",
       "refreshIntervalLimited": "配额重置唤醒已启用，刷新间隔最小值为 2 分钟",
       "closeBehavior": "窗口关闭行为",
       "closeBehaviorDesc": "选择关闭窗口时的默认行为",

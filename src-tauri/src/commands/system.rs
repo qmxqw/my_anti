@@ -85,6 +85,8 @@ pub struct GeneralConfig {
     pub kiro_quota_alert_threshold: i32,
     /// 自动刷新模式："all", "current"
     pub auto_refresh_mode: String,
+    /// 批量刷新时是否跳过已重置（配额已满）的账号
+    pub batch_refresh_skip_reset: bool,
 }
 
 #[tauri::command]
@@ -191,6 +193,7 @@ pub fn save_network_config(ws_enabled: bool, ws_port: u16) -> Result<bool, Strin
         kiro_quota_alert_enabled: current.kiro_quota_alert_enabled,
         kiro_quota_alert_threshold: current.kiro_quota_alert_threshold,
         auto_refresh_mode: current.auto_refresh_mode,
+        batch_refresh_skip_reset: current.batch_refresh_skip_reset,
     };
 
     config::save_user_config(&new_config)?;
@@ -245,6 +248,7 @@ pub fn get_general_config() -> Result<GeneralConfig, String> {
         kiro_quota_alert_enabled: user_config.kiro_quota_alert_enabled,
         kiro_quota_alert_threshold: user_config.kiro_quota_alert_threshold,
         auto_refresh_mode: user_config.auto_refresh_mode,
+        batch_refresh_skip_reset: user_config.batch_refresh_skip_reset,
     })
 }
 
@@ -283,6 +287,7 @@ pub fn save_general_config(
     kiro_quota_alert_enabled: Option<bool>,
     kiro_quota_alert_threshold: Option<i32>,
     auto_refresh_mode: Option<String>,
+    batch_refresh_skip_reset: Option<bool>,
 ) -> Result<(), String> {
     let current = config::get_user_config();
     let normalized_opencode_path = opencode_app_path.trim().to_string();
@@ -361,6 +366,7 @@ pub fn save_general_config(
         kiro_quota_alert_threshold: kiro_quota_alert_threshold
             .unwrap_or(current.kiro_quota_alert_threshold),
         auto_refresh_mode: auto_refresh_mode.unwrap_or(current.auto_refresh_mode),
+        batch_refresh_skip_reset: batch_refresh_skip_reset.unwrap_or(current.batch_refresh_skip_reset),
     };
 
     config::save_user_config(&new_config)?;
