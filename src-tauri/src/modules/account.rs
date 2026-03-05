@@ -916,6 +916,57 @@ fn earliest_reset_timestamp(account: &Account) -> i64 {
         .unwrap_or(i64::MAX)
 }
 
+/// 对候选账号按"最优"排序（就地排序）。
+/// 排序规则：平均配额降序 → 最早重置时间升序 → last_used 升序（兜底）。
+fn sort_candidates_by_best(candidates: &mut [Account]) {
+    candidates.sort_by(|a, b| {
+        let avg_a = average_quota_percentage(a);
+        let avg_b = average_quota_percentage(b);
+        avg_b
+            .partial_cmp(&avg_a)
+            .unwrap_or(std::cmp::Ordering::Equal)
+            .then_with(|| {
+                let reset_a = earliest_reset_timestamp(a);
+                let reset_b = earliest_reset_timestamp(b);
+                if reset_a == i64::MAX && reset_b == i64::MAX {
+                    a.last_used.cmp(&b.last_used)
+                } else {
+                    reset_a.cmp(&reset_b)
+                }
+            })
+    });
+}
+
+/// 寻找建议切换的最优账号（不受 auto_switch 开关和 threshold 限制）。
+/// 仅排除当前账号、disabled、forbidden 的账号。
+pub fn find_suggested_account() -> Result<Option<Account>, String> {
+    let current_id = match get_current_account_id()? {
+        Some(id) => id,
+        None => return Ok(None),
+    };
+
+    let accounts = list_accounts()?;
+    let mut candidates: Vec<Account> = accounts
+        .into_iter()
+        .filter(|a| {
+            if a.id == current_id || a.disabled {
+                return false;
+            }
+            match a.quota.as_ref() {
+                Some(q) => !q.is_forbidden,
+                None => true,
+            }
+        })
+        .collect();
+
+    if candidates.is_empty() {
+        return Ok(None);
+    }
+
+    sort_candidates_by_best(&mut candidates);
+    Ok(Some(candidates.swap_remove(0)))
+}
+
 fn build_quota_alert_cooldown_key(account_id: &str, threshold: i32) -> String {
     format!("{}:{}", account_id, threshold)
 }
@@ -952,22 +1003,7 @@ fn pick_quota_alert_recommendation(accounts: &[Account], current_id: &str) -> Op
         return None;
     }
 
-    candidates.sort_by(|a, b| {
-        let avg_a = average_quota_percentage(a);
-        let avg_b = average_quota_percentage(b);
-        avg_b
-            .partial_cmp(&avg_a)
-            .unwrap_or(std::cmp::Ordering::Equal)
-            .then_with(|| {
-                let reset_a = earliest_reset_timestamp(a);
-                let reset_b = earliest_reset_timestamp(b);
-                if reset_a == i64::MAX && reset_b == i64::MAX {
-                    a.last_used.cmp(&b.last_used)
-                } else {
-                    reset_a.cmp(&reset_b)
-                }
-            })
-    });
+    sort_candidates_by_best(&mut candidates);
 
     candidates.into_iter().next()
 }
@@ -1184,22 +1220,7 @@ async fn run_auto_switch_if_needed_inner() -> Result<Option<Account>, String> {
         return Ok(None);
     }
 
-    candidates.sort_by(|a, b| {
-        let avg_a = average_quota_percentage(a);
-        let avg_b = average_quota_percentage(b);
-        avg_b
-            .partial_cmp(&avg_a)
-            .unwrap_or(std::cmp::Ordering::Equal)
-            .then_with(|| {
-                let reset_a = earliest_reset_timestamp(a);
-                let reset_b = earliest_reset_timestamp(b);
-                if reset_a == i64::MAX && reset_b == i64::MAX {
-                    a.last_used.cmp(&b.last_used)
-                } else {
-                    reset_a.cmp(&reset_b)
-                }
-            })
-    });
+    sort_candidates_by_best(&mut candidates);
 
     let target = &candidates[0];
     modules::logger::log_info(&format!(

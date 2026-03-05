@@ -64,6 +64,11 @@ pub async fn get_current_account() -> Result<Option<models::Account>, String> {
 }
 
 #[tauri::command]
+pub async fn find_suggested_account() -> Result<Option<models::Account>, String> {
+    modules::account::find_suggested_account()
+}
+
+#[tauri::command]
 pub async fn set_current_account(app: tauri::AppHandle, account_id: String) -> Result<(), String> {
     modules::set_current_account_id(&account_id)?;
     let _ = crate::modules::tray::update_tray_menu(&app);
