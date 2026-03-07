@@ -1367,7 +1367,6 @@ pub async fn refresh_all_quotas_logic() -> Result<RefreshStats, String> {
         MAX_CONCURRENT
     ));
     let accounts = list_accounts()?;
-    let user_config = modules::config::get_user_config();
 
     let semaphore = Arc::new(Semaphore::new(MAX_CONCURRENT));
 
@@ -1381,16 +1380,6 @@ pub async fn refresh_all_quotas_logic() -> Result<RefreshStats, String> {
             if let Some(ref q) = account.quota {
                 if q.is_forbidden {
                     modules::logger::log_info("  - Skipping Forbidden account");
-                    return false;
-                }
-                if user_config.batch_refresh_skip_reset
-                    && !q.models.is_empty()
-                    && q.models.iter().all(|m| m.percentage >= 100)
-                {
-                    modules::logger::log_info(&format!(
-                        "  - Skipping Reset account {} (all models at 100%)",
-                        account.email
-                    ));
                     return false;
                 }
             }

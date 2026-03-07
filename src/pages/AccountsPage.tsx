@@ -888,13 +888,7 @@ export function AccountsPage({ onNavigate }: AccountsPageProps) {
   const handleSwitch = async (accountId: string) => {
     setMessage(null)
 
-    // 如果目标帐号就是当前帐号，切换到建议帐号（由后端统一判断最优）
-    let targetId = accountId
-    if (currentAccount && accountId === currentAccount.id) {
-      const suggested = await accountService.findSuggestedAccount()
-      if (!suggested) return // 无可用帐号，静默取消
-      targetId = suggested.id
-    }
+    const targetId = accountId
 
     setSwitching(targetId)
     try {
