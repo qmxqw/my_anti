@@ -1280,6 +1280,14 @@ function App() {
       // 历史记录已由后端写入文件，这里只需通知前端刷新
       window.dispatchEvent(new CustomEvent('wakeup-task-result', { detail: payload }));
       window.dispatchEvent(new Event('wakeup-tasks-updated'));
+
+      // 唤醒后帐号配额可能已变化，延迟刷新帐号列表（给后端异步刷新配额留时间）
+      const hasSuccess = payload.records?.some((r: { success?: boolean }) => r.success);
+      if (hasSuccess) {
+        setTimeout(() => {
+          useAccountStore.getState().fetchAccounts();
+        }, 8000);
+      }
     };
 
     listen<WakeupTaskResultPayload>('wakeup://task-result', (event) => {

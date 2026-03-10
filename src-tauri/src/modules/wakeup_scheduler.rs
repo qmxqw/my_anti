@@ -768,6 +768,18 @@ async fn run_task_with_trigger_map(
         modules::logger::log_error(&format!("写入唤醒历史失败: {}", e));
     }
 
+    // 异步刷新被成功唤醒帐号的配额，使帐号列表状态及时更新
+    let woken_emails: HashSet<String> = history
+        .iter()
+        .filter(|item| item.success)
+        .map(|item| item.account_email.clone())
+        .collect();
+    if !woken_emails.is_empty() {
+        tokio::spawn(async move {
+            refresh_woken_account_quotas(woken_emails).await;
+        });
+    }
+
     let payload = WakeupTaskResultPayload {
         task_id: task.id.clone(),
         last_run_at: chrono::Utc::now().timestamp_millis(),
@@ -916,4 +928,38 @@ struct WakeupTaskResultPayload {
     records: Vec<modules::wakeup_history::WakeupHistoryItem>,
 }
 
-// (no local helpers)
+async fn refresh_woken_account_quotas(emails: HashSet<String>) {
+    // 延迟几秒再刷新，给服务端时间更新配额数据
+    sleep(Duration::from_secs(5)).await;
+    let accounts = match modules::list_accounts() {
+        Ok(list) => list,
+        Err(_) => return,
+    };
+    for account in accounts {
+        if !emails.contains(&account.email) {
+            continue;
+        }
+        let mut account = account;
+        match modules::fetch_quota_with_retry(&mut account, true).await {
+            Ok(quota) => {
+                if let Err(e) = modules::update_account_quota(&account.id, quota) {
+                    modules::logger::log_warn(&format!(
+                        "[WakeupQuotaRefresh] 保存配额失败: {}: {}",
+                        account.email, e
+                    ));
+                } else {
+                    modules::logger::log_info(&format!(
+                        "[WakeupQuotaRefresh] 已刷新配额: {}",
+                        account.email
+                    ));
+                }
+            }
+            Err(e) => {
+                modules::logger::log_warn(&format!(
+                    "[WakeupQuotaRefresh] 获取配额失败: {}: {}",
+                    account.email, e
+                ));
+            }
+        }
+    }
+}
