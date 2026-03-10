@@ -193,6 +193,7 @@ export function GitHubCopilotAccountsPage() {
   }, [accounts, resolvePlanKey]);
 
   const normalizeTag = (tag: string) => tag.trim().toLowerCase();
+  const normalizeTagGroup = (tag: string) => normalizeTag(tag).replace(/\d+$/, '');
 
   const compareAccountsBySort = useCallback((a: GitHubCopilotAccount, b: GitHubCopilotAccount) => {
     if (sortBy === 'created_at') {
@@ -248,10 +249,10 @@ export function GitHubCopilotAccountsPage() {
     }
 
     if (tagFilter.length > 0) {
-      const selectedTags = new Set(tagFilter.map(normalizeTag));
+      const selectedGroups = new Set(tagFilter.map(normalizeTagGroup));
       result = result.filter((acc) => {
-        const tags = (acc.tags || []).map(normalizeTag);
-        return tags.some((tag) => selectedTags.has(tag));
+        const tags = (acc.tags || []).map(normalizeTagGroup);
+        return tags.some((g) => selectedGroups.has(g));
       });
     }
 
@@ -263,23 +264,23 @@ export function GitHubCopilotAccountsPage() {
   const groupedAccounts = useMemo(() => {
     if (!groupByTag) return [] as Array<[string, typeof filteredAccounts]>;
     const groups = new Map<string, typeof filteredAccounts>();
-    const selectedTags = new Set(tagFilter.map(normalizeTag));
+    const selectedGroups = new Set(tagFilter.map(normalizeTagGroup));
 
     filteredAccounts.forEach((account) => {
-      const tags = (account.tags || []).map(normalizeTag).filter(Boolean);
-      const matchedTags = selectedTags.size > 0
-        ? tags.filter((tag) => selectedTags.has(tag))
-        : tags;
+      const tagGroups = (account.tags || []).map(normalizeTagGroup).filter(Boolean);
+      const matchedGroups = selectedGroups.size > 0
+        ? tagGroups.filter((g) => selectedGroups.has(g))
+        : tagGroups;
 
-      if (matchedTags.length === 0) {
+      if (matchedGroups.length === 0) {
         if (!groups.has(untaggedKey)) groups.set(untaggedKey, []);
         groups.get(untaggedKey)?.push(account);
         return;
       }
 
-      matchedTags.forEach((tag) => {
-        if (!groups.has(tag)) groups.set(tag, []);
-        groups.get(tag)?.push(account);
+      matchedGroups.forEach((g) => {
+        if (!groups.has(g)) groups.set(g, []);
+        groups.get(g)?.push(account);
       });
     });
 

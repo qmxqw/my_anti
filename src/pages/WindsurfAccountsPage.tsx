@@ -119,7 +119,7 @@ export function WindsurfAccountsPage() {
     handleInjectToVSCode,
     isFlowNoticeCollapsed, setIsFlowNoticeCollapsed,
     currentAccountId,
-    formatDate, normalizeTag,
+    formatDate, normalizeTag, normalizeTagGroup,
   } = page;
 
   const accounts = store.accounts;
@@ -314,8 +314,8 @@ export function WindsurfAccountsPage() {
       result = result.filter((account) => resolvePlanKey(account) === filterType);
     }
     if (tagFilter.length > 0) {
-      const selectedTags = new Set(tagFilter.map(normalizeTag));
-      result = result.filter((acc) => (acc.tags || []).map(normalizeTag).some((tag) => selectedTags.has(tag)));
+      const selectedGroups = new Set(tagFilter.map(normalizeTagGroup));
+      result = result.filter((acc) => (acc.tags || []).map(normalizeTagGroup).some((g) => selectedGroups.has(g)));
     }
     result.sort(compareAccountsBySort);
     return result;
@@ -324,15 +324,15 @@ export function WindsurfAccountsPage() {
   const groupedAccounts = useMemo(() => {
     if (!groupByTag) return [] as Array<[string, typeof filteredAccounts]>;
     const groups = new Map<string, typeof filteredAccounts>();
-    const selectedTags = new Set(tagFilter.map(normalizeTag));
+    const selectedGroups = new Set(tagFilter.map(normalizeTagGroup));
     filteredAccounts.forEach((account) => {
-      const tags = (account.tags || []).map(normalizeTag).filter(Boolean);
-      const matchedTags = selectedTags.size > 0 ? tags.filter((tag) => selectedTags.has(tag)) : tags;
-      if (matchedTags.length === 0) { if (!groups.has(untaggedKey)) groups.set(untaggedKey, []); groups.get(untaggedKey)?.push(account); return; }
-      matchedTags.forEach((tag) => { if (!groups.has(tag)) groups.set(tag, []); groups.get(tag)?.push(account); });
+      const tagGroups = (account.tags || []).map(normalizeTagGroup).filter(Boolean);
+      const matchedGroups = selectedGroups.size > 0 ? tagGroups.filter((g) => selectedGroups.has(g)) : tagGroups;
+      if (matchedGroups.length === 0) { if (!groups.has(untaggedKey)) groups.set(untaggedKey, []); groups.get(untaggedKey)?.push(account); return; }
+      matchedGroups.forEach((g) => { if (!groups.has(g)) groups.set(g, []); groups.get(g)?.push(account); });
     });
     return Array.from(groups.entries()).sort(([aKey], [bKey]) => { if (aKey === untaggedKey) return 1; if (bKey === untaggedKey) return -1; return aKey.localeCompare(bKey); });
-  }, [filteredAccounts, groupByTag, normalizeTag, tagFilter, untaggedKey]);
+  }, [filteredAccounts, groupByTag, normalizeTagGroup, tagFilter, untaggedKey]);
 
   const resolveGroupLabel = (groupKey: string) => groupKey === untaggedKey ? t('accounts.defaultGroup', '默认分组') : groupKey;
 

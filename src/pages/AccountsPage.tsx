@@ -316,6 +316,7 @@ export function AccountsPage({ onNavigate }: AccountsPageProps) {
     getAntigravityQuotaDisplayItems(account, displayGroups)
 
   const normalizeTag = (tag: string) => tag.trim().toLowerCase()
+  const normalizeTagGroup = (tag: string) => normalizeTag(tag).replace(/\d+$/, '')
 
   useEffect(() => {
     localStorage.setItem(ANTIGRAVITY_ACCOUNTS_SORT_BY_STORAGE_KEY, sortBy)
@@ -368,9 +369,9 @@ export function AccountsPage({ onNavigate }: AccountsPageProps) {
   const availableTags = useMemo(() => {
     const set = new Set<string>()
     accounts.forEach((account) => {
-      ; (account.tags || []).forEach((tag) => {
-        const normalized = normalizeTag(tag)
-        if (normalized) set.add(normalized)
+      ;(account.tags || []).forEach((tag) => {
+        const groupName = normalizeTagGroup(tag)
+        if (groupName) set.add(groupName)
       })
     })
     return Array.from(set).sort((a, b) => a.localeCompare(b))
@@ -395,10 +396,10 @@ export function AccountsPage({ onNavigate }: AccountsPageProps) {
 
     // 标签过滤
     if (tagFilter.length > 0) {
-      const selectedTags = new Set(tagFilter.map(normalizeTag))
+      const selectedGroups = new Set(tagFilter.map(normalizeTagGroup))
       result = result.filter((acc) => {
-        const tags = (acc.tags || []).map(normalizeTag)
-        return tags.some((tag) => selectedTags.has(tag))
+        const tagGroups = (acc.tags || []).map(normalizeTagGroup)
+        return tagGroups.some((g) => selectedGroups.has(g))
       })
     }
     result.sort(accountSortComparator)
@@ -414,24 +415,24 @@ export function AccountsPage({ onNavigate }: AccountsPageProps) {
   const groupedAccounts = useMemo(() => {
     if (!groupByTag) return [] as Array<[string, typeof filteredAccounts]>
     const groups = new Map<string, typeof filteredAccounts>()
-    const selectedTags = new Set(tagFilter.map(normalizeTag))
+    const selectedGroups = new Set(tagFilter.map(normalizeTagGroup))
 
     filteredAccounts.forEach((account) => {
-      const tags = (account.tags || []).map(normalizeTag).filter(Boolean)
-      const matchedTags =
-        selectedTags.size > 0
-          ? tags.filter((tag) => selectedTags.has(tag))
-          : tags
+      const tagGroups = (account.tags || []).map(normalizeTagGroup).filter(Boolean)
+      const matchedGroups =
+        selectedGroups.size > 0
+          ? tagGroups.filter((g) => selectedGroups.has(g))
+          : tagGroups
 
-      if (matchedTags.length === 0) {
+      if (matchedGroups.length === 0) {
         if (!groups.has(untaggedKey)) groups.set(untaggedKey, [])
         groups.get(untaggedKey)?.push(account)
         return
       }
 
-      matchedTags.forEach((tag) => {
-        if (!groups.has(tag)) groups.set(tag, [])
-        groups.get(tag)?.push(account)
+      matchedGroups.forEach((g) => {
+        if (!groups.has(g)) groups.set(g, [])
+        groups.get(g)?.push(account)
       })
     })
 
@@ -1152,32 +1153,32 @@ export function AccountsPage({ onNavigate }: AccountsPageProps) {
   };
 
   const requestDeleteTag = (tag: string) => {
-    const normalized = normalizeTag(tag)
-    if (!normalized) return
+    const groupName = normalizeTagGroup(tag)
+    if (!groupName) return
     const count = accounts.filter((account) =>
-      (account.tags || []).some((item) => normalizeTag(item) === normalized)
+      (account.tags || []).some((item) => normalizeTagGroup(item) === groupName)
     ).length
-    setTagDeleteConfirm({ tag: normalized, count })
+    setTagDeleteConfirm({ tag: groupName, count })
   }
 
   const confirmDeleteTag = async () => {
     if (!tagDeleteConfirm || deletingTag) return
     setDeletingTag(true)
-    const target = tagDeleteConfirm.tag
+    const target = tagDeleteConfirm.tag // 分组名（去数字版）
     const affected = accounts.filter((account) =>
-      (account.tags || []).some((item) => normalizeTag(item) === target)
+      (account.tags || []).some((item) => normalizeTagGroup(item) === target)
     )
 
     try {
       await Promise.allSettled(
         affected.map((account) => {
           const nextTags = (account.tags || []).filter(
-            (item) => normalizeTag(item) !== target
+            (item) => normalizeTagGroup(item) !== target
           )
           return accountService.updateAccountTags(account.id, nextTags)
         })
       )
-      setTagFilter((prev) => prev.filter((item) => normalizeTag(item) !== target))
+      setTagFilter((prev) => prev.filter((item) => item !== target))
       await fetchAccounts()
     } finally {
       setDeletingTag(false)

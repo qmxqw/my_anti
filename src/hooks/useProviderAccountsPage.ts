@@ -258,6 +258,7 @@ export interface UseProviderAccountsPageReturn {
   // Utilities
   formatDate: (timestamp: number) => string;
   normalizeTag: (tag: string) => string;
+  normalizeTagGroup: (tag: string) => string;
   resolveDefaultExportPath: (fileName: string) => Promise<string>;
   saveJsonFile: (json: string, defaultFileName: string) => Promise<string | null>;
 }
@@ -370,16 +371,22 @@ export function useProviderAccountsPage<TAccount extends ProviderAccountBase>(
 
   const normalizeTag = useCallback((tag: string) => tag.trim().toLowerCase(), []);
 
+  /** 去掉末尾连续数字以获得标签族名，如 xx1/xx2/x3 → xx */
+  const normalizeTagGroup = useCallback(
+    (tag: string) => normalizeTag(tag).replace(/\d+$/, ''),
+    [normalizeTag],
+  );
+
   const availableTags = useMemo(() => {
     const set = new Set<string>();
     accounts.forEach((account) => {
       (account.tags || []).forEach((tag) => {
-        const normalized = normalizeTag(tag);
-        if (normalized) set.add(normalized);
+        const groupName = normalizeTagGroup(tag);
+        if (groupName) set.add(groupName);
       });
     });
     return Array.from(set).sort((a, b) => a.localeCompare(b));
-  }, [accounts, normalizeTag]);
+  }, [accounts, normalizeTagGroup]);
 
   const toggleTagFilterValue = useCallback((tag: string) => {
     setTagFilter((prev) => {
@@ -394,34 +401,35 @@ export function useProviderAccountsPage<TAccount extends ProviderAccountBase>(
 
   const requestDeleteTag = useCallback(
     (tag: string) => {
-      const normalized = normalizeTag(tag);
-      if (!normalized) return;
+      // tag 已是分组名（去数字版），匹配所有属于该族的账号
+      const groupName = normalizeTagGroup(tag) || normalizeTag(tag);
+      if (!groupName) return;
       const count = accounts.filter((acc) =>
-        (acc.tags || []).some((t) => normalizeTag(t) === normalized),
+        (acc.tags || []).some((t) => normalizeTagGroup(t) === groupName),
       ).length;
-      setTagDeleteConfirm({ tag: normalized, count });
+      setTagDeleteConfirm({ tag: groupName, count });
     },
-    [accounts, normalizeTag],
+    [accounts, normalizeTag, normalizeTagGroup],
   );
 
   const confirmDeleteTag = useCallback(async () => {
     if (!tagDeleteConfirm || deletingTag) return;
     setDeletingTag(true);
-    const target = tagDeleteConfirm.tag;
+    const target = tagDeleteConfirm.tag; // 分组名（去数字版）
     try {
       const affectedAccounts = accounts.filter((acc) =>
-        (acc.tags || []).some((t) => normalizeTag(t) === target),
+        (acc.tags || []).some((t) => normalizeTagGroup(t) === target),
       );
       for (const acc of affectedAccounts) {
-        const newTags = (acc.tags || []).filter((t) => normalizeTag(t) !== target);
+        const newTags = (acc.tags || []).filter((t) => normalizeTagGroup(t) !== target);
         await updateAccountTags(acc.id, newTags);
       }
-      setTagFilter((prev) => prev.filter((t) => normalizeTag(t) !== target));
+      setTagFilter((prev) => prev.filter((t) => t !== target));
       setTagDeleteConfirm(null);
     } finally {
       setDeletingTag(false);
     }
-  }, [tagDeleteConfirm, deletingTag, accounts, normalizeTag, updateAccountTags]);
+  }, [tagDeleteConfirm, deletingTag, accounts, normalizeTagGroup, updateAccountTags]);
 
   const openTagModal = useCallback((accountId: string) => {
     setShowTagModal(accountId);
@@ -1164,6 +1172,7 @@ export function useProviderAccountsPage<TAccount extends ProviderAccountBase>(
     setCurrentAccountId,
     formatDate,
     normalizeTag,
+    normalizeTagGroup,
     resolveDefaultExportPath: exportModal.resolveDefaultExportPath,
     saveJsonFile: exportModal.saveJsonFile,
   };
