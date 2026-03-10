@@ -12,7 +12,6 @@ use crate::modules;
 
 const DEFAULT_PROMPT: &str = "hi";
 const RESET_TRIGGER_COOLDOWN_MS: i64 = 10 * 60 * 1000;
-const RESET_SAFETY_MARGIN_MS: i64 = 2 * 60 * 1000;
 
 #[derive(Debug, Clone, Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -44,6 +43,9 @@ pub struct ScheduleConfig {
     pub time_window_enabled: Option<bool>,
     pub time_window_start: Option<String>,
     pub time_window_end: Option<String>,
+    pub reset_threshold: Option<i32>,
+    pub check_interval_minutes: Option<i32>,
+    pub max_wake_count: Option<i32>,
 }
 
 #[derive(Debug, Clone)]
@@ -75,6 +77,9 @@ struct ScheduleConfigNormalized {
     time_window_enabled: bool,
     time_window_start: Option<String>,
     time_window_end: Option<String>,
+    reset_threshold: i32,
+    check_interval_minutes: i32,
+    max_wake_count: i32,
 }
 
 #[derive(Default, Debug, Clone)]
@@ -141,6 +146,9 @@ fn normalize_schedule(raw: ScheduleConfig) -> ScheduleConfigNormalized {
         time_window_enabled: raw.time_window_enabled.unwrap_or(false),
         time_window_start: raw.time_window_start,
         time_window_end: raw.time_window_end,
+        reset_threshold: raw.reset_threshold.unwrap_or(100).clamp(0, 100),
+        check_interval_minutes: raw.check_interval_minutes.unwrap_or(10).clamp(5, 60),
+        max_wake_count: raw.max_wake_count.unwrap_or(0).max(0),
     }
 }
 
@@ -170,7 +178,11 @@ pub fn ensure_started(app: AppHandle) {
     tauri::async_runtime::spawn(async move {
         loop {
             run_scheduler_once(&app).await;
-            sleep(Duration::from_secs(30)).await;
+            // 每分钟整点边界醒来，确保不漏掉任何 5/10/20/30/40/50/60 分钟的对齐点
+            let now = Local::now();
+            let cur_sec = now.second();
+            let wait_secs = 60u64.saturating_sub(cur_sec as u64).max(1);
+            sleep(Duration::from_secs(wait_secs)).await;
         }
     });
 }
@@ -369,6 +381,42 @@ fn parse_cron_field(field: &str, max: i32) -> Option<Vec<i32>> {
     Some(vec![value])
 }
 
+/// 与前端 matchModelName 保持一致的模型名称匹配逻辑：
+/// normalize（全小写、只保留 a-z0-9）后，精确相等 或 有前缀包含关系 视为匹配。
+/// 同时内置旧名称 → 新名称 的别名映射，与前端 MODEL_MATCH_REPLACEMENTS 对齐。
+fn normalize_model_name(value: &str) -> String {
+    value
+        .trim()
+        .to_lowercase()
+        .chars()
+        .filter(|c| c.is_ascii_alphanumeric())
+        .collect()
+}
+
+fn apply_model_alias(name: &str) -> &str {
+    match name {
+        "gemini-3-pro-high"             => "gemini-3.1-pro-high",
+        "gemini-3-pro-low"              => "gemini-3.1-pro-low",
+        "claude-sonnet-4-5"             => "claude-sonnet-4-6",
+        "claude-sonnet-4-5-thinking"    => "claude-sonnet-4-6",
+        "claude-opus-4-5-thinking"      => "claude-opus-4-6-thinking",
+        other                           => other,
+    }
+}
+
+fn model_name_matches(quota_model_name: &str, task_model_id: &str) -> bool {
+    let left  = normalize_model_name(apply_model_alias(quota_model_name));
+    let right = normalize_model_name(apply_model_alias(task_model_id));
+    if left.is_empty() || right.is_empty() {
+        return false;
+    }
+    left == right
+        || left.starts_with(&format!("{}.", right.replace('.', "")))
+            // 宽泛前缀：left 以 right 开头（或反之），用于 x.1 系列兼容
+        || left.starts_with(&right)
+        || right.starts_with(&left)
+}
+
 fn normalize_max_tokens(value: i32) -> u32 {
     if value > 0 {
         value as u32
@@ -382,48 +430,54 @@ fn should_trigger_on_reset(
     model_key: &str,
     reset_at: &str,
     remaining_percent: i32,
+    threshold: i32,
 ) -> bool {
-    if remaining_percent < 100 {
+    // ── 1. reset_time 必须是有效的时间戳 ──────────────────────────────────
+    let reset_ts = match DateTime::parse_from_rfc3339(reset_at).map(|dt| dt.timestamp_millis()) {
+        Ok(ts) => ts,
+        Err(_) => return false,
+    };
+
+    // ── 2. 重置时间必须已过期（即重置事件已真正发生）───────────────────────
+    let now = chrono::Utc::now().timestamp_millis();
+    if reset_ts > now {
+        // reset_time 还在未来，说明该帐号还没到重置时间，更新记录以便后续阈值判断
         state
             .last_reset_remaining
             .insert(model_key.to_string(), remaining_percent);
         return false;
     }
 
-    let now = chrono::Utc::now().timestamp_millis();
-    if let Some(last_reset_at) = state.last_reset_trigger_timestamps.get(model_key) {
-        if let Ok(last_reset_time) =
-            DateTime::parse_from_rfc3339(last_reset_at).map(|dt| dt.timestamp_millis())
-        {
-            let safe_time = last_reset_time + RESET_SAFETY_MARGIN_MS;
-            if now < safe_time {
-                state
-                    .last_reset_remaining
-                    .insert(model_key.to_string(), remaining_percent);
-                return false;
-            }
-        }
+    // ── 3. 同一个 reset_time 只触发一次 ─────────────────────────────────
+    if state.last_reset_trigger_timestamps.get(model_key) == Some(&reset_at.to_string()) {
+        return false;
     }
 
+    // ── 4. 冷却检查：10 分钟内不重复触发 ────────────────────────────────
     if let Some(last_trigger_at) = state.last_reset_trigger_at.get(model_key) {
         if now - *last_trigger_at < RESET_TRIGGER_COOLDOWN_MS {
-            state
-                .last_reset_remaining
-                .insert(model_key.to_string(), remaining_percent);
             return false;
         }
     }
 
-    if state.last_reset_trigger_timestamps.get(model_key) == Some(&reset_at.to_string()) {
+    // ── 5. 阈值检查：重置前的剩余额度需满足配置条件 ─────────────────────
+    //    prev_remaining 记录了上次该 reset_time 未过期时观测到的剩余额度
+    let prev_remaining = state.last_reset_remaining.get(model_key).copied();
+    let meets_threshold = match prev_remaining {
+        Some(prev) => prev <= threshold,
+        // 无历史记录（程序刚启动 / 首次遇到该帐号）：
+        // 无法知道重置前的剩余额度，直接触发一次。
+        // 这样才能保证"打开程序时已重置的帐号"能被立即唤醒。
+        None => true,
+    };
+    if !meets_threshold {
+        // 阈值不满足，标记此 reset_at 防止反复判断
         state
-            .last_reset_remaining
-            .insert(model_key.to_string(), remaining_percent);
+            .last_reset_trigger_timestamps
+            .insert(model_key.to_string(), reset_at.to_string());
         return false;
     }
 
-    state
-        .last_reset_remaining
-        .insert(model_key.to_string(), remaining_percent);
     true
 }
 
@@ -447,6 +501,7 @@ async fn run_scheduler_once(app: &AppHandle) {
     }
 
     let now = Local::now();
+    let total_minutes = now.hour() as i64 * 60 + now.minute() as i64;
 
     for task in snapshot.tasks.iter() {
         if !task.enabled {
@@ -457,7 +512,11 @@ async fn run_scheduler_once(app: &AppHandle) {
         }
 
         if task.schedule.wake_on_reset {
-            handle_quota_reset_task(app, task, now).await;
+            // 按各任务自身的 check_interval_minutes 对齐触发
+            let interval = task.schedule.check_interval_minutes as i64;
+            if interval > 0 && total_minutes % interval == 0 {
+                handle_quota_reset_task(app, task, now).await;
+            }
             continue;
         }
 
@@ -514,46 +573,207 @@ async fn handle_quota_reset_task(app: &AppHandle, task: &WakeupTask, now: DateTi
         return;
     }
 
-    let models_to_trigger = {
+    let trigger_map = {
         let mut state_guard = state().lock().expect("wakeup state lock");
         let reset_state = state_guard
             .reset_states
             .entry(task.id.clone())
             .or_insert_with(ResetState::default);
 
-        let mut models_to_trigger: HashSet<String> = HashSet::new();
+        let mut trigger_map: HashMap<String, HashSet<String>> = HashMap::new();
         for model_id in &task.schedule.selected_models {
             for account in &selected_accounts {
+                let model_key = format!("{}:{}", account.email, model_id);
                 let quota_models = account
                     .quota
                     .as_ref()
                     .map(|q| q.models.as_slice())
                     .unwrap_or(&[]);
-                if let Some(quota) = quota_models.iter().find(|item| item.name == *model_id) {
+                if let Some(quota) = quota_models.iter().find(|item| model_name_matches(&item.name, model_id)) {
                     if should_trigger_on_reset(
                         reset_state,
-                        model_id,
+                        &model_key,
                         &quota.reset_time,
                         quota.percentage,
+                        task.schedule.reset_threshold,
                     ) {
-                        models_to_trigger.insert(model_id.clone());
-                        mark_reset_triggered(reset_state, model_id, &quota.reset_time);
+                        trigger_map
+                            .entry(account.email.clone())
+                            .or_default()
+                            .insert(model_id.clone());
+                        mark_reset_triggered(reset_state, &model_key, &quota.reset_time);
                     }
                 }
             }
         }
-        models_to_trigger
+        trigger_map
     };
 
-    if !models_to_trigger.is_empty() {
-        run_task_with_models(
-            app,
-            task,
-            "quota_reset",
-            models_to_trigger.into_iter().collect(),
-        )
-        .await;
+    if trigger_map.is_empty() {
+        // 写入空结果历史，确保每次调度留痕
+        let noop_item = modules::wakeup_history::WakeupHistoryItem {
+            id: format!("{}-noop", chrono::Utc::now().timestamp_millis()),
+            timestamp: chrono::Utc::now().timestamp_millis(),
+            trigger_type: "auto".to_string(),
+            trigger_source: "quota_reset".to_string(),
+            task_name: Some(task.name.clone()),
+            account_email: String::new(),
+            model_id: String::new(),
+            prompt: None,
+            success: true,
+            message: Some("无符合条件帐号".to_string()),
+            duration: Some(0),
+        };
+        if let Err(e) = modules::wakeup_history::add_history_items(vec![noop_item.clone()]) {
+            modules::logger::log_error(&format!("写入空结果唤醒历史失败: {}", e));
+        }
+        let payload = WakeupTaskResultPayload {
+            task_id: task.id.clone(),
+            last_run_at: chrono::Utc::now().timestamp_millis(),
+            records: vec![noop_item],
+        };
+        let _ = app.emit("wakeup://task-result", payload);
+        return;
     }
+
+    // 按 max_wake_count 截断（0 = 不限）
+    let max_wake = task.schedule.max_wake_count;
+    let final_trigger_map = if max_wake > 0 {
+        // 确定性排序：按 email 字母序
+        let mut sorted_emails: Vec<String> = trigger_map.keys().cloned().collect();
+        sorted_emails.sort();
+        let mut limited_map: HashMap<String, HashSet<String>> = HashMap::new();
+        let mut count = 0i32;
+        for email in sorted_emails {
+            if count >= max_wake {
+                break;
+            }
+            if let Some(models) = trigger_map.get(&email) {
+                limited_map.insert(email, models.clone());
+                count += 1;
+            }
+        }
+        limited_map
+    } else {
+        trigger_map
+    };
+
+    if !final_trigger_map.is_empty() {
+        run_task_with_trigger_map(app, task, final_trigger_map).await;
+    }
+}
+
+async fn run_task_with_trigger_map(
+    app: &AppHandle,
+    task: &WakeupTask,
+    trigger_map: HashMap<String, HashSet<String>>,
+) {
+    if trigger_map.is_empty() {
+        return;
+    }
+
+    let accounts = match modules::list_accounts() {
+        Ok(list) => list,
+        Err(_) => return,
+    };
+
+    {
+        let mut guard = state().lock().expect("wakeup state lock");
+        guard.running_tasks.insert(task.id.clone());
+    }
+
+    let prompt = task
+        .schedule
+        .custom_prompt
+        .as_ref()
+        .and_then(|p| {
+            let trimmed = p.trim();
+            if trimmed.is_empty() {
+                None
+            } else if trimmed.contains('|') {
+                let candidates: Vec<&str> = trimmed
+                    .split('|')
+                    .map(|s| s.trim())
+                    .filter(|s| !s.is_empty())
+                    .collect();
+                if candidates.is_empty() {
+                    None
+                } else {
+                    let mut rng = rand::thread_rng();
+                    candidates.choose(&mut rng).map(|s| s.to_string())
+                }
+            } else {
+                Some(trimmed.to_string())
+            }
+        })
+        .unwrap_or_else(|| DEFAULT_PROMPT.to_string());
+    let max_tokens = normalize_max_tokens(task.schedule.max_output_tokens);
+
+    let mut history: Vec<modules::wakeup_history::WakeupHistoryItem> = Vec::new();
+    for (email, model_ids) in &trigger_map {
+        let account = match accounts
+            .iter()
+            .find(|acc| acc.email.eq_ignore_ascii_case(email))
+        {
+            Some(acc) => acc,
+            None => continue,
+        };
+        for model in model_ids {
+            let started = chrono::Utc::now();
+            let result =
+                modules::wakeup::trigger_wakeup(&account.id, model, &prompt, max_tokens).await;
+            let duration = chrono::Utc::now()
+                .signed_duration_since(started)
+                .num_milliseconds()
+                .max(0) as u64;
+            let (success, message) = match result {
+                Ok(resp) => (true, Some(resp.reply)),
+                Err(err) => (false, Some(err.to_string())),
+            };
+            history.push(modules::wakeup_history::WakeupHistoryItem {
+                id: format!(
+                    "{}-{}",
+                    chrono::Utc::now().timestamp_millis(),
+                    history.len()
+                ),
+                timestamp: chrono::Utc::now().timestamp_millis(),
+                trigger_type: "auto".to_string(),
+                trigger_source: "quota_reset".to_string(),
+                task_name: Some(task.name.clone()),
+                account_email: account.email.clone(),
+                model_id: model.clone(),
+                prompt: Some(prompt.clone()),
+                success,
+                message,
+                duration: Some(duration),
+            });
+        }
+    }
+
+    {
+        let mut guard = state().lock().expect("wakeup state lock");
+        guard.running_tasks.remove(&task.id);
+        let executed_at = chrono::Utc::now().timestamp_millis();
+        guard.tasks.iter_mut().for_each(|item| {
+            if item.id == task.id {
+                item.last_run_at = Some(executed_at);
+            }
+        });
+        // 记录本地执行时间，防止被前端同步覆盖导致重复执行
+        guard.last_executed_at.insert(task.id.clone(), executed_at);
+    }
+
+    // 写入历史文件
+    if let Err(e) = modules::wakeup_history::add_history_items(history.clone()) {
+        modules::logger::log_error(&format!("写入唤醒历史失败: {}", e));
+    }
+
+    let payload = WakeupTaskResultPayload {
+        task_id: task.id.clone(),
+        last_run_at: chrono::Utc::now().timestamp_millis(),
+        records: history,
+    };
+    let _ = app.emit("wakeup://task-result", payload);
 }
 
 async fn run_task(app: &AppHandle, task: &WakeupTask, trigger_source: &str) {

@@ -81,6 +81,9 @@ interface ScheduleConfig {
   timeWindowStart?: string;
   timeWindowEnd?: string;
   fallbackTimes?: string[];
+  resetThreshold?: number;
+  checkIntervalMinutes?: number;
+  maxWakeCount?: number;
 }
 
 interface WakeupTask {
@@ -167,6 +170,8 @@ const DEFAULT_SCHEDULE: ScheduleConfig = {
   selectedModels: ['gemini-3-flash'],
   selectedAccounts: [],
   maxOutputTokens: 0,
+  checkIntervalMinutes: 10,
+  maxWakeCount: 0,
 };
 
 const normalizeSchedule = (schedule: ScheduleConfig): ScheduleConfig => {
@@ -493,9 +498,12 @@ export function WakeupTasksPage({ onNavigate }: WakeupPageProps) {
   const [formTimeWindowStart, setFormTimeWindowStart] = useState('09:00');
   const [formTimeWindowEnd, setFormTimeWindowEnd] = useState('18:00');
   const [formFallbackTimes, setFormFallbackTimes] = useState<string[]>(['07:00']);
+  const [formResetThreshold, setFormResetThreshold] = useState(100);
   const [customDailyTime, setCustomDailyTime] = useState('');
   const [customWeeklyTime, setCustomWeeklyTime] = useState('');
   const [customFallbackTime, setCustomFallbackTime] = useState('');
+  const [formCheckIntervalMinutes, setFormCheckIntervalMinutes] = useState(10);
+  const [formMaxWakeCount, setFormMaxWakeCount] = useState(0);
   const [testSelectedModels, setTestSelectedModels] = useState<string[]>([]);
   const [testSelectedAccounts, setTestSelectedAccounts] = useState<string[]>([]);
   const [testCustomPrompt, setTestCustomPrompt] = useState('');
@@ -1039,6 +1047,9 @@ export function WakeupTasksPage({ onNavigate }: WakeupPageProps) {
     setFormTimeWindowStart('09:00');
     setFormTimeWindowEnd('18:00');
     setFormFallbackTimes(['07:00']);
+    setFormResetThreshold(100);
+    setFormCheckIntervalMinutes(10);
+    setFormMaxWakeCount(0);
     setCustomDailyTime('');
     setCustomWeeklyTime('');
     setCustomFallbackTime('');
@@ -1075,6 +1086,9 @@ export function WakeupTasksPage({ onNavigate }: WakeupPageProps) {
     setFormTimeWindowStart(schedule.timeWindowStart || '09:00');
     setFormTimeWindowEnd(schedule.timeWindowEnd || '18:00');
     setFormFallbackTimes(schedule.fallbackTimes?.length ? [...schedule.fallbackTimes] : ['07:00']);
+    setFormResetThreshold(schedule.resetThreshold ?? 100);
+    setFormCheckIntervalMinutes(schedule.checkIntervalMinutes ?? 10);
+    setFormMaxWakeCount(schedule.maxWakeCount ?? 0);
     setCustomDailyTime('');
     setCustomWeeklyTime('');
     setCustomFallbackTime('');
@@ -1298,6 +1312,9 @@ export function WakeupTasksPage({ onNavigate }: WakeupPageProps) {
       wakeOnReset: formTriggerMode === 'quota_reset',
       customPrompt: formCustomPrompt.trim() || undefined,
       maxOutputTokens: normalizeMaxOutputTokens(formMaxOutputTokens, 0),
+      resetThreshold: formTriggerMode === 'quota_reset' ? formResetThreshold : undefined,
+      checkIntervalMinutes: formTriggerMode === 'quota_reset' ? formCheckIntervalMinutes : undefined,
+      maxWakeCount: formTriggerMode === 'quota_reset' ? formMaxWakeCount : undefined,
       timeWindowEnabled: formTriggerMode === 'quota_reset' ? formTimeWindowEnabled : false,
       timeWindowStart:
         formTriggerMode === 'quota_reset' && formTimeWindowEnabled
@@ -2119,6 +2136,61 @@ export function WakeupTasksPage({ onNavigate }: WakeupPageProps) {
 
               {formTriggerMode === 'quota_reset' && (
                 <div className="wakeup-mode-panel">
+                  <div className="wakeup-form-group">
+                    <label>{t('wakeup.form.checkIntervalMinutes')}</label>
+                    <select
+                      className="wakeup-input"
+                      value={formCheckIntervalMinutes}
+                      onChange={(event) => setFormCheckIntervalMinutes(Number(event.target.value))}
+                    >
+                      {[5, 10, 20, 30, 40, 50, 60].map((value) => (
+                        <option key={value} value={value}>
+                          {value} {t('wakeup.form.checkIntervalMinutesUnit')}
+                        </option>
+                      ))}
+                    </select>
+                    <p className="wakeup-hint">
+                      {t('wakeup.form.checkIntervalMinutesHint')}
+                    </p>
+                  </div>
+
+                  <div className="wakeup-form-group">
+                    <label>{t('wakeup.form.maxWakeCount')}</label>
+                    <select
+                      className="wakeup-input"
+                      value={formMaxWakeCount}
+                      onChange={(event) => setFormMaxWakeCount(Number(event.target.value))}
+                    >
+                      <option value={0}>{t('wakeup.form.maxWakeCountUnlimited')}</option>
+                      {[1, 2, 3, 5, 10].map((value) => (
+                        <option key={value} value={value}>
+                          {value}
+                        </option>
+                      ))}
+                    </select>
+                    <p className="wakeup-hint">
+                      {t('wakeup.form.maxWakeCountHint')}
+                    </p>
+                  </div>
+
+                  <div className="wakeup-form-group">
+                    <label>{t('wakeup.form.resetThreshold')}</label>
+                    <select
+                      className="wakeup-input"
+                      value={formResetThreshold}
+                      onChange={(event) => setFormResetThreshold(Number(event.target.value))}
+                    >
+                      {[100, 80, 60, 40, 20, 0].map((value) => (
+                        <option key={value} value={value}>
+                          {value}%
+                        </option>
+                      ))}
+                    </select>
+                    <p className="wakeup-hint">
+                      {t('wakeup.form.resetThresholdHint')}
+                    </p>
+                  </div>
+
                   <div className="wakeup-form-group">
                     <div className="wakeup-form-row">
                       <label>{t('wakeup.form.timeWindowEnabled')}</label>
