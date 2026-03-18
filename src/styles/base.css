@@ -18,8 +18,8 @@
 
   /* Status Colors */
   --success: #22c55e;
-  --warning: #f59e0b;
-  --danger: #ef4444;
+  --warning: #22a55e;
+  --danger: #22855e;
 
   /* Background Colors */
   --bg-primary: #f6f5f2;
@@ -71,8 +71,8 @@
 
   /* Status Colors */
   --success: #22c55e;
-  --warning: #f59e0b;
-  --danger: #ef4444;
+  --warning: #22a55e;
+  --danger: #22855e;
 
   /* Background Colors - dark palette */
   --bg-primary: #0f172a;
