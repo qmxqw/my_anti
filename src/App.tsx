@@ -984,6 +984,11 @@ function App() {
             onClick: async () => {
               try {
                 await useAccountStore.getState().switchAccount(payload.target_account_id);
+                try {
+                  await invoke('broadcast_auto_switch');
+                } catch (e) {
+                  console.error('Failed to broadcast auto_switch event:', e);
+                }
                 closeModal();
               } catch (error) {
                 showModal({

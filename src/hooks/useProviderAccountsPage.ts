@@ -373,7 +373,11 @@ export function useProviderAccountsPage<TAccount extends ProviderAccountBase>(
 
   /** 去掉末尾连续数字以获得标签族名，如 xx1/xx2/x3 → xx */
   const normalizeTagGroup = useCallback(
-    (tag: string) => normalizeTag(tag).replace(/\d+$/, ''),
+    (tag: string) => {
+      const norm = normalizeTag(tag);
+      const replaced = norm.replace(/\d+$/, '');
+      return replaced === '' ? norm : replaced;
+    },
     [normalizeTag],
   );
 

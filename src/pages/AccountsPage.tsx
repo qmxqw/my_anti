@@ -334,7 +334,11 @@ export function AccountsPage({ onNavigate }: AccountsPageProps) {
     getAntigravityQuotaDisplayItems(account, displayGroups)
 
   const normalizeTag = (tag: string) => tag.trim().toLowerCase()
-  const normalizeTagGroup = (tag: string) => normalizeTag(tag).replace(/\d+$/, '')
+  const normalizeTagGroup = (tag: string) => {
+    const norm = normalizeTag(tag);
+    const replaced = norm.replace(/\d+$/, '');
+    return replaced === '' ? norm : replaced;
+  }
 
   useEffect(() => {
     localStorage.setItem(ANTIGRAVITY_ACCOUNTS_SORT_BY_STORAGE_KEY, sortBy)

@@ -358,3 +358,9 @@ pub async fn sync_current_from_client() -> Result<Option<String>, String> {
     modules::logger::log_info("[SyncClient] 本地客户端账号未在 Tools 中找到");
     Ok(None)
 }
+
+#[tauri::command]
+pub async fn broadcast_auto_switch() -> Result<(), String> {
+    modules::websocket::broadcast_data_changed("auto_switch");
+    Ok(())
+}

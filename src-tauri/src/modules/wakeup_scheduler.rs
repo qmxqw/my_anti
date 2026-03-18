@@ -393,20 +393,22 @@ fn normalize_model_name(value: &str) -> String {
         .collect()
 }
 
-fn apply_model_alias(name: &str) -> &str {
-    match name {
+fn apply_model_alias(name: &str) -> String {
+    let lower_name = name.trim().to_lowercase();
+    let aliased = match lower_name.as_str() {
         "gemini-3-pro-high"             => "gemini-3.1-pro-high",
         "gemini-3-pro-low"              => "gemini-3.1-pro-low",
         "claude-sonnet-4-5"             => "claude-sonnet-4-6",
         "claude-sonnet-4-5-thinking"    => "claude-sonnet-4-6",
         "claude-opus-4-5-thinking"      => "claude-opus-4-6-thinking",
-        other                           => other,
-    }
+        _                               => lower_name.as_str(),
+    };
+    aliased.to_string()
 }
 
 fn model_name_matches(quota_model_name: &str, task_model_id: &str) -> bool {
-    let left  = normalize_model_name(apply_model_alias(quota_model_name));
-    let right = normalize_model_name(apply_model_alias(task_model_id));
+    let left  = normalize_model_name(&apply_model_alias(quota_model_name));
+    let right = normalize_model_name(&apply_model_alias(task_model_id));
     if left.is_empty() || right.is_empty() {
         return false;
     }
@@ -415,6 +417,31 @@ fn model_name_matches(quota_model_name: &str, task_model_id: &str) -> bool {
             // 宽泛前缀：left 以 right 开头（或反之），用于 x.1 系列兼容
         || left.starts_with(&right)
         || right.starts_with(&left)
+}
+
+fn resolve_custom_prompt(custom_prompt: Option<&String>) -> String {
+    custom_prompt
+        .and_then(|p| {
+            let trimmed = p.trim();
+            if trimmed.is_empty() {
+                None
+            } else if trimmed.contains('|') {
+                let candidates: Vec<&str> = trimmed
+                    .split('|')
+                    .map(|s| s.trim())
+                    .filter(|s| !s.is_empty())
+                    .collect();
+                if candidates.is_empty() {
+                    None
+                } else {
+                    let mut rng = rand::thread_rng();
+                    candidates.choose(&mut rng).map(|s| s.to_string())
+                }
+            } else {
+                Some(trimmed.to_string())
+            }
+        })
+        .unwrap_or_else(|| DEFAULT_PROMPT.to_string())
 }
 
 fn normalize_max_tokens(value: i32) -> u32 {
@@ -682,31 +709,6 @@ async fn run_task_with_trigger_map(
         guard.running_tasks.insert(task.id.clone());
     }
 
-    let prompt = task
-        .schedule
-        .custom_prompt
-        .as_ref()
-        .and_then(|p| {
-            let trimmed = p.trim();
-            if trimmed.is_empty() {
-                None
-            } else if trimmed.contains('|') {
-                let candidates: Vec<&str> = trimmed
-                    .split('|')
-                    .map(|s| s.trim())
-                    .filter(|s| !s.is_empty())
-                    .collect();
-                if candidates.is_empty() {
-                    None
-                } else {
-                    let mut rng = rand::thread_rng();
-                    candidates.choose(&mut rng).map(|s| s.to_string())
-                }
-            } else {
-                Some(trimmed.to_string())
-            }
-        })
-        .unwrap_or_else(|| DEFAULT_PROMPT.to_string());
     let max_tokens = normalize_max_tokens(task.schedule.max_output_tokens);
 
     let mut history: Vec<modules::wakeup_history::WakeupHistoryItem> = Vec::new();
@@ -719,6 +721,7 @@ async fn run_task_with_trigger_map(
             None => continue,
         };
         for model in model_ids {
+            let prompt = resolve_custom_prompt(task.schedule.custom_prompt.as_ref());
             let started = chrono::Utc::now();
             let result =
                 modules::wakeup::trigger_wakeup(&account.id, model, &prompt, max_tokens).await;
@@ -833,36 +836,12 @@ async fn run_task_with_models(
         guard.running_tasks.insert(task.id.clone());
     }
 
-    let prompt = task
-        .schedule
-        .custom_prompt
-        .as_ref()
-        .and_then(|p| {
-            let trimmed = p.trim();
-            if trimmed.is_empty() {
-                None
-            } else if trimmed.contains('|') {
-                let candidates: Vec<&str> = trimmed
-                    .split('|')
-                    .map(|s| s.trim())
-                    .filter(|s| !s.is_empty())
-                    .collect();
-                if candidates.is_empty() {
-                    None
-                } else {
-                    let mut rng = rand::thread_rng();
-                    candidates.choose(&mut rng).map(|s| s.to_string())
-                }
-            } else {
-                Some(trimmed.to_string())
-            }
-        })
-        .unwrap_or_else(|| DEFAULT_PROMPT.to_string());
     let max_tokens = normalize_max_tokens(task.schedule.max_output_tokens);
 
     let mut history: Vec<modules::wakeup_history::WakeupHistoryItem> = Vec::new();
     for account in &selected_accounts {
         for model in &models {
+            let prompt = resolve_custom_prompt(task.schedule.custom_prompt.as_ref());
             let started = chrono::Utc::now();
             let result =
                 modules::wakeup::trigger_wakeup(&account.id, model, &prompt, max_tokens).await;
