@@ -143,6 +143,9 @@ pub struct UserConfig {
     /// 批量刷新时是否跳过已重置（配额已满）的账号
     #[serde(default = "default_batch_refresh_skip_reset")]
     pub batch_refresh_skip_reset: bool,
+    /// 隐藏长时重置帐号阈值（小时），开启隐私模式时生效，设为 0 表示不隐藏
+    #[serde(default = "default_hide_account_above_reset_hours")]
+    pub hide_account_above_reset_hours: i32,
 }
 
 /// 窗口关闭行为
@@ -284,6 +287,9 @@ fn default_auto_refresh_mode() -> String {
 fn default_batch_refresh_skip_reset() -> bool {
     false
 }
+fn default_hide_account_above_reset_hours() -> i32 {
+    6
+}
 
 impl Default for UserConfig {
     fn default() -> Self {
@@ -323,6 +329,7 @@ impl Default for UserConfig {
             kiro_quota_alert_threshold: default_kiro_quota_alert_threshold(),
             auto_refresh_mode: default_auto_refresh_mode(),
             batch_refresh_skip_reset: default_batch_refresh_skip_reset(),
+            hide_account_above_reset_hours: default_hide_account_above_reset_hours(),
         }
     }
 }
@@ -469,6 +476,13 @@ pub fn load_user_config() -> Result<UserConfig, String> {
             obj.insert(
                 "kiro_quota_alert_threshold".to_string(),
                 json!(legacy_threshold),
+            );
+        }
+
+        if !obj.contains_key("hide_account_above_reset_hours") {
+            obj.insert(
+                "hide_account_above_reset_hours".to_string(),
+                json!(default_hide_account_above_reset_hours()),
             );
         }
     }

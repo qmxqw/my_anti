@@ -792,6 +792,7 @@ fn handle_set_language(language: &str, source: Option<&str>) -> Result<String, S
         kiro_quota_alert_threshold: current.kiro_quota_alert_threshold,
         auto_refresh_mode: current.auto_refresh_mode,
         batch_refresh_skip_reset: current.batch_refresh_skip_reset,
+        hide_account_above_reset_hours: current.hide_account_above_reset_hours,
     };
 
     config::save_user_config(&new_config)?;

@@ -89,6 +89,8 @@ pub struct GeneralConfig {
     pub auto_refresh_mode: String,
     /// 批量刷新时是否跳过已重置（配额已满）的账号
     pub batch_refresh_skip_reset: bool,
+    /// 隐藏长时重置帐号阈值（小时），开启隐私模式时生效
+    pub hide_account_above_reset_hours: i32,
 }
 
 #[tauri::command]
@@ -197,6 +199,7 @@ pub fn save_network_config(ws_enabled: bool, ws_port: u16) -> Result<bool, Strin
         kiro_quota_alert_threshold: current.kiro_quota_alert_threshold,
         auto_refresh_mode: current.auto_refresh_mode,
         batch_refresh_skip_reset: current.batch_refresh_skip_reset,
+        hide_account_above_reset_hours: current.hide_account_above_reset_hours,
     };
 
     config::save_user_config(&new_config)?;
@@ -253,6 +256,7 @@ pub fn get_general_config() -> Result<GeneralConfig, String> {
         kiro_quota_alert_threshold: user_config.kiro_quota_alert_threshold,
         auto_refresh_mode: user_config.auto_refresh_mode,
         batch_refresh_skip_reset: user_config.batch_refresh_skip_reset,
+        hide_account_above_reset_hours: user_config.hide_account_above_reset_hours,
     })
 }
 
@@ -293,6 +297,7 @@ pub fn save_general_config(
     kiro_quota_alert_threshold: Option<i32>,
     auto_refresh_mode: Option<String>,
     batch_refresh_skip_reset: Option<bool>,
+    hide_account_above_reset_hours: Option<i32>,
 ) -> Result<(), String> {
     let current = config::get_user_config();
     let normalized_opencode_path = opencode_app_path.trim().to_string();
@@ -373,6 +378,8 @@ pub fn save_general_config(
             .unwrap_or(current.kiro_quota_alert_threshold),
         auto_refresh_mode: auto_refresh_mode.unwrap_or(current.auto_refresh_mode),
         batch_refresh_skip_reset: batch_refresh_skip_reset.unwrap_or(current.batch_refresh_skip_reset),
+        hide_account_above_reset_hours: hide_account_above_reset_hours
+            .unwrap_or(current.hide_account_above_reset_hours),
     };
 
     config::save_user_config(&new_config)?;

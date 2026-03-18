@@ -45,6 +45,7 @@ import {
   getSubscriptionTier,
 } from '../utils/account'
 import { listen, UnlistenFn } from '@tauri-apps/api/event'
+import { invoke } from '@tauri-apps/api/core'
 import { GroupSettingsModal } from '../components/GroupSettingsModal'
 import { TagEditModal } from '../components/TagEditModal'
 import { ExportJsonModal } from '../components/ExportJsonModal'
@@ -141,6 +142,23 @@ export function AccountsPage({ onNavigate }: AccountsPageProps) {
   const [privacyModeEnabled, setPrivacyModeEnabled] = useState<boolean>(() =>
     isPrivacyModeEnabledByDefault()
   )
+
+  const [hideAccountAboveResetHours, setHideAccountAboveResetHours] = useState<number>(6)
+
+  useEffect(() => {
+    const fetchConfig = () => {
+      invoke<{ hide_account_above_reset_hours?: number }>('get_general_config')
+        .then((cfg) => {
+          setHideAccountAboveResetHours(cfg.hide_account_above_reset_hours ?? 6)
+        })
+        .catch(console.error)
+    }
+
+    fetchConfig()
+
+    window.addEventListener('config-updated', fetchConfig)
+    return () => window.removeEventListener('config-updated', fetchConfig)
+  }, [])
 
   // Persist view mode changes
   const handleViewModeChange = (mode: ViewMode) => {
@@ -402,6 +420,28 @@ export function AccountsPage({ onNavigate }: AccountsPageProps) {
         return tagGroups.some((g) => selectedGroups.has(g))
       })
     }
+
+    // 隐私模式下长重置时间过滤（仅检查 Claude 开头的模型）
+    if (privacyModeEnabled && hideAccountAboveResetHours > 0) {
+      const nowMs = Date.now()
+      result = result.filter((acc) => {
+        if (!acc.quota?.models) return true // 无模型数据时不隐藏
+        for (const model of acc.quota.models) {
+          const modelName = (model.name || '').toLowerCase()
+          if (!modelName.startsWith('claude')) continue // 只检查 Claude 模型
+          if (model.reset_time) {
+            const resetTimeMs = new Date(model.reset_time).getTime()
+            if (!Number.isNaN(resetTimeMs) && resetTimeMs > nowMs) {
+              const diffHours = (resetTimeMs - nowMs) / (1000 * 60 * 60)
+              if (diffHours > hideAccountAboveResetHours) {
+                return false // Claude 模型剩余时长超限则隐藏该账号
+              }
+            }
+          }
+        }
+        return true
+      })
+    }
     result.sort(accountSortComparator)
     return result
   }, [
@@ -409,6 +449,8 @@ export function AccountsPage({ onNavigate }: AccountsPageProps) {
     searchQuery,
     filterType,
     tagFilter,
+    privacyModeEnabled,
+    hideAccountAboveResetHours,
     accountSortComparator,
   ])
 
