@@ -27,7 +27,6 @@ interface GeneralConfig {
 }
 
 export function useAutoRefresh() {
-  const refreshAllQuotas = useAccountStore((state) => state.refreshAllQuotas);
   const syncCurrentFromClient = useAccountStore((state) => state.syncCurrentFromClient);
   const fetchAccounts = useAccountStore((state) => state.fetchAccounts);
   const fetchCurrentAccount = useAccountStore((state) => state.fetchCurrentAccount);
@@ -145,7 +144,7 @@ export function useAutoRefresh() {
                     windsurfAppPath: config.windsurf_app_path ?? '',
                     opencodeSyncOnSwitch: config.opencode_sync_on_switch ?? true,
                     codexLaunchOnSwitch: config.codex_launch_on_switch ?? true,
-                    autoRefreshMode: config.auto_refresh_mode,
+                    autoRefreshMode: 'all',
                   });
                   config.auto_refresh_minutes = 2;
                 }
@@ -162,7 +161,7 @@ export function useAutoRefresh() {
           clearAllIntervals();
 
           if (config.auto_refresh_minutes > 0) {
-            console.log(`[AutoRefresh] Antigravity 已启用: 每 ${config.auto_refresh_minutes} 分钟`);
+            console.log(`[AutoRefresh] Antigravity 已启用: 每 ${config.auto_refresh_minutes} 分钟（仅刷新本地倒计时）`);
             const agMs = config.auto_refresh_minutes * 60 * 1000;
 
             agIntervalRef.current = window.setInterval(async () => {
@@ -172,15 +171,8 @@ export function useAutoRefresh() {
               agRefreshingRef.current = true;
 
               try {
-                console.log(`[AutoRefresh] 触发定时配额刷新 (模式: ${config.auto_refresh_mode === 'current' ? '仅当前账号' : '全部账号'})...`);
-                await syncCurrentFromClient();
-                if (config.auto_refresh_mode === 'current') {
-                  await invoke('refresh_current_quota');
-                  await fetchAccounts();
-                  await fetchCurrentAccount();
-                } else {
-                  await refreshAllQuotas();
-                }
+                console.log('[AutoRefresh] 触发定时倒计时刷新（不向服务器发送请求）...');
+                await fetchAccounts();
               } catch (e) {
                 console.error('[AutoRefresh] 刷新失败:', e);
               } finally {
@@ -328,7 +320,6 @@ export function useAutoRefresh() {
     refreshAllCodexQuotas,
     refreshAllGhcpTokens,
     refreshAllKiroTokens,
-    refreshAllQuotas,
     refreshAllWindsurfTokens,
     syncCurrentFromClient,
   ]);
