@@ -6,7 +6,6 @@
   display: flex;
   flex-direction: column;
   gap: 20px;
-  animation: fadeUp 0.5s ease;
 }
 
 /* 使用通用的 page-header 样式，不再覆盖 */
@@ -650,7 +649,6 @@
   padding: 12px 16px;
   border-radius: var(--radius-md);
   font-size: 14px;
-  animation: fadeUp 0.3s ease;
 }
 
 .ghcp-accounts-page .message-bar.success {
@@ -1319,7 +1317,6 @@
   padding: 12px;
   border-radius: var(--radius-md);
   font-size: 14px;
-  animation: fadeUp 0.3s ease;
 }
 
 .ghcp-add-modal .add-status.loading {
@@ -1432,7 +1429,6 @@
   border-radius: var(--radius-lg);
   text-align: center;
   gap: 20px;
-  animation: fadeUp 0.3s ease;
 }
 
 .ghcp-instances-content .empty-state .empty-icon {

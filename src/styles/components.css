@@ -174,7 +174,6 @@
   justify-content: space-between;
   gap: 16px;
   flex-wrap: wrap;
-  animation: fadeUp 0.5s ease both;
 }
 
 .page-heading h1 {
@@ -270,7 +269,6 @@
   border: 1px solid var(--border);
   box-shadow: var(--shadow-sm);
   backdrop-filter: blur(10px);
-  animation: fadeUp 0.55s ease both;
   position: relative;
   z-index: 5;
 }
