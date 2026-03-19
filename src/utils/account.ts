@@ -68,7 +68,29 @@ export function getQuotaClass(percentage: number): string {
 
 type Translate = (key: string, options?: Record<string, unknown>) => string;
 
-export function formatResetTime(resetTime: string, t: Translate): string {
+const SUSPICIOUS_RESET_MIN_MINUTES = 299;
+const SUSPICIOUS_RESET_MAX_MINUTES = 300;
+const FILTER_SUSPICIOUS_LS_KEY = 'agtools.ag.filterSuspiciousResetTime';
+
+export function getFilterSuspiciousResetTime(): boolean {
+  try {
+    const raw = localStorage.getItem(FILTER_SUSPICIOUS_LS_KEY);
+    if (raw === null) return true; // default on
+    return raw === 'true';
+  } catch {
+    return true;
+  }
+}
+
+export function setFilterSuspiciousResetTime(value: boolean): void {
+  try {
+    localStorage.setItem(FILTER_SUSPICIOUS_LS_KEY, String(value));
+  } catch {
+    // ignore
+  }
+}
+
+export function formatResetTime(resetTime: string, t: Translate, filterSuspicious?: boolean): string {
   if (!resetTime) return '';
   try {
     const reset = new Date(resetTime);
@@ -77,17 +99,23 @@ export function formatResetTime(resetTime: string, t: Translate): string {
     const diffMs = reset.getTime() - now.getTime();
     if (diffMs <= 0) return t('common.shared.quota.resetDone');
 
-    const totalMinutes = Math.floor(diffMs / (1000 * 60));
-    const days = Math.floor(totalMinutes / (60 * 24));
-    const hours = Math.floor((totalMinutes % (60 * 24)) / 60);
-    const minutes = totalMinutes % 60;
+    const totalMinutes = diffMs / (1000 * 60);
+
+    // 过滤可信度检测：恰好接近整个配额窗口（299~300 分钟）时视为不可信
+    if (filterSuspicious && totalMinutes >= SUSPICIOUS_RESET_MIN_MINUTES && totalMinutes <= SUSPICIOUS_RESET_MAX_MINUTES) {
+      return t('common.shared.quota.resetDone');
+    }
+
+    const totalMinutesInt = Math.floor(totalMinutes);
+    const days = Math.floor(totalMinutesInt / (60 * 24));
+    const hours = Math.floor((totalMinutesInt % (60 * 24)) / 60);
+    const minutes = totalMinutesInt % 60;
 
     let parts = [];
     if (days > 0) parts.push(`${days}d`);
     if (hours > 0) parts.push(`${hours}h`);
     if (minutes > 0) parts.push(`${minutes}m`);
     
-    // If less than 1 minute but positive, show 1m or <1m. Let's use 1m for simplicity or <1m
     if (parts.length === 0) return '<1m';
     
     return parts.join(' ');
@@ -108,9 +136,9 @@ export function formatResetTimeAbsolute(resetTime: string): string {
   return `${month}/${day} ${hours}:${minutes}`;
 }
 
-export function formatResetTimeDisplay(resetTime: string, t: Translate): string {
+export function formatResetTimeDisplay(resetTime: string, t: Translate, filterSuspicious?: boolean): string {
   const resetDone = t('common.shared.quota.resetDone');
-  const relative = formatResetTime(resetTime, t);
+  const relative = formatResetTime(resetTime, t, filterSuspicious);
   const absolute = formatResetTimeAbsolute(resetTime);
   if (!relative && !absolute) return '';
   if (relative === resetDone) return relative;

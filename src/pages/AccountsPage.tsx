@@ -43,6 +43,7 @@ import {
   getQuotaClass,
   formatResetTimeDisplay,
   getSubscriptionTier,
+  getFilterSuspiciousResetTime,
 } from '../utils/account'
 import { listen, UnlistenFn } from '@tauri-apps/api/event'
 import { invoke } from '@tauri-apps/api/core'
@@ -1472,7 +1473,8 @@ export function AccountsPage({ onNavigate }: AccountsPageProps) {
             ) : (
               <>
                 {quotaDisplayItems.map((item) => {
-                  const resetLabel = formatResetTimeDisplay(item.resetTime, t)
+                  const filterSuspicious = getFilterSuspiciousResetTime()
+                  const resetLabel = formatResetTimeDisplay(item.resetTime, t, filterSuspicious)
                   return (
                     <div key={item.key} className="quota-compact-item">
                       <div className="quota-compact-header">
@@ -2006,7 +2008,7 @@ export function AccountsPage({ onNavigate }: AccountsPageProps) {
                       </div>
                       <div className="quota-footer">
                         <span className="quota-reset">
-                          {formatResetTimeDisplay(item.resetTime, t)}
+                          {formatResetTimeDisplay(item.resetTime, t, getFilterSuspiciousResetTime())}
                         </span>
                       </div>
                     </div>
@@ -2931,7 +2933,7 @@ export function AccountsPage({ onNavigate }: AccountsPageProps) {
                             <div className="quota-reset-info">
                               <p>
                                 <strong>{t('modals.quota.resetTime')}:</strong>{' '}
-                                {formatResetTimeDisplay(item.resetTime, t)}
+                                {formatResetTimeDisplay(item.resetTime, t, getFilterSuspiciousResetTime())}
                               </p>
                             </div>
                           </div>

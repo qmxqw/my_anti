@@ -6,6 +6,7 @@ import { invoke } from '@tauri-apps/api/core';
 import { getVersion } from '@tauri-apps/api/app';
 import { changeLanguage, getCurrentLanguage, normalizeLanguage } from '../i18n';
 import * as accountService from '../services/accountService';
+import { getFilterSuspiciousResetTime, setFilterSuspiciousResetTime } from '../utils/account';
 import { usePlatformRuntimeSupport } from '../hooks/usePlatformRuntimeSupport';
 import { usePlatformLayoutStore } from '../stores/usePlatformLayoutStore';
 import { ALL_PLATFORM_IDS, PlatformId } from '../types/platform';
@@ -136,6 +137,7 @@ export function SettingsPage() {
   const [autoRefreshMode, setAutoRefreshMode] = useState('all');
   const [batchRefreshSkipReset, setBatchRefreshSkipReset] = useState(false);
   const [hideAccountAboveResetHours, setHideAccountAboveResetHours] = useState('6');
+  const [filterSuspiciousResetTime, setFilterSuspiciousResetTimeState] = useState(() => getFilterSuspiciousResetTime());
   const [autoRefreshCustomMode, setAutoRefreshCustomMode] = useState(false);
   const [codexAutoRefreshCustomMode, setCodexAutoRefreshCustomMode] = useState(false);
   const [ghcpAutoRefreshCustomMode, setGhcpAutoRefreshCustomMode] = useState(false);
@@ -1024,6 +1026,26 @@ export function SettingsPage() {
                             <span>{t('settings.general.refreshIntervalLimited')}</span>
                           </div>
                         )}
+                      </div>
+                    </div>
+
+                    <div className="settings-row">
+                      <div className="row-label">
+                        <div className="row-title">{t('settings.general.filterSuspiciousResetTime', '过滤可疑重置时间')}</div>
+                        <div className="row-desc">{t('settings.general.filterSuspiciousResetTimeDesc', '当服务端返回的重置时间恰好接近一个完整配额窗口（约5小时），视为不可信并显示"已重置"，避免倒计时误导')}</div>
+                      </div>
+                      <div className="row-control">
+                        <label className="settings-toggle">
+                          <input
+                            type="checkbox"
+                            checked={filterSuspiciousResetTime}
+                            onChange={(e) => {
+                              setFilterSuspiciousResetTimeState(e.target.checked);
+                              setFilterSuspiciousResetTime(e.target.checked);
+                            }}
+                          />
+                          <span className="toggle-slider" />
+                        </label>
                       </div>
                     </div>
 

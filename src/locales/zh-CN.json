@@ -375,6 +375,8 @@
       "autoRefreshModeCurrent": "仅当前账号",
       "batchRefreshSkipReset": "批量刷新跳过已重置账号",
       "batchRefreshSkipResetDesc": "批量刷新时跳过配额已满的账号，防止刷新后获得新额度造成浪费",
+      "filterSuspiciousResetTime": "过滤可疑重置时间",
+      "filterSuspiciousResetTimeDesc": "当服务端返回的重置时间距此刻恰好接近一个完整配额窗口（约5小时），视为不可信并显示\"已重置\"，避免倒计时误导",
       "refreshIntervalLimited": "配额重置唤醒已启用，刷新间隔最小值为 2 分钟",
       "closeBehavior": "窗口关闭行为",
       "closeBehaviorDesc": "选择关闭窗口时的默认行为",
