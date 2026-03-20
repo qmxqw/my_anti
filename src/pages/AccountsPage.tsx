@@ -892,6 +892,20 @@ export function AccountsPage({ onNavigate }: AccountsPageProps) {
     }
   }
 
+  const handleSetAccountDisabled = async (accountId: string, disabled: boolean) => {
+    try {
+      await accountService.setAccountsDisabled([accountId], disabled)
+      await fetchAccounts()
+      setMessage({
+        text: disabled
+          ? t('accounts.actions.disabledSuccess', { count: 1, defaultValue: '已禁用帐号' })
+          : t('accounts.actions.enabledSuccess', { count: 1, defaultValue: '已启用帐号' })
+      })
+    } catch (e) {
+      setMessage({ text: String(e), tone: 'error' })
+    }
+  }
+
   const confirmDelete = async () => {
     if (!deleteConfirm || deleting) return
     setDeleting(true)
@@ -1558,14 +1572,14 @@ export function AccountsPage({ onNavigate }: AccountsPageProps) {
             <div className="card-actions">
               <button
                 className="card-action-btn"
-                onClick={(e) => { e.stopPropagation(); handleBatchSetDisabled(true) }}
+                onClick={(e) => { e.stopPropagation(); handleSetAccountDisabled(account.id, true) }}
                 title={t('accounts.actions.disableSelected', { count: 1, defaultValue: '禁用' })}
               >
                 <Ban size={14} />
               </button>
               <button
                 className="card-action-btn"
-                onClick={(e) => { e.stopPropagation(); handleBatchSetDisabled(false) }}
+                onClick={(e) => { e.stopPropagation(); handleSetAccountDisabled(account.id, false) }}
                 title={t('accounts.actions.enableSelected', { count: 1, defaultValue: '启用' })}
               >
                 <CircleCheck size={14} />
