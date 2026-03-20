@@ -180,6 +180,17 @@ export function AccountsPage({ onNavigate }: AccountsPageProps) {
     [privacyModeEnabled]
   )
 
+  // 只显示 @ 之前的用户名部分（隐私模式下不截断，直接走 maskSensitiveValue）
+  const displayEmail = useCallback(
+    (email?: string | null) => {
+      const masked = maskSensitiveValue(email, privacyModeEnabled)
+      if (privacyModeEnabled || !masked) return masked
+      const atIdx = masked.indexOf('@')
+      return atIdx > 0 ? masked.slice(0, atIdx) : masked
+    },
+    [privacyModeEnabled]
+  )
+
   // 筛选
   const [searchQuery, setSearchQuery] = useState('')
   const [filterType, setFilterType] = useState<FilterType>('all')
@@ -1428,7 +1439,7 @@ export function AccountsPage({ onNavigate }: AccountsPageProps) {
               />
             </div>
             <span className="account-email" title={maskAccountText(account.email)}>
-              {maskAccountText(account.email)}
+              {displayEmail(account.email)}
             </span>
             {isCurrent && (
               <span className="current-tag">
@@ -1762,7 +1773,7 @@ export function AccountsPage({ onNavigate }: AccountsPageProps) {
                 </span>
               )}
               <span className={styles.emailText}>
-                {maskAccountText(account.email)}
+                {displayEmail(account.email)}
               </span>
             </span>
             <div className={styles.quotas}>
@@ -1976,7 +1987,7 @@ export function AccountsPage({ onNavigate }: AccountsPageProps) {
             <div className="account-cell">
               <div className="account-main-line">
                 <span className="account-email-text" title={maskAccountText(account.email)}>
-                  {maskAccountText(account.email)}
+                  {displayEmail(account.email)}
                 </span>
                 {isCurrent && (
                   <span className="mini-tag current">
