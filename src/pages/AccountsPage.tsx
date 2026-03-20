@@ -426,27 +426,6 @@ export function AccountsPage({ onNavigate }: AccountsPageProps) {
       })
     }
 
-    // 隐私模式下长重置时间过滤（仅检查 Claude 开头的模型）
-    if (privacyModeEnabled && hideAccountAboveResetHours > 0) {
-      const nowMs = Date.now()
-      result = result.filter((acc) => {
-        if (!acc.quota?.models) return true // 无模型数据时不隐藏
-        for (const model of acc.quota.models) {
-          const modelName = (model.name || '').toLowerCase()
-          if (!modelName.startsWith('claude')) continue // 只检查 Claude 模型
-          if (model.reset_time) {
-            const resetTimeMs = new Date(model.reset_time).getTime()
-            if (!Number.isNaN(resetTimeMs) && resetTimeMs > nowMs) {
-              const diffHours = (resetTimeMs - nowMs) / (1000 * 60 * 60)
-              if (diffHours > hideAccountAboveResetHours) {
-                return false // Claude 模型剩余时长超限则隐藏该账号
-              }
-            }
-          }
-        }
-        return true
-      })
-    }
     result.sort(accountSortComparator)
     return result
   }, [
@@ -454,10 +433,36 @@ export function AccountsPage({ onNavigate }: AccountsPageProps) {
     searchQuery,
     filterType,
     tagFilter,
-    privacyModeEnabled,
-    hideAccountAboveResetHours,
     accountSortComparator,
   ])
+
+  // 隐私模式下超限帐号列表（重置时长 > 指定时间的 Claude 模型帐号）
+  const privacyOverLimitAccounts = useMemo(() => {
+    if (!privacyModeEnabled || hideAccountAboveResetHours <= 0) return []
+    const nowMs = Date.now()
+    return filteredAccounts.filter((acc) => {
+      if (!acc.quota?.models) return false
+      for (const model of acc.quota.models) {
+        const modelName = (model.name || '').toLowerCase()
+        if (!modelName.startsWith('claude')) continue
+        if (model.reset_time) {
+          const resetTimeMs = new Date(model.reset_time).getTime()
+          if (!Number.isNaN(resetTimeMs) && resetTimeMs > nowMs) {
+            const diffHours = (resetTimeMs - nowMs) / (1000 * 60 * 60)
+            if (diffHours > hideAccountAboveResetHours) return true
+          }
+        }
+      }
+      return false
+    })
+  }, [filteredAccounts, privacyModeEnabled, hideAccountAboveResetHours])
+
+  // 隐私模式下正常帐号列表（不在超限列表中的帐号）
+  const privacyNormalAccounts = useMemo(() => {
+    if (!privacyModeEnabled || hideAccountAboveResetHours <= 0) return filteredAccounts
+    const overLimitIds = new Set(privacyOverLimitAccounts.map((a) => a.id))
+    return filteredAccounts.filter((a) => !overLimitIds.has(a.id))
+  }, [filteredAccounts, privacyOverLimitAccounts, privacyModeEnabled, hideAccountAboveResetHours])
 
   const groupedAccounts = useMemo(() => {
     if (!groupByTag) return [] as Array<[string, typeof filteredAccounts]>
@@ -1588,8 +1593,25 @@ export function AccountsPage({ onNavigate }: AccountsPageProps) {
 
   // 渲染卡片视图
   const renderGridView = () => {
+    const overLimitLabel = t('accounts.privacyOverLimit', '超限重置中')
+
     if (!groupByTag) {
-      return <div className="accounts-grid">{renderGridCards(filteredAccounts)}</div>
+      return (
+        <div className="tag-group-list">
+          <div className="accounts-grid">{renderGridCards(privacyNormalAccounts)}</div>
+          {privacyOverLimitAccounts.length > 0 && (
+            <div className="tag-group-section">
+              <div className="tag-group-header">
+                <span className="tag-group-title">{overLimitLabel}</span>
+                <span className="tag-group-count">{privacyOverLimitAccounts.length}</span>
+              </div>
+              <div className="tag-group-grid accounts-grid">
+                {renderGridCards(privacyOverLimitAccounts, '__privacy_over_limit__')}
+              </div>
+            </div>
+          )}
+        </div>
+      )
     }
 
     return (
@@ -1607,6 +1629,17 @@ export function AccountsPage({ onNavigate }: AccountsPageProps) {
             </div>
           </div>
         ))}
+        {privacyOverLimitAccounts.length > 0 && (
+          <div className="tag-group-section">
+            <div className="tag-group-header">
+              <span className="tag-group-title">{overLimitLabel}</span>
+              <span className="tag-group-count">{privacyOverLimitAccounts.length}</span>
+            </div>
+            <div className="tag-group-grid accounts-grid">
+              {renderGridCards(privacyOverLimitAccounts, '__privacy_over_limit__')}
+            </div>
+          </div>
+        )}
       </div>
     )
   }
@@ -2095,51 +2128,67 @@ export function AccountsPage({ onNavigate }: AccountsPageProps) {
     })
 
   // 渲染列表视图
-  const renderListView = () => (
-    <div className={`account-table-container${groupByTag ? ' grouped' : ''}`}>
-      <table className="account-table">
-        <thead>
-          <tr>
-            <th style={{ width: 40 }}>
-              <input
-                type="checkbox"
-                checked={
-                  selected.size === filteredAccounts.length &&
-                  filteredAccounts.length > 0
-                }
-                onChange={toggleSelectAll}
-              />
-            </th>
-            <th style={{ width: 220 }}>{t('accounts.columns.email')}</th>
-            <th style={{ width: 130 }}>{t('accounts.columns.fingerprint')}</th>
-            <th>{t('accounts.columns.quota')}</th>
-            <th className="sticky-action-header table-action-header">
-              {t('accounts.columns.actions')}
-            </th>
-          </tr>
-        </thead>
-        <tbody>
-          {groupByTag
-            ? groupedAccounts.map(([groupKey, groupAccounts]) => (
-              <Fragment key={groupKey}>
+  const renderListView = () => {
+    const overLimitLabel = t('accounts.privacyOverLimit', '超限重置中')
+    return (
+      <div className={`account-table-container${groupByTag ? ' grouped' : ''}`}>
+        <table className="account-table">
+          <thead>
+            <tr>
+              <th style={{ width: 40 }}>
+                <input
+                  type="checkbox"
+                  checked={
+                    selected.size === filteredAccounts.length &&
+                    filteredAccounts.length > 0
+                  }
+                  onChange={toggleSelectAll}
+                />
+              </th>
+              <th style={{ width: 220 }}>{t('accounts.columns.email')}</th>
+              <th style={{ width: 130 }}>{t('accounts.columns.fingerprint')}</th>
+              <th>{t('accounts.columns.quota')}</th>
+              <th className="sticky-action-header table-action-header">
+                {t('accounts.columns.actions')}
+              </th>
+            </tr>
+          </thead>
+          <tbody>
+            {groupByTag
+              ? groupedAccounts.map(([groupKey, groupAccounts]) => (
+                <Fragment key={groupKey}>
+                  <tr className="tag-group-row">
+                    <td colSpan={5}>
+                      <div className="tag-group-header">
+                        <span className="tag-group-title">
+                          {resolveGroupLabel(groupKey)}
+                        </span>
+                        <span className="tag-group-count">{groupAccounts.length}</span>
+                      </div>
+                    </td>
+                  </tr>
+                  {renderListRows(groupAccounts, groupKey)}
+                </Fragment>
+              ))
+              : renderListRows(privacyNormalAccounts)}
+            {privacyOverLimitAccounts.length > 0 && (
+              <Fragment key="__privacy_over_limit__">
                 <tr className="tag-group-row">
                   <td colSpan={5}>
                     <div className="tag-group-header">
-                      <span className="tag-group-title">
-                        {resolveGroupLabel(groupKey)}
-                      </span>
-                      <span className="tag-group-count">{groupAccounts.length}</span>
+                      <span className="tag-group-title">{overLimitLabel}</span>
+                      <span className="tag-group-count">{privacyOverLimitAccounts.length}</span>
                     </div>
                   </td>
                 </tr>
-                {renderListRows(groupAccounts, groupKey)}
+                {renderListRows(privacyOverLimitAccounts, '__privacy_over_limit__')}
               </Fragment>
-            ))
-            : renderListRows(filteredAccounts)}
-        </tbody>
-      </table>
-    </div>
-  )
+            )}
+          </tbody>
+        </table>
+      </div>
+    )
+  }
 
   return (
     <>
