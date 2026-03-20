@@ -78,6 +78,30 @@
   box-shadow: 0 0 0 3px rgba(29, 78, 216, 0.12);
 }
 
+/* 隐藏分组 checkbox */
+.group-hidden-label {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  flex-shrink: 0;
+  cursor: pointer;
+  user-select: none;
+  font-size: 13px;
+  color: var(--text-secondary);
+  white-space: nowrap;
+}
+
+.group-hidden-label:hover {
+  color: var(--text-primary);
+}
+
+.group-hidden-checkbox {
+  width: 14px;
+  height: 14px;
+  cursor: pointer;
+  accent-color: var(--primary);
+}
+
 /* 分组内的模型标签 */
 .group-models {
   display: flex;

@@ -10,6 +10,7 @@ export interface GroupSettings {
   groupMappings: Record<string, string>;  // modelId -> groupId
   groupNames: Record<string, string>;     // groupId -> displayName
   groupOrder: string[];                   // 分组排序
+  hiddenGroups: string[];                 // 被隐藏的分组 ID 列表
   updatedAt: number;                      // 最后更新时间戳
   updatedBy: 'plugin' | 'desktop';        // 最后更新来源
 }
@@ -34,12 +35,14 @@ export async function getGroupSettings(): Promise<GroupSettings> {
 export async function saveGroupSettings(
   groupMappings: Record<string, string>,
   groupNames: Record<string, string>,
-  groupOrder: string[]
+  groupOrder: string[],
+  hiddenGroups: string[] = []
 ): Promise<void> {
   return invoke('save_group_settings', {
     groupMappings,
     groupNames,
     groupOrder,
+    hiddenGroups,
   });
 }
 
@@ -92,6 +95,7 @@ export const DEFAULT_GROUP_SETTINGS: GroupSettings = {
   groupMappings: {},
   groupNames: {},
   groupOrder: [],
+  hiddenGroups: [],
   updatedAt: 0,
   updatedBy: 'desktop',
 };

@@ -31,6 +31,7 @@ interface GroupData {
   id: string;
   name: string;
   models: string[];
+  hidden: boolean;
 }
 
 export const GroupSettingsModal: React.FC<GroupSettingsModalProps> = ({
@@ -77,7 +78,7 @@ export const GroupSettingsModal: React.FC<GroupSettingsModalProps> = ({
     return map;
   }, [visibleModels]);
 
-  const buildGroups = useCallback((savedGroupNames?: Record<string, string>): GroupData[] => {
+  const buildGroups = useCallback((savedGroupNames?: Record<string, string>, savedHiddenGroups?: string[]): GroupData[] => {
     const modelDisplayMap = new Map<string, string | undefined>();
     for (const model of visibleModels) {
       modelDisplayMap.set(model.id, model.displayName);
@@ -131,14 +132,15 @@ export const GroupSettingsModal: React.FC<GroupSettingsModalProps> = ({
     return groupsWithOther.map(group => ({
       ...group,
       name: savedGroupNames?.[group.id] || group.name,
+      hidden: savedHiddenGroups ? savedHiddenGroups.includes(group.id) : false,
     }));
   }, [t, visibleModels]);
 
-  // 加载分组配置（合并已保存的名称）
+  // 加载分组配置（合并已保存的名称和隐藏状态）
   const loadSettings = useCallback(async () => {
     try {
       const data = await getGroupSettings();
-      setGroups(buildGroups(data.groupNames));
+      setGroups(buildGroups(data.groupNames, data.hiddenGroups));
       setError(null);
     } catch (err) {
       console.error('Failed to load group settings:', err);
@@ -161,25 +163,44 @@ export const GroupSettingsModal: React.FC<GroupSettingsModalProps> = ({
     ));
   };
 
+  // 切换分组隐藏状态
+  const handleGroupHiddenChange = (groupId: string, hidden: boolean) => {
+    setGroups(groups.map(g =>
+      g.id === groupId ? { ...g, hidden } : g
+    ));
+  };
+
   // 保存配置
   const handleSave = async () => {
     setSaving(true);
     setError(null);
+
+    // 校验：至少一个分组未被隐藏
+    const visibleCount = groups.filter(g => !g.hidden).length;
+    if (visibleCount === 0) {
+      setError(t('group_settings.error_all_hidden', '至少需要保留一个可见分组'));
+      setSaving(false);
+      return;
+    }
     
     try {
       const groupMappings: Record<string, string> = {};
       const groupNames: Record<string, string> = {};
       const groupOrder: string[] = [];
+      const hiddenGroups: string[] = [];
       
       for (const group of groups) {
         groupOrder.push(group.id);
         groupNames[group.id] = group.name;
+        if (group.hidden) {
+          hiddenGroups.push(group.id);
+        }
         for (const modelId of group.models) {
           groupMappings[modelId] = group.id;
         }
       }
       
-      await saveGroupSettings(groupMappings, groupNames, groupOrder);
+      await saveGroupSettings(groupMappings, groupNames, groupOrder, hiddenGroups);
       onClose();
     } catch (err) {
       console.error('Failed to save group settings:', err);
@@ -236,6 +257,15 @@ export const GroupSettingsModal: React.FC<GroupSettingsModalProps> = ({
                       className="group-name-input"
                       placeholder={t('group_settings.group_name_placeholder', '分组名称')}
                     />
+                    <label className="group-hidden-label">
+                      <input
+                        type="checkbox"
+                        checked={group.hidden}
+                        onChange={e => handleGroupHiddenChange(group.id, e.target.checked)}
+                        className="group-hidden-checkbox"
+                      />
+                      <span>{t('group_settings.hidden_group', '隐藏分组')}</span>
+                    </label>
                   </div>
                   
                   <div className="group-models">

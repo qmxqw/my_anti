@@ -59,6 +59,10 @@ pub struct GroupSettings {
     #[serde(default)]
     pub group_order: Vec<String>,
 
+    /// 被隐藏的分组 ID 列表
+    #[serde(default)]
+    pub hidden_groups: Vec<String>,
+
     /// 最后更新时间戳 (毫秒)
     #[serde(default)]
     pub updated_at: i64,
@@ -113,6 +117,7 @@ impl Default for GroupSettings {
             group_mappings,
             group_names,
             group_order,
+            hidden_groups: Vec::new(),
             updated_at: 0,
             updated_by: ConfigSource::Desktop,
         }

@@ -33,6 +33,7 @@ const buildGroupSettings = (displayGroups: DisplayGroup[]): GroupSettings => {
     groupMappings: {},
     groupNames: {},
     groupOrder: displayGroups.map((group) => group.id),
+    hiddenGroups: [],
     updatedAt: 0,
     updatedBy: 'desktop',
   };

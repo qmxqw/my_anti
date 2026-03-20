@@ -54,6 +54,7 @@ import {
   GroupSettings,
   DisplayGroup,
   getDisplayGroups,
+  getGroupSettings,
   calculateOverallQuota,
   calculateGroupQuota,
   updateGroupOrder
@@ -531,8 +532,13 @@ export function AccountsPage({ onNavigate }: AccountsPageProps) {
   // 加载显示用分组配置
   const loadDisplayGroups = async () => {
     try {
-      const groups = await getDisplayGroups()
-      setDisplayGroups(groups)
+      const [groups, settings] = await Promise.all([
+        getDisplayGroups(),
+        getGroupSettings(),
+      ])
+      const hiddenSet = new Set(settings.hiddenGroups || [])
+      const visibleGroups = groups.filter((g) => !hiddenSet.has(g.id))
+      setDisplayGroups(visibleGroups)
       // Initialize compact mode group order
       setCompactGroupOrder(groups.map((g) => g.id))
 
@@ -1682,6 +1688,7 @@ export function AccountsPage({ onNavigate }: AccountsPageProps) {
       groupMappings: {},
       groupNames: {},
       groupOrder: orderedGroups.map((g) => g.id),
+      hiddenGroups: [],
       updatedAt: 0,
       updatedBy: 'desktop'
     }

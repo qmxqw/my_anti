@@ -23,11 +23,13 @@ pub fn save_group_settings(
     groupMappings: HashMap<String, String>,
     groupNames: HashMap<String, String>,
     groupOrder: Vec<String>,
+    hiddenGroups: Option<Vec<String>>,
 ) -> Result<(), String> {
     let mut settings = group_settings::load_group_settings();
     settings.group_mappings = groupMappings;
     settings.group_names = groupNames;
     settings.group_order = groupOrder;
+    settings.hidden_groups = hiddenGroups.unwrap_or_default();
     settings.updated_at = chrono::Utc::now().timestamp_millis();
     settings.updated_by = group_settings::ConfigSource::Desktop;
 

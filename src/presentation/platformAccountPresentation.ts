@@ -163,6 +163,7 @@ function buildAgDisplayGroupSettings(groups: DisplayGroup[]): GroupSettings {
     groupMappings: {},
     groupNames: {},
     groupOrder: groups.map((group) => group.id),
+    hiddenGroups: [],
     updatedAt: 0,
     updatedBy: 'desktop',
   };
