@@ -79,8 +79,11 @@ pub async fn set_current_account(app: tauri::AppHandle, account_id: String) -> R
 pub async fn fetch_account_quota(account_id: String) -> AppResult<models::QuotaData> {
     let mut account = modules::load_account(&account_id).map_err(AppError::Account)?;
     let quota = modules::fetch_quota_with_retry(&mut account, true).await?;
-    modules::update_account_quota(&account_id, quota.clone()).map_err(AppError::Account)?;
-    Ok(quota)
+    modules::update_account_quota(&account_id, quota).map_err(AppError::Account)?;
+    // 重新读取落盘后的账号，返回经过可疑 reset_time 过滤的实际 quota
+    // 确保前端 UI 与 JSON 存储内容保持一致（不暴露被过滤的可疑值）
+    let saved = modules::load_account(&account_id).map_err(AppError::Account)?;
+    saved.quota.ok_or_else(|| AppError::Account("配额数据为空".to_string()))
 }
 
 #[tauri::command]

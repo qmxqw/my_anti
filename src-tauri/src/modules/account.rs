@@ -732,8 +732,24 @@ fn save_current_account_file(email: &str) -> Result<(), String> {
     Ok(())
 }
 
+/// 判断 reset_time 字符串是否为可疑值
+/// 规则：reset_time 距当前时间在 299~301 分钟之间，视为 Antigravity API 注入的"当前+5H"假值
+fn is_suspicious_reset_time(reset_time: &str) -> bool {
+    const SUSPICIOUS_MIN_MINUTES: i64 = 299;
+    const SUSPICIOUS_MAX_MINUTES: i64 = 301;
+    if reset_time.is_empty() {
+        return false;
+    }
+    if let Ok(reset) = chrono::DateTime::parse_from_rfc3339(reset_time) {
+        let now = chrono::Utc::now();
+        let diff_minutes = (reset.timestamp() - now.timestamp()) / 60;
+        return diff_minutes >= SUSPICIOUS_MIN_MINUTES && diff_minutes <= SUSPICIOUS_MAX_MINUTES;
+    }
+    false
+}
+
 /// 更新账号配额
-pub fn update_account_quota(account_id: &str, quota: QuotaData) -> Result<(), String> {
+pub fn update_account_quota(account_id: &str, mut quota: QuotaData) -> Result<(), String> {
     let mut account = load_account(account_id)?;
 
     // 容错：如果新获取的 models 为空，但之前有数据，保留原来的 models
@@ -752,6 +768,35 @@ pub fn update_account_quota(account_id: &str, quota: QuotaData) -> Result<(), St
                 account.update_quota(merged_quota);
                 save_account(&account)?;
                 return Ok(());
+            }
+        }
+    }
+
+    // 过滤可疑 reset_time：若新值恰好为"当前时间+5H"，保留旧值（或清空），避免污染存储
+    {
+        let existing_models: std::collections::HashMap<&str, &str> = account
+            .quota
+            .as_ref()
+            .map(|q| {
+                q.models
+                    .iter()
+                    .map(|m| (m.name.as_str(), m.reset_time.as_str()))
+                    .collect()
+            })
+            .unwrap_or_default();
+
+        for model in quota.models.iter_mut() {
+            if is_suspicious_reset_time(&model.reset_time) {
+                let old_reset_time = existing_models
+                    .get(model.name.as_str())
+                    .copied()
+                    .unwrap_or("")
+                    .to_string();
+                modules::logger::log_warn(&format!(
+                    "⚠️ [{}] 模型 {} 的 reset_time 疑似可疑值（当前+5H），保留旧值: {:?}",
+                    account.email, model.name, old_reset_time
+                ));
+                model.reset_time = old_reset_time;
             }
         }
     }
