@@ -1558,6 +1558,20 @@ export function AccountsPage({ onNavigate }: AccountsPageProps) {
             <div className="card-actions">
               <button
                 className="card-action-btn"
+                onClick={(e) => { e.stopPropagation(); handleBatchSetDisabled(true) }}
+                title={t('accounts.actions.disableSelected', { count: 1, defaultValue: '禁用' })}
+              >
+                <Ban size={14} />
+              </button>
+              <button
+                className="card-action-btn"
+                onClick={(e) => { e.stopPropagation(); handleBatchSetDisabled(false) }}
+                title={t('accounts.actions.enableSelected', { count: 1, defaultValue: '启用' })}
+              >
+                <CircleCheck size={14} />
+              </button>
+              <button
+                className="card-action-btn"
                 onClick={() => setShowQuotaModal(account.id)}
                 title={t('accounts.actions.viewDetails')}
               >
@@ -2469,26 +2483,22 @@ export function AccountsPage({ onNavigate }: AccountsPageProps) {
             >
               <Package size={14} />
             </button>
-            {selected.size > 0 && (
-              <>
-                <button
-                  className="btn btn-secondary icon-only"
-                  onClick={() => handleBatchSetDisabled(true)}
-                  title={t('accounts.actions.disableSelected', { count: selected.size, defaultValue: `禁用选中 (${selected.size})` })}
-                  aria-label={t('accounts.actions.disableSelected', { count: selected.size, defaultValue: `禁用选中 (${selected.size})` })}
-                >
-                  <Ban size={14} />
-                </button>
-                <button
-                  className="btn btn-secondary icon-only"
-                  onClick={() => handleBatchSetDisabled(false)}
-                  title={t('accounts.actions.enableSelected', { count: selected.size, defaultValue: `启用选中 (${selected.size})` })}
-                  aria-label={t('accounts.actions.enableSelected', { count: selected.size, defaultValue: `启用选中 (${selected.size})` })}
-                >
-                  <CircleCheck size={14} />
-                </button>
-              </>
-            )}
+            <button
+              className="btn btn-secondary icon-only"
+              onClick={() => handleBatchSetDisabled(true)}
+              title={t('accounts.actions.disableSelected', { count: selected.size, defaultValue: selected.size > 0 ? `禁用选中 (${selected.size})` : '禁用选中' })}
+              aria-label={t('accounts.actions.disableSelected', { count: selected.size, defaultValue: selected.size > 0 ? `禁用选中 (${selected.size})` : '禁用选中' })}
+            >
+              <Ban size={14} />
+            </button>
+            <button
+              className="btn btn-secondary icon-only"
+              onClick={() => handleBatchSetDisabled(false)}
+              title={t('accounts.actions.enableSelected', { count: selected.size, defaultValue: selected.size > 0 ? `启用选中 (${selected.size})` : '启用选中' })}
+              aria-label={t('accounts.actions.enableSelected', { count: selected.size, defaultValue: selected.size > 0 ? `启用选中 (${selected.size})` : '启用选中' })}
+            >
+              <CircleCheck size={14} />
+            </button>
             <button
               className="btn btn-secondary icon-only"
               onClick={() => openAddModal('oauth')}

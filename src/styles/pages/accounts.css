@@ -175,9 +175,8 @@
 /* Card Footer - Compact & Clean */
 .card-footer {
   display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 8px;
+  flex-direction: column;
+  gap: 6px;
   padding-top: 4px;
 }
 
@@ -194,10 +193,11 @@
   display: flex;
   align-items: center;
   gap: 1px;
-  background: transparent; /* 移除背景 */
+  background: transparent;
   padding: 0;
   border: none;
   box-shadow: none;
+  flex-wrap: wrap;
 }
 
 .card-action-btn {

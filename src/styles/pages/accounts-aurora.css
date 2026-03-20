@@ -853,6 +853,9 @@
 }
 
 .accounts-page .card-footer {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
   padding-top: 10px;
   border-top: 1px dashed rgba(15, 23, 42, 0.12);
 }
@@ -865,6 +868,7 @@
   background: rgba(15, 23, 42, 0.05);
   padding: 4px 8px;
   border-radius: 999px;
+  align-self: flex-start;
 }
 
 .accounts-page .card-actions {
@@ -873,6 +877,7 @@
   border-radius: 999px;
   padding: 3px;
   gap: 2px;
+  flex-wrap: wrap;
 }
 
 .accounts-page .card-action-btn {
