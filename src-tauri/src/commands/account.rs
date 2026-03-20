@@ -371,3 +371,22 @@ pub async fn broadcast_auto_switch() -> Result<(), String> {
     modules::websocket::broadcast_data_changed("auto_switch");
     Ok(())
 }
+
+/// 批量设置账号禁用/启用状态
+#[tauri::command]
+pub async fn set_accounts_disabled(account_ids: Vec<String>, disabled: bool) -> Result<(), String> {
+    for account_id in &account_ids {
+        let mut account = modules::load_account(account_id)?;
+        account.disabled = disabled;
+        if disabled {
+            account.disabled_at = Some(chrono::Utc::now().timestamp());
+            account.disabled_reason = Some("手动禁用".to_string());
+        } else {
+            account.disabled_at = None;
+            account.disabled_reason = None;
+        }
+        modules::save_account(&account)?;
+    }
+    modules::websocket::broadcast_data_changed("accounts_disabled_changed");
+    Ok(())
+}

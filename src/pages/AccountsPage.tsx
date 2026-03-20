@@ -31,7 +31,9 @@ import {
   Eye,
   EyeOff,
   Tag,
-  BookOpen
+  BookOpen,
+  Ban,
+  CircleCheck
 } from 'lucide-react'
 import { useTranslation, Trans } from 'react-i18next'
 import { useAccountStore } from '../stores/useAccountStore'
@@ -874,6 +876,22 @@ export function AccountsPage({ onNavigate }: AccountsPageProps) {
     })
   }
 
+  const handleBatchSetDisabled = async (disabled: boolean) => {
+    if (selected.size === 0) return
+    const ids = Array.from(selected)
+    try {
+      await accountService.setAccountsDisabled(ids, disabled)
+      await fetchAccounts()
+      setMessage({
+        text: disabled
+          ? t('accounts.actions.disabledSuccess', { count: ids.length, defaultValue: `已禁用 ${ids.length} 个帐号` })
+          : t('accounts.actions.enabledSuccess', { count: ids.length, defaultValue: `已启用 ${ids.length} 个帐号` })
+      })
+    } catch (e) {
+      setMessage({ text: String(e), tone: 'error' })
+    }
+  }
+
   const confirmDelete = async () => {
     if (!deleteConfirm || deleting) return
     setDeleting(true)
@@ -1435,6 +1453,7 @@ export function AccountsPage({ onNavigate }: AccountsPageProps) {
         <div
           key={groupKey ? `${groupKey}-${account.id}` : account.id}
           className={`account-card ${isCurrent ? 'current' : ''} ${isDisabled ? 'disabled' : ''} ${isSelected ? 'selected' : ''}`}
+          style={isDisabled ? { filter: 'grayscale(1)', opacity: 0.65 } : undefined}
         >
           <div className="card-top">
             <div className="card-select">
@@ -1570,9 +1589,11 @@ export function AccountsPage({ onNavigate }: AccountsPageProps) {
               <button
                 className={`card-action-btn ${!isCurrent ? 'success' : ''}`}
                 onClick={() => handleSwitch(account.id)}
-                disabled={!!switching}
+                disabled={!!switching || isDisabled}
                 title={
-                  isCurrent
+                  isDisabled
+                    ? t('accounts.status.disabled', '已禁用')
+                    : isCurrent
                     ? t('accounts.actions.switch')
                     : t('accounts.actions.switchTo')
                 }
@@ -1760,7 +1781,7 @@ export function AccountsPage({ onNavigate }: AccountsPageProps) {
               if (!switching) toggleSelect(account.id)
             }}
             title={maskAccountText(account.email)}
-            style={{ pointerEvents: switching ? 'none' : undefined }}
+            style={{ pointerEvents: switching ? 'none' : undefined, ...(isDisabled ? { filter: 'grayscale(1)', opacity: 0.65 } : {}) }}
           >
             <input
               type="checkbox"
@@ -1813,14 +1834,18 @@ export function AccountsPage({ onNavigate }: AccountsPageProps) {
                 e.stopPropagation()
                 handleSwitch(account.id)
               }}
-              disabled={isSwitching}
+              disabled={isSwitching || isDisabled}
               title={
-                isCurrent
+                isDisabled
+                  ? t('accounts.status.disabled', '已禁用')
+                  : isCurrent
                   ? t('accounts.actions.switch')
                   : t('accounts.actions.switchTo')
               }
               aria-label={
-                isCurrent
+                isDisabled
+                  ? t('accounts.status.disabled', '已禁用')
+                  : isCurrent
                   ? t('accounts.actions.switch')
                   : t('accounts.actions.switchTo')
               }
@@ -1982,6 +2007,7 @@ export function AccountsPage({ onNavigate }: AccountsPageProps) {
         <tr
           key={groupKey ? `${groupKey}-${account.id}` : account.id}
           className={isCurrent ? 'current' : ''}
+          style={account.disabled ? { filter: 'grayscale(1)', opacity: 0.65 } : undefined}
         >
           <td>
             <input
@@ -2109,9 +2135,11 @@ export function AccountsPage({ onNavigate }: AccountsPageProps) {
               <button
                 className={`action-btn ${!isCurrent ? 'success' : ''}`}
                 onClick={() => handleSwitch(account.id)}
-                disabled={!!switching}
+                disabled={!!switching || !!account.disabled}
                 title={
-                  isCurrent
+                  account.disabled
+                    ? t('accounts.status.disabled', '已禁用')
+                    : isCurrent
                     ? t('accounts.actions.switch')
                     : t('accounts.actions.switchTo')
                 }
@@ -2441,6 +2469,26 @@ export function AccountsPage({ onNavigate }: AccountsPageProps) {
             >
               <Package size={14} />
             </button>
+            {selected.size > 0 && (
+              <>
+                <button
+                  className="btn btn-secondary icon-only"
+                  onClick={() => handleBatchSetDisabled(true)}
+                  title={t('accounts.actions.disableSelected', { count: selected.size, defaultValue: `禁用选中 (${selected.size})` })}
+                  aria-label={t('accounts.actions.disableSelected', { count: selected.size, defaultValue: `禁用选中 (${selected.size})` })}
+                >
+                  <Ban size={14} />
+                </button>
+                <button
+                  className="btn btn-secondary icon-only"
+                  onClick={() => handleBatchSetDisabled(false)}
+                  title={t('accounts.actions.enableSelected', { count: selected.size, defaultValue: `启用选中 (${selected.size})` })}
+                  aria-label={t('accounts.actions.enableSelected', { count: selected.size, defaultValue: `启用选中 (${selected.size})` })}
+                >
+                  <CircleCheck size={14} />
+                </button>
+              </>
+            )}
             <button
               className="btn btn-secondary icon-only"
               onClick={() => openAddModal('oauth')}

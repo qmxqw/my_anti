@@ -194,3 +194,7 @@ export async function getBoundAccounts(fingerprintId: string): Promise<Account[]
 export async function syncCurrentFromClient(): Promise<string | null> {
     return await invoke('sync_current_from_client');
 }
+
+export async function setAccountsDisabled(accountIds: string[], disabled: boolean): Promise<void> {
+    return await invoke('set_accounts_disabled', { accountIds, disabled });
+}
