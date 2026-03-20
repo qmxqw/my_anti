@@ -1458,7 +1458,7 @@ export function AccountsPage({ onNavigate }: AccountsPageProps) {
             </span>
           </div>
 
-          {accountTags.length > 0 && (
+          {(accountTags.length > 0 || (account.usage_count ?? 0) > 0) && (
             <div className="card-tags">
               {visibleTags.map((tag, idx) => (
                 <span key={`${account.id}-${tag}-${idx}`} className="tag-pill">
@@ -1466,6 +1466,14 @@ export function AccountsPage({ onNavigate }: AccountsPageProps) {
                 </span>
               ))}
               {moreTagCount > 0 && <span className="tag-pill more">+{moreTagCount}</span>}
+              {(account.usage_count ?? 0) > 0 && (
+                <span
+                  className="tag-pill usage-count-badge"
+                  title={`使用消耗次数：${account.usage_count}`}
+                >
+                  {account.usage_count}
+                </span>
+              )}
             </div>
           )}
 

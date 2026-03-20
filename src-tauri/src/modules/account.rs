@@ -265,6 +265,63 @@ pub fn save_account(account: &Account) -> Result<(), String> {
     Ok(())
 }
 
+/// 记录账号使用消耗（如有需要）
+/// 规则：若账号有任意模型配额 < 60%，则计为消耗一次；
+///       取这些低配额模型的 reset_time 最大值作为当前周期截止；
+///       若当前时间 < usage_count_reset_at（当前周期未到期），跳过计数（去重）。
+pub fn record_account_usage_if_needed(account: &mut Account) -> Result<(), String> {
+    let Some(quota) = account.quota.as_ref() else {
+        return Ok(());
+    };
+
+    const USAGE_THRESHOLD: i32 = 60;
+
+    // 收集所有低于阈值的模型
+    let low_models: Vec<_> = quota
+        .models
+        .iter()
+        .filter(|m| m.percentage < USAGE_THRESHOLD)
+        .collect();
+
+    if low_models.is_empty() {
+        return Ok(());
+    }
+
+    // 取低配额模型的最晚 reset_time 作为本次周期截止时间
+    let new_reset_at: Option<i64> = low_models
+        .iter()
+        .filter_map(|m| {
+            chrono::DateTime::parse_from_rfc3339(&m.reset_time)
+                .ok()
+                .map(|dt| dt.timestamp())
+        })
+        .max();
+
+    let now = chrono::Utc::now().timestamp();
+
+    // 去重：如果当前时间仍在上次记录的重置周期内，跳过
+    if let Some(reset_at) = account.usage_count_reset_at {
+        if now < reset_at {
+            modules::logger::log_info(&format!(
+                "[UsageCount] 账号 {} 仍在计数周期内（reset_at={}），跳过计数",
+                account.email, reset_at
+            ));
+            return Ok(());
+        }
+    }
+
+    account.usage_count = account.usage_count.saturating_add(1);
+    account.usage_count_reset_at = new_reset_at;
+
+    modules::logger::log_info(&format!(
+        "[UsageCount] 账号 {} 使用计数 +1 → {}（reset_at={:?}）",
+        account.email, account.usage_count, account.usage_count_reset_at
+    ));
+
+    save_account(account)?;
+    Ok(())
+}
+
 fn normalize_tags(tags: Vec<String>) -> Result<Vec<String>, String> {
     let mut result: Vec<String> = Vec::new();
     let mut seen: HashSet<String> = HashSet::new();

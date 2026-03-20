@@ -2,6 +2,10 @@ use super::{quota::QuotaData, token::TokenData};
 use serde::{Deserialize, Serialize};
 use std::collections::HashSet;
 
+fn is_zero_u32(v: &u32) -> bool {
+    *v == 0
+}
+
 /// 账号数据结构
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Account {
@@ -32,6 +36,13 @@ pub struct Account {
     pub quota_error: Option<QuotaErrorInfo>,
     pub created_at: i64,
     pub last_used: i64,
+    /// 账号被消耗计数（切换时有模型配额低于 60% 的次数）
+    #[serde(default, skip_serializing_if = "is_zero_u32")]
+    pub usage_count: u32,
+    /// 当前计数周期的配额重置截止时间（Unix 时间戳秒）
+    /// 在此时间点之前切换不重复计数
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub usage_count_reset_at: Option<i64>,
 }
 
 fn default_fingerprint_id() -> Option<String> {
@@ -56,6 +67,8 @@ impl Account {
             quota_error: None,
             created_at: now,
             last_used: now,
+            usage_count: 0,
+            usage_count_reset_at: None,
         }
     }
 

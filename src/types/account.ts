@@ -12,6 +12,8 @@ export interface Account {
     disabled_at?: number;
     created_at: number;
     last_used: number;
+    usage_count?: number;
+    usage_count_reset_at?: number;
 }
 
 export interface TokenData {
