@@ -339,7 +339,10 @@ export function formatGitHubCopilotResetTime(
   if (!resetTime) return '';
   const now = Math.floor(Date.now() / 1000);
   const diff = resetTime - now;
-  if (diff <= 0) return t('common.shared.quota.resetDone', { defaultValue: '已重置' });
+  if (diff <= 0) {
+    const elapsedHours = (now - resetTime) / 3600;
+    return `${t('common.shared.quota.resetDone', { defaultValue: '已重置' })} ${elapsedHours.toFixed(1)}H`;
+  }
 
   const totalMinutes = Math.floor(diff / 60);
   const days = Math.floor(totalMinutes / (60 * 24));

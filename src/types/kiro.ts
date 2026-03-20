@@ -714,9 +714,8 @@ export function formatKiroResetTime(resetAt: number | null | undefined, t: Trans
   const now = Math.floor(Date.now() / 1000);
   const diff = ts - now;
   if (diff <= 0) {
-    return t('common.shared.quota.resetDone', {
-      defaultValue: '已重置',
-    });
+    const elapsedHours = (now - ts) / 3600;
+    return `${t('common.shared.quota.resetDone', { defaultValue: '已重置' })} ${elapsedHours.toFixed(1)}H`;
   }
 
   const totalMinutes = Math.floor(diff / 60);
