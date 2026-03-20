@@ -97,7 +97,10 @@ export function formatResetTime(resetTime: string, t: Translate, filterSuspiciou
     if (Number.isNaN(reset.getTime())) return '';
     const now = new Date();
     const diffMs = reset.getTime() - now.getTime();
-    if (diffMs <= 0) return t('common.shared.quota.resetDone');
+    if (diffMs <= 0) {
+      const elapsedHours = (now.getTime() - reset.getTime()) / (1000 * 3600);
+      return `${t('common.shared.quota.resetDone')} ${elapsedHours.toFixed(1)}H`;
+    }
 
     const totalMinutes = diffMs / (1000 * 60);
 
@@ -137,11 +140,12 @@ export function formatResetTimeAbsolute(resetTime: string): string {
 }
 
 export function formatResetTimeDisplay(resetTime: string, t: Translate, filterSuspicious?: boolean): string {
-  const resetDone = t('common.shared.quota.resetDone');
   const relative = formatResetTime(resetTime, t, filterSuspicious);
   const absolute = formatResetTimeAbsolute(resetTime);
   if (!relative && !absolute) return '';
-  if (relative === resetDone) return relative;
+  // 如果已重置（relative 中含有 resetDone 翻译文本），直接返回不拼绝对时间
+  const resetDoneKey = t('common.shared.quota.resetDone');
+  if (relative.startsWith(resetDoneKey)) return relative;
   // If we have both, return "relative (absolute)"
   // If only one, return that one
   if (relative && absolute) {
