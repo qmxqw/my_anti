@@ -137,9 +137,9 @@ pub struct UserConfig {
     /// Kiro 配额预警阈值（百分比）
     #[serde(default = "default_kiro_quota_alert_threshold")]
     pub kiro_quota_alert_threshold: i32,
-    /// 自动刷新模式（全局）："all" 表示刷新所有账号，"current" 表示仅刷新当前账号
-    #[serde(default = "default_auto_refresh_mode")]
-    pub auto_refresh_mode: String,
+    /// 额外刷新帐号数：每次定时刷新时，除当前帐号外额外刷新的帐号数量
+    #[serde(default = "default_extra_refresh_count")]
+    pub extra_refresh_count: i32,
     /// 批量刷新时是否跳过已重置（配额已满）的账号
     #[serde(default = "default_batch_refresh_skip_reset")]
     pub batch_refresh_skip_reset: bool,
@@ -284,8 +284,8 @@ fn default_kiro_quota_alert_enabled() -> bool {
 fn default_kiro_quota_alert_threshold() -> i32 {
     20
 }
-fn default_auto_refresh_mode() -> String {
-    "all".to_string()
+fn default_extra_refresh_count() -> i32 {
+    0
 }
 fn default_batch_refresh_skip_reset() -> bool {
     false
@@ -333,7 +333,7 @@ impl Default for UserConfig {
             windsurf_quota_alert_threshold: default_windsurf_quota_alert_threshold(),
             kiro_quota_alert_enabled: default_kiro_quota_alert_enabled(),
             kiro_quota_alert_threshold: default_kiro_quota_alert_threshold(),
-            auto_refresh_mode: default_auto_refresh_mode(),
+            extra_refresh_count: default_extra_refresh_count(),
             batch_refresh_skip_reset: default_batch_refresh_skip_reset(),
             hide_account_above_reset_hours: default_hide_account_above_reset_hours(),
             filter_suspicious_reset_time: default_filter_suspicious_reset_time(),
@@ -492,6 +492,9 @@ pub fn load_user_config() -> Result<UserConfig, String> {
                 json!(default_hide_account_above_reset_hours()),
             );
         }
+
+        // 移除已废弃的旧字段避免 serde 反序列化失败
+        obj.remove("auto_refresh_mode");
     }
 
     serde_json::from_value(value).map_err(|e| format!("解析配置文件失败: {}", e))

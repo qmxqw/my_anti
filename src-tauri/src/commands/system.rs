@@ -85,8 +85,8 @@ pub struct GeneralConfig {
     pub kiro_quota_alert_enabled: bool,
     /// Kiro 配额预警阈值（百分比）
     pub kiro_quota_alert_threshold: i32,
-    /// 自动刷新模式："all", "current"
-    pub auto_refresh_mode: String,
+    /// 账号额外刷新数量
+    pub extra_refresh_count: i32,
     /// 批量刷新时是否跳过已重置（配额已满）的账号
     pub batch_refresh_skip_reset: bool,
     /// 隐藏长时重置帐号阈值（小时），开启隐私模式时生效
@@ -199,7 +199,7 @@ pub fn save_network_config(ws_enabled: bool, ws_port: u16) -> Result<bool, Strin
         windsurf_quota_alert_threshold: current.windsurf_quota_alert_threshold,
         kiro_quota_alert_enabled: current.kiro_quota_alert_enabled,
         kiro_quota_alert_threshold: current.kiro_quota_alert_threshold,
-        auto_refresh_mode: current.auto_refresh_mode,
+        extra_refresh_count: current.extra_refresh_count,
         batch_refresh_skip_reset: current.batch_refresh_skip_reset,
         hide_account_above_reset_hours: current.hide_account_above_reset_hours,
         filter_suspicious_reset_time: current.filter_suspicious_reset_time,
@@ -257,7 +257,7 @@ pub fn get_general_config() -> Result<GeneralConfig, String> {
         windsurf_quota_alert_threshold: user_config.windsurf_quota_alert_threshold,
         kiro_quota_alert_enabled: user_config.kiro_quota_alert_enabled,
         kiro_quota_alert_threshold: user_config.kiro_quota_alert_threshold,
-        auto_refresh_mode: user_config.auto_refresh_mode,
+        extra_refresh_count: user_config.extra_refresh_count,
         batch_refresh_skip_reset: user_config.batch_refresh_skip_reset,
         hide_account_above_reset_hours: user_config.hide_account_above_reset_hours,
         filter_suspicious_reset_time: user_config.filter_suspicious_reset_time,
@@ -299,7 +299,7 @@ pub fn save_general_config(
     windsurf_quota_alert_threshold: Option<i32>,
     kiro_quota_alert_enabled: Option<bool>,
     kiro_quota_alert_threshold: Option<i32>,
-    auto_refresh_mode: Option<String>,
+    extra_refresh_count: Option<i32>,
     batch_refresh_skip_reset: Option<bool>,
     hide_account_above_reset_hours: Option<i32>,
     filter_suspicious_reset_time: Option<bool>,
@@ -381,7 +381,7 @@ pub fn save_general_config(
             .unwrap_or(current.kiro_quota_alert_enabled),
         kiro_quota_alert_threshold: kiro_quota_alert_threshold
             .unwrap_or(current.kiro_quota_alert_threshold),
-        auto_refresh_mode: auto_refresh_mode.unwrap_or(current.auto_refresh_mode),
+        extra_refresh_count: extra_refresh_count.unwrap_or(current.extra_refresh_count),
         batch_refresh_skip_reset: batch_refresh_skip_reset.unwrap_or(current.batch_refresh_skip_reset),
         hide_account_above_reset_hours: hide_account_above_reset_hours
             .unwrap_or(current.hide_account_above_reset_hours),

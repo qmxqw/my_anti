@@ -37,7 +37,7 @@ interface GeneralConfig {
   windsurf_quota_alert_threshold: number;
   kiro_quota_alert_enabled: boolean;
   kiro_quota_alert_threshold: number;
-  auto_refresh_mode: string;
+  extra_refresh_count: number;
 }
 
 export type QuickSettingsType = 'antigravity' | 'codex' | 'github_copilot' | 'windsurf' | 'kiro';
@@ -175,7 +175,7 @@ export function QuickSettingsPopover({ type }: QuickSettingsPopoverProps) {
           windsurfQuotaAlertThreshold: merged.windsurf_quota_alert_threshold,
           kiroQuotaAlertEnabled: merged.kiro_quota_alert_enabled,
           kiroQuotaAlertThreshold: merged.kiro_quota_alert_threshold,
-          autoRefreshMode: merged.auto_refresh_mode,
+          extraRefreshCount: merged.extra_refresh_count,
         });
         window.dispatchEvent(new Event('config-updated'));
       } catch (err) {
@@ -563,19 +563,25 @@ export function QuickSettingsPopover({ type }: QuickSettingsPopoverProps) {
                     <option value="custom">{t('quickSettings.customInput', '自定义')}</option>
                   </select>
                 )}
-                {/* ─── Refresh Mode (global) ─── */}
+                {/* ─── Extra Refresh Count (global) ─── */}
                 <div className="qs-row" style={{ marginTop: 8 }}>
                   <div className="qs-row-label">
-                    <span>{t('settings.general.autoRefreshMode', '刷新模式')}</span>
+                    <span>{t('settings.general.extraRefreshCount', '额外刷新帐号数')}</span>
                   </div>
                   <div className="qs-row-control">
                     <select
                       className="qs-select"
-                      value={config.auto_refresh_mode || 'all'}
-                      onChange={(e) => saveConfig({ auto_refresh_mode: e.target.value })}
+                      value={String(config.extra_refresh_count ?? 0)}
+                      onChange={(e) => saveConfig({ extra_refresh_count: parseInt(e.target.value, 10) })}
                     >
-                      <option value="all">{t('settings.general.autoRefreshModeAll')}</option>
-                      <option value="current">{t('settings.general.autoRefreshModeCurrent')}</option>
+                      <option value="0">0</option>
+                      <option value="1">1</option>
+                      <option value="2">2</option>
+                      <option value="3">3</option>
+                      <option value="4">4</option>
+                      <option value="5">5</option>
+                      <option value="10">10</option>
+                      <option value="20">20</option>
                     </select>
                   </div>
                 </div>

@@ -53,7 +53,7 @@ interface GeneralConfig {
   windsurf_app_path?: string;
   opencode_sync_on_switch?: boolean;
   codex_launch_on_switch?: boolean;
-  auto_refresh_mode?: string;
+  extra_refresh_count?: number;
 }
 
 export function useAutoRefresh() {
@@ -207,7 +207,7 @@ export function useAutoRefresh() {
                     windsurfAppPath: config.windsurf_app_path ?? '',
                     opencodeSyncOnSwitch: config.opencode_sync_on_switch ?? true,
                     codexLaunchOnSwitch: config.codex_launch_on_switch ?? true,
-                    autoRefreshMode: 'all',
+                    extraRefreshCount: 20,
                   });
                   config.auto_refresh_minutes = 2;
                 }
@@ -224,8 +224,8 @@ export function useAutoRefresh() {
           clearAllTimers();
 
           if (config.auto_refresh_minutes > 0) {
-            const isSmartMode = config.auto_refresh_mode === 'smart';
-            console.log(`[AutoRefresh] Antigravity 已启用: 每 ${config.auto_refresh_minutes} 分钟（模式: ${isSmartMode ? '智能刷新' : '仅本地倒计时'}）`);
+            const extraCount = config.extra_refresh_count ?? 0;
+            console.log(`[AutoRefresh] Antigravity 已启用: 每 ${config.auto_refresh_minutes} 分钟（额外刷新: ${extraCount} 个帐号）`);
             const agMs = config.auto_refresh_minutes * 60 * 1000;
 
             scheduleAligned(agMs, async () => {
@@ -235,45 +235,40 @@ export function useAutoRefresh() {
               agRefreshingRef.current = true;
 
               try {
-                if (isSmartMode) {
-                  console.log('[AutoRefresh] 触发 Antigravity 智能刷新（当前账号 + 候选账号）...');
+                // Step A: 始终刷新当前账号
+                try {
+                  await invoke('refresh_current_quota');
+                  console.log('[AutoRefresh] 当前账号配额已刷新');
+                } catch (e) {
+                  console.error('[AutoRefresh] 当前账号刷新失败:', e);
+                }
 
-                  // Step A: 刷新当前账号
-                  try {
-                    await invoke('refresh_current_quota');
-                    console.log('[AutoRefresh] 当前账号配额已刷新');
-                  } catch (e) {
-                    console.error('[AutoRefresh] 当前账号刷新失败:', e);
-                  }
-
-                  // Step B: 获取最新账号列表并筛选候选账号
+                // Step B: 额外刷新候选账号
+                if (extraCount > 0) {
                   await fetchAccounts();
                   const currentAccount = useAccountStore.getState().currentAccount;
                   const allAccounts = useAccountStore.getState().accounts;
                   const candidates = findSmartRefreshCandidates(allAccounts, currentAccount?.id);
+                  const toRefresh = candidates.slice(0, extraCount);
 
-                  // Step C: 刷新候选账号（取 last_updated 最早的 1 个）
-                  if (candidates.length > 0) {
-                    const candidate = candidates[0];
-                    console.log(`[AutoRefresh] 智能刷新候选账号: ${candidate.email} (last_updated: ${candidate.quota?.last_updated ?? 'N/A'})`);
-                    try {
-                      await invoke('fetch_account_quota', { accountId: candidate.id });
-                      console.log(`[AutoRefresh] 候选账号 ${candidate.email} 配额已刷新`);
-                    } catch (e) {
-                      console.error(`[AutoRefresh] 候选账号 ${candidate.email} 刷新失败:`, e);
+                  if (toRefresh.length > 0) {
+                    console.log(`[AutoRefresh] 额外刷新 ${toRefresh.length} 个候选账号`);
+                    for (const candidate of toRefresh) {
+                      try {
+                        await invoke('fetch_account_quota', { accountId: candidate.id });
+                        console.log(`[AutoRefresh] 候选账号 ${candidate.email} 配额已刷新`);
+                      } catch (e) {
+                        console.error(`[AutoRefresh] 候选账号 ${candidate.email} 刷新失败:`, e);
+                      }
                     }
                   } else {
-                    console.log('[AutoRefresh] 智能刷新: 无符合条件的候选账号');
+                    console.log('[AutoRefresh] 无符合条件的候选账号');
                   }
-
-                  // Step D: 更新前端 UI
-                  await fetchAccounts();
-                  await fetchCurrentAccount();
-                } else {
-                  // 原有行为：仅读取本地数据刷新倒计时
-                  console.log('[AutoRefresh] 触发定时倒计时刷新（不向服务器发送请求）...');
-                  await fetchAccounts();
                 }
+
+                // Step C: 更新前端 UI
+                await fetchAccounts();
+                await fetchCurrentAccount();
               } catch (e) {
                 console.error('[AutoRefresh] 刷新失败:', e);
               } finally {
@@ -295,14 +290,8 @@ export function useAutoRefresh() {
               codexRefreshingRef.current = true;
 
               try {
-                console.log(`[AutoRefresh] 触发 Codex 配额刷新 (模式: ${config.auto_refresh_mode === 'current' ? '仅当前账号' : '全部账号'})...`);
-                if (config.auto_refresh_mode === 'current') {
-                  await invoke('refresh_current_codex_quota');
-                  await fetchCodexAccounts();
-                  await fetchCodexCurrentAccount();
-                } else {
-                  await refreshAllCodexQuotas();
-                }
+                console.log('[AutoRefresh] 触发 Codex 配额刷新...');
+                await refreshAllCodexQuotas();
               } catch (e) {
                 console.error('[AutoRefresh] Codex 刷新失败:', e);
               } finally {

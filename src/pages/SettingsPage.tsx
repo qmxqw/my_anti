@@ -57,7 +57,7 @@ interface GeneralConfig {
   windsurf_quota_alert_threshold: number;
   kiro_quota_alert_enabled: boolean;
   kiro_quota_alert_threshold: number;
-  auto_refresh_mode: string;
+  extra_refresh_count: number;
   batch_refresh_skip_reset: boolean;
   hide_account_above_reset_hours: number;
   filter_suspicious_reset_time: boolean;
@@ -107,7 +107,7 @@ export function SettingsPage() {
   const [language, setLanguage] = useState(getCurrentLanguage());
   const [theme, setTheme] = useState('system');
   const [autoRefresh, setAutoRefresh] = useState('5');
-  const [autoRefreshMode, setAutoRefreshMode] = useState('all');
+  const [extraRefreshCount, setExtraRefreshCount] = useState('0');
   const [codexAutoRefresh, setCodexAutoRefresh] = useState('10');
   const [ghcpAutoRefresh, setGhcpAutoRefresh] = useState('10');
   const [windsurfAutoRefresh, setWindsurfAutoRefresh] = useState('10');
@@ -302,7 +302,7 @@ export function SettingsPage() {
           windsurfAutoRefreshMinutes: windsurfAutoRefreshNum,
           kiroAutoRefreshMinutes: kiroAutoRefreshNum,
           closeBehavior,
-          autoRefreshMode,
+          extraRefreshCount: parseInt(extraRefreshCount, 10) || 0,
           batchRefreshSkipReset: true,
           hideDockIcon,
           opencodeAppPath,
@@ -352,7 +352,7 @@ export function SettingsPage() {
     };
   }, [
     autoRefresh,
-    autoRefreshMode,
+    extraRefreshCount,
     codexAutoRefresh,
     ghcpAutoRefresh,
     windsurfAutoRefresh,
@@ -533,7 +533,7 @@ export function SettingsPage() {
       setLanguage(normalizeLanguage(config.language));
       setTheme(config.theme);
       setAutoRefresh(String(config.auto_refresh_minutes));
-      setAutoRefreshMode(config.auto_refresh_mode || 'all');
+      setExtraRefreshCount(String(config.extra_refresh_count ?? 0));
       setCodexAutoRefresh(String(config.codex_auto_refresh_minutes ?? 10));
       setGhcpAutoRefresh(String(config.ghcp_auto_refresh_minutes ?? 10));
       setWindsurfAutoRefresh(String(config.windsurf_auto_refresh_minutes ?? 10));
@@ -1005,18 +1005,23 @@ export function SettingsPage() {
                     {autoRefresh !== '-1' && (
                       <div className="settings-row" style={{ animation: 'fadeUp 0.3s ease both' }}>
                         <div className="row-label">
-                          <div className="row-title">{t('settings.general.autoRefreshMode', '配额刷新模式')}</div>
-                          <div className="row-desc">{t('settings.general.autoRefreshModeDesc', '设置 Antigravity 自动刷新配额的策略（全局生效）')}</div>
+                          <div className="row-title">{t('settings.general.extraRefreshCount', '额外刷新帐号数')}</div>
+                          <div className="row-desc">{t('settings.general.extraRefreshCountDesc', '每次定时刷新时，除当前帐号外额外刷新的帐号数量')}</div>
                         </div>
                         <div className="row-control">
                           <select
                             className="settings-select"
-                            value={autoRefreshMode}
-                            onChange={(e) => setAutoRefreshMode(e.target.value)}
+                            value={extraRefreshCount}
+                            onChange={(e) => setExtraRefreshCount(e.target.value)}
                           >
-                            <option value="all">{t('settings.general.autoRefreshModeAll', '刷新所有账号')}</option>
-                            <option value="current">{t('settings.general.autoRefreshModeCurrent', '仅当前账号')}</option>
-                            <option value="smart">{t('settings.general.autoRefreshModeSmart', '智能刷新（当前+候选）')}</option>
+                            <option value="0">0</option>
+                            <option value="1">1</option>
+                            <option value="2">2</option>
+                            <option value="3">3</option>
+                            <option value="4">4</option>
+                            <option value="5">5</option>
+                            <option value="10">10</option>
+                            <option value="20">20</option>
                           </select>
                         </div>
                       </div>

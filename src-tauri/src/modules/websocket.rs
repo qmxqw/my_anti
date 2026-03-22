@@ -790,7 +790,7 @@ fn handle_set_language(language: &str, source: Option<&str>) -> Result<String, S
         windsurf_quota_alert_threshold: current.windsurf_quota_alert_threshold,
         kiro_quota_alert_enabled: current.kiro_quota_alert_enabled,
         kiro_quota_alert_threshold: current.kiro_quota_alert_threshold,
-        auto_refresh_mode: current.auto_refresh_mode,
+        extra_refresh_count: current.extra_refresh_count,
         batch_refresh_skip_reset: current.batch_refresh_skip_reset,
         hide_account_above_reset_hours: current.hide_account_above_reset_hours,
         filter_suspicious_reset_time: current.filter_suspicious_reset_time,
