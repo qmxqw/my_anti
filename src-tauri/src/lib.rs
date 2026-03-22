@@ -161,7 +161,6 @@ pub fn run() {
             commands::account::delete_accounts,
             commands::account::reorder_accounts,
             commands::account::get_current_account,
-            commands::account::find_suggested_account,
             commands::account::set_current_account,
             commands::account::fetch_account_quota,
             commands::account::refresh_all_quotas,

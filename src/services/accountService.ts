@@ -97,10 +97,6 @@ export async function switchAccount(accountId: string): Promise<Account> {
     return await invoke('switch_account', { accountId });
 }
 
-export async function findSuggestedAccount(): Promise<Account | null> {
-    return await invoke('find_suggested_account');
-}
-
 export async function updateAccountTags(accountId: string, tags: string[]): Promise<Account> {
     return await invoke('update_account_tags', { accountId, tags });
 }

@@ -144,16 +144,6 @@ type QuotaAlertPayload = {
   triggered_at: number;
 };
 
-type AutoSwitchConfirmPayload = {
-  current_account_id: string;
-  current_email: string;
-  target_account_id: string;
-  target_email: string;
-  threshold: number;
-  lowest_percentage: number;
-  low_models: string[];
-  triggered_at: number;
-};
 
 type QuotaAlertPlatform = 'antigravity' | 'codex' | 'github_copilot' | 'windsurf' | 'kiro';
 type UpdateCheckSource = 'auto' | 'manual';
@@ -921,110 +911,6 @@ function App() {
     };
   }, [closeModal, openQuickSettingsForPlatform, showModal, t]);
 
-  // 自动切号确认弹窗
-  useEffect(() => {
-    let unlisten: UnlistenFn | undefined;
-    let disposed = false;
-
-    listen<AutoSwitchConfirmPayload>('quota:auto_switch_confirm', (event) => {
-      const payload = event.payload;
-      if (!payload || !payload.target_account_id) {
-        return;
-      }
-
-      const modelsText = payload.low_models.length > 0
-        ? payload.low_models.join(', ')
-        : t('quotaAlert.modal.unknownModel', '未知模型');
-
-      showModal({
-        title: t('autoSwitch.confirm.title', '自动切号确认'),
-        description: t(
-          'autoSwitch.confirm.desc',
-          '检测到当前账号配额不足，建议切换到配额更充足的账号。'
-        ),
-        width: 'md',
-        closeOnOverlay: false,
-        content: (
-          <div className="quota-alert-modal-content">
-            <div className="quota-alert-modal-row">
-              <span>{t('autoSwitch.confirm.currentAccount', '当前账号')}</span>
-              <strong>{payload.current_email}</strong>
-            </div>
-            <div className="quota-alert-modal-row">
-              <span>{t('autoSwitch.confirm.threshold', '切号阈值')}</span>
-              <strong>{payload.threshold}%</strong>
-            </div>
-            <div className="quota-alert-modal-row">
-              <span>{t('autoSwitch.confirm.lowest', '当前最低')}</span>
-              <strong>{payload.lowest_percentage}%</strong>
-            </div>
-            <div className="quota-alert-modal-row quota-alert-modal-row--stack">
-              <span>{t('autoSwitch.confirm.models', '低额度模型')}</span>
-              <strong>{modelsText}</strong>
-            </div>
-            <div className="quota-alert-modal-row">
-              <span>{t('autoSwitch.confirm.targetAccount', '切换目标')}</span>
-              <strong>{payload.target_email}</strong>
-            </div>
-          </div>
-        ),
-        actions: [
-          {
-            id: 'auto-switch-cancel',
-            label: t('autoSwitch.confirm.cancel', '暂不切换'),
-            variant: 'secondary',
-          },
-          {
-            id: 'auto-switch-confirm',
-            label: t('autoSwitch.confirm.switchNow', '确认切换到 {{email}}', {
-              email: payload.target_email,
-            }),
-            variant: 'primary',
-            autoClose: false,
-            onClick: async () => {
-              try {
-                await useAccountStore.getState().switchAccount(payload.target_account_id);
-                try {
-                  await invoke('broadcast_auto_switch');
-                } catch (e) {
-                  console.error('Failed to broadcast auto_switch event:', e);
-                }
-                closeModal();
-              } catch (error) {
-                showModal({
-                  title: t('autoSwitch.confirm.switchFailedTitle', '切号失败'),
-                  description: t('autoSwitch.confirm.switchFailedBody', '自动切号失败：{{error}}', {
-                    error: String(error),
-                  }),
-                  width: 'sm',
-                  actions: [
-                    {
-                      id: 'auto-switch-failed-ok',
-                      label: t('common.confirm', '确定'),
-                      variant: 'primary',
-                    },
-                  ],
-                });
-              }
-            },
-          },
-        ],
-      });
-    }).then((fn) => {
-      if (disposed) {
-        fn();
-        return;
-      }
-      unlisten = fn;
-    });
-
-    return () => {
-      disposed = true;
-      if (unlisten) {
-        unlisten();
-      }
-    };
-  }, [closeModal, showModal, t]);
 
   useEffect(() => {
     let unlisten: UnlistenFn | undefined;
