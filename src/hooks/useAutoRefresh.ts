@@ -85,30 +85,38 @@ export function useAutoRefresh() {
   const setupPendingRef = useRef(false);
   const destroyedRef = useRef(false);
 
-  const clearAllIntervals = useCallback(() => {
-    if (agIntervalRef.current) {
-      window.clearInterval(agIntervalRef.current);
-      agIntervalRef.current = null;
-    }
-    if (codexIntervalRef.current) {
-      window.clearInterval(codexIntervalRef.current);
-      codexIntervalRef.current = null;
-    }
-    if (ghcpIntervalRef.current) {
-      window.clearInterval(ghcpIntervalRef.current);
-      ghcpIntervalRef.current = null;
-    }
-    if (autoSwitchIntervalRef.current) {
-      window.clearInterval(autoSwitchIntervalRef.current);
-      autoSwitchIntervalRef.current = null;
-    }
-    if (windsurfIntervalRef.current) {
-      window.clearInterval(windsurfIntervalRef.current);
-      windsurfIntervalRef.current = null;
-    }
-    if (kiroIntervalRef.current) {
-      window.clearInterval(kiroIntervalRef.current);
-      kiroIntervalRef.current = null;
+  /**
+   * 创建与时钟边界对齐的自调度定时器。
+   * 例如 intervalMs = 2min 时，执行时间为 :00:00, :02:00, :04:00 …
+   * 每次回调完成后重新计算延迟，自校正无漂移。
+   * 返回首次 setTimeout 的 ID（可用 clearTimeout 取消）。
+   */
+  const scheduleAligned = (
+    intervalMs: number,
+    callback: () => Promise<void> | void,
+    ref: React.MutableRefObject<number | null>,
+  ) => {
+    const tick = async () => {
+      await callback();
+      if (ref.current === null) return; // 已被清理
+      const now = Date.now();
+      const next = Math.ceil(now / intervalMs) * intervalMs;
+      const delay = next - now || intervalMs;
+      ref.current = window.setTimeout(tick, delay);
+    };
+    const now = Date.now();
+    const next = Math.ceil(now / intervalMs) * intervalMs;
+    const delay = next - now || intervalMs;
+    ref.current = window.setTimeout(tick, delay);
+  };
+
+  const clearAllTimers = useCallback(() => {
+    const refs = [agIntervalRef, codexIntervalRef, ghcpIntervalRef, autoSwitchIntervalRef, windsurfIntervalRef, kiroIntervalRef];
+    for (const ref of refs) {
+      if (ref.current) {
+        window.clearTimeout(ref.current);
+        ref.current = null;
+      }
     }
   }, []);
 
@@ -187,14 +195,14 @@ export function useAutoRefresh() {
             return;
           }
 
-          clearAllIntervals();
+          clearAllTimers();
 
           if (config.auto_refresh_minutes > 0) {
             const isSmartMode = config.auto_refresh_mode === 'smart';
             console.log(`[AutoRefresh] Antigravity 已启用: 每 ${config.auto_refresh_minutes} 分钟（模式: ${isSmartMode ? '智能刷新' : '仅本地倒计时'}）`);
             const agMs = config.auto_refresh_minutes * 60 * 1000;
 
-            agIntervalRef.current = window.setInterval(async () => {
+            scheduleAligned(agMs, async () => {
               if (agRefreshingRef.current) {
                 return;
               }
@@ -245,7 +253,7 @@ export function useAutoRefresh() {
               } finally {
                 agRefreshingRef.current = false;
               }
-            }, agMs);
+            }, agIntervalRef);
           } else {
             console.log('[AutoRefresh] Antigravity 已禁用');
           }
@@ -254,7 +262,7 @@ export function useAutoRefresh() {
             console.log(`[AutoRefresh] Codex 已启用: 每 ${config.codex_auto_refresh_minutes} 分钟`);
             const codexMs = config.codex_auto_refresh_minutes * 60 * 1000;
 
-            codexIntervalRef.current = window.setInterval(async () => {
+            scheduleAligned(codexMs, async () => {
               if (codexRefreshingRef.current) {
                 return;
               }
@@ -274,7 +282,7 @@ export function useAutoRefresh() {
               } finally {
                 codexRefreshingRef.current = false;
               }
-            }, codexMs);
+            }, codexIntervalRef);
           } else {
             console.log('[AutoRefresh] Codex 已禁用');
           }
@@ -283,7 +291,7 @@ export function useAutoRefresh() {
             console.log(`[AutoRefresh] GitHub Copilot 已启用: 每 ${config.ghcp_auto_refresh_minutes} 分钟`);
             const ghcpMs = config.ghcp_auto_refresh_minutes * 60 * 1000;
 
-            ghcpIntervalRef.current = window.setInterval(async () => {
+            scheduleAligned(ghcpMs, async () => {
               if (ghcpRefreshingRef.current) {
                 return;
               }
@@ -297,7 +305,7 @@ export function useAutoRefresh() {
               } finally {
                 ghcpRefreshingRef.current = false;
               }
-            }, ghcpMs);
+            }, ghcpIntervalRef);
           } else {
             console.log('[AutoRefresh] GitHub Copilot 已禁用');
           }
@@ -306,7 +314,7 @@ export function useAutoRefresh() {
             console.log(`[AutoRefresh] Windsurf 已启用: 每 ${config.windsurf_auto_refresh_minutes} 分钟`);
             const windsurfMs = config.windsurf_auto_refresh_minutes * 60 * 1000;
 
-            windsurfIntervalRef.current = window.setInterval(async () => {
+            scheduleAligned(windsurfMs, async () => {
               if (windsurfRefreshingRef.current) {
                 return;
               }
@@ -320,7 +328,7 @@ export function useAutoRefresh() {
               } finally {
                 windsurfRefreshingRef.current = false;
               }
-            }, windsurfMs);
+            }, windsurfIntervalRef);
           } else {
             console.log('[AutoRefresh] Windsurf 已禁用');
           }
@@ -329,7 +337,7 @@ export function useAutoRefresh() {
             console.log(`[AutoRefresh] Kiro 已启用: 每 ${config.kiro_auto_refresh_minutes} 分钟`);
             const kiroMs = config.kiro_auto_refresh_minutes * 60 * 1000;
 
-            kiroIntervalRef.current = window.setInterval(async () => {
+            scheduleAligned(kiroMs, async () => {
               if (kiroRefreshingRef.current) {
                 return;
               }
@@ -343,7 +351,7 @@ export function useAutoRefresh() {
               } finally {
                 kiroRefreshingRef.current = false;
               }
-            }, kiroMs);
+            }, kiroIntervalRef);
           } else {
             console.log('[AutoRefresh] Kiro 已禁用');
           }
@@ -351,7 +359,7 @@ export function useAutoRefresh() {
           // 自动切号开启时，额外每 60 秒刷新当前账号（不影响原有配额自动刷新规则）
           if (config.auto_switch_enabled) {
             console.log('[AutoRefresh] 自动切号已启用: 每 60 秒刷新当前账号');
-            autoSwitchIntervalRef.current = window.setInterval(async () => {
+            scheduleAligned(60 * 1000, async () => {
               if (autoSwitchRefreshingRef.current) {
                 return;
               }
@@ -367,7 +375,7 @@ export function useAutoRefresh() {
               } finally {
                 autoSwitchRefreshingRef.current = false;
               }
-            }, 60 * 1000);
+            }, autoSwitchIntervalRef);
           } else {
             console.log('[AutoRefresh] 自动切号未启用，跳过 60 秒当前账号刷新');
           }
@@ -379,7 +387,7 @@ export function useAutoRefresh() {
       setupRunningRef.current = false;
     }
   }, [
-    clearAllIntervals,
+    clearAllTimers,
     fetchAccounts,
     fetchCurrentAccount,
     fetchCodexAccounts,
@@ -405,8 +413,8 @@ export function useAutoRefresh() {
     return () => {
       destroyedRef.current = true;
       setupPendingRef.current = false;
-      clearAllIntervals();
+      clearAllTimers();
       window.removeEventListener('config-updated', handleConfigUpdate);
     };
-  }, [clearAllIntervals, setupAutoRefresh]);
+  }, [clearAllTimers, setupAutoRefresh]);
 }
