@@ -773,7 +773,8 @@ pub fn update_account_quota(account_id: &str, mut quota: QuotaData) -> Result<()
     }
 
     // 过滤可疑 reset_time：若新值恰好为"当前时间+5H"，保留旧值（或清空），避免污染存储
-    {
+    // 仅在用户配置启用"过滤可疑重置时间"时生效
+    if crate::modules::config::get_user_config().filter_suspicious_reset_time {
         let existing_models: std::collections::HashMap<&str, &str> = account
             .quota
             .as_ref()

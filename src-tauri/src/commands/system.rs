@@ -91,6 +91,8 @@ pub struct GeneralConfig {
     pub batch_refresh_skip_reset: bool,
     /// 隐藏长时重置帐号阈值（小时），开启隐私模式时生效
     pub hide_account_above_reset_hours: i32,
+    /// 是否过滤可疑重置时间（服务端返回的"当前+5H"假值）
+    pub filter_suspicious_reset_time: bool,
 }
 
 #[tauri::command]
@@ -200,6 +202,7 @@ pub fn save_network_config(ws_enabled: bool, ws_port: u16) -> Result<bool, Strin
         auto_refresh_mode: current.auto_refresh_mode,
         batch_refresh_skip_reset: current.batch_refresh_skip_reset,
         hide_account_above_reset_hours: current.hide_account_above_reset_hours,
+        filter_suspicious_reset_time: current.filter_suspicious_reset_time,
     };
 
     config::save_user_config(&new_config)?;
@@ -257,6 +260,7 @@ pub fn get_general_config() -> Result<GeneralConfig, String> {
         auto_refresh_mode: user_config.auto_refresh_mode,
         batch_refresh_skip_reset: user_config.batch_refresh_skip_reset,
         hide_account_above_reset_hours: user_config.hide_account_above_reset_hours,
+        filter_suspicious_reset_time: user_config.filter_suspicious_reset_time,
     })
 }
 
@@ -298,6 +302,7 @@ pub fn save_general_config(
     auto_refresh_mode: Option<String>,
     batch_refresh_skip_reset: Option<bool>,
     hide_account_above_reset_hours: Option<i32>,
+    filter_suspicious_reset_time: Option<bool>,
 ) -> Result<(), String> {
     let current = config::get_user_config();
     let normalized_opencode_path = opencode_app_path.trim().to_string();
@@ -380,6 +385,8 @@ pub fn save_general_config(
         batch_refresh_skip_reset: batch_refresh_skip_reset.unwrap_or(current.batch_refresh_skip_reset),
         hide_account_above_reset_hours: hide_account_above_reset_hours
             .unwrap_or(current.hide_account_above_reset_hours),
+        filter_suspicious_reset_time: filter_suspicious_reset_time
+            .unwrap_or(current.filter_suspicious_reset_time),
     };
 
     config::save_user_config(&new_config)?;

@@ -70,25 +70,7 @@ type Translate = (key: string, options?: Record<string, unknown>) => string;
 
 const SUSPICIOUS_RESET_MIN_MINUTES = 299;
 const SUSPICIOUS_RESET_MAX_MINUTES = 300;
-const FILTER_SUSPICIOUS_LS_KEY = 'agtools.ag.filterSuspiciousResetTime';
 
-export function getFilterSuspiciousResetTime(): boolean {
-  try {
-    const raw = localStorage.getItem(FILTER_SUSPICIOUS_LS_KEY);
-    if (raw === null) return true; // default on
-    return raw === 'true';
-  } catch {
-    return true;
-  }
-}
-
-export function setFilterSuspiciousResetTime(value: boolean): void {
-  try {
-    localStorage.setItem(FILTER_SUSPICIOUS_LS_KEY, String(value));
-  } catch {
-    // ignore
-  }
-}
 
 export function formatResetTime(resetTime: string, t: Translate, filterSuspicious?: boolean): string {
   if (!resetTime) return '';
@@ -118,9 +100,9 @@ export function formatResetTime(resetTime: string, t: Translate, filterSuspiciou
     if (days > 0) parts.push(`${days}d`);
     if (hours > 0) parts.push(`${hours}h`);
     if (minutes > 0) parts.push(`${minutes}m`);
-    
+
     if (parts.length === 0) return '<1m';
-    
+
     return parts.join(' ');
   } catch {
     return '';

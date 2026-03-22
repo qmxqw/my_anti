@@ -793,6 +793,7 @@ fn handle_set_language(language: &str, source: Option<&str>) -> Result<String, S
         auto_refresh_mode: current.auto_refresh_mode,
         batch_refresh_skip_reset: current.batch_refresh_skip_reset,
         hide_account_above_reset_hours: current.hide_account_above_reset_hours,
+        filter_suspicious_reset_time: current.filter_suspicious_reset_time,
     };
 
     config::save_user_config(&new_config)?;

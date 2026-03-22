@@ -6,7 +6,6 @@ import { invoke } from '@tauri-apps/api/core';
 import { getVersion } from '@tauri-apps/api/app';
 import { changeLanguage, getCurrentLanguage, normalizeLanguage } from '../i18n';
 import * as accountService from '../services/accountService';
-import { getFilterSuspiciousResetTime, setFilterSuspiciousResetTime } from '../utils/account';
 import { usePlatformRuntimeSupport } from '../hooks/usePlatformRuntimeSupport';
 import { usePlatformLayoutStore } from '../stores/usePlatformLayoutStore';
 import { ALL_PLATFORM_IDS, PlatformId } from '../types/platform';
@@ -61,6 +60,7 @@ interface GeneralConfig {
   auto_refresh_mode: string;
   batch_refresh_skip_reset: boolean;
   hide_account_above_reset_hours: number;
+  filter_suspicious_reset_time: boolean;
 }
 
 type AppPathTarget = 'antigravity' | 'codex' | 'vscode' | 'opencode' | 'windsurf' | 'kiro';
@@ -136,7 +136,7 @@ export function SettingsPage() {
   const [kiroQuotaAlertThreshold, setKiroQuotaAlertThreshold] = useState('20');
 
   const [hideAccountAboveResetHours, setHideAccountAboveResetHours] = useState('6');
-  const [filterSuspiciousResetTime, setFilterSuspiciousResetTimeState] = useState(() => getFilterSuspiciousResetTime());
+  const [filterSuspiciousResetTime, setFilterSuspiciousResetTimeState] = useState(true);
   const [autoRefreshCustomMode, setAutoRefreshCustomMode] = useState(false);
   const [codexAutoRefreshCustomMode, setCodexAutoRefreshCustomMode] = useState(false);
   const [ghcpAutoRefreshCustomMode, setGhcpAutoRefreshCustomMode] = useState(false);
@@ -335,6 +335,7 @@ export function SettingsPage() {
           hideAccountAboveResetHours: Number.isNaN(parsedHideAccountAboveResetHours)
             ? 6
             : parsedHideAccountAboveResetHours,
+          filterSuspiciousResetTime,
         });
         window.dispatchEvent(new Event('config-updated'));
       } catch (err) {
@@ -380,6 +381,7 @@ export function SettingsPage() {
     kiroQuotaAlertEnabled,
     kiroQuotaAlertThreshold,
     hideAccountAboveResetHours,
+    filterSuspiciousResetTime,
     t,
   ]);
 
@@ -556,6 +558,7 @@ export function SettingsPage() {
       setKiroQuotaAlertEnabled(config.kiro_quota_alert_enabled ?? false);
       setKiroQuotaAlertThreshold(String(config.kiro_quota_alert_threshold ?? 20));
       setHideAccountAboveResetHours(String(config.hide_account_above_reset_hours ?? 6));
+      setFilterSuspiciousResetTimeState(config.filter_suspicious_reset_time ?? true);
       setAutoRefreshCustomMode(false);
       setCodexAutoRefreshCustomMode(false);
       setGhcpAutoRefreshCustomMode(false);
@@ -1008,7 +1011,6 @@ export function SettingsPage() {
                             checked={filterSuspiciousResetTime}
                             onChange={(e) => {
                               setFilterSuspiciousResetTimeState(e.target.checked);
-                              setFilterSuspiciousResetTime(e.target.checked);
                             }}
                           />
                           <span className="toggle-slider" />
