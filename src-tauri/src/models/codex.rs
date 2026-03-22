@@ -15,7 +15,6 @@ pub struct CodexAccount {
     pub quota_error: Option<CodexQuotaErrorInfo>,
     pub tags: Option<Vec<String>>,
     pub created_at: i64,
-    pub last_used: i64,
 }
 
 /// Codex Token 数据
@@ -100,7 +99,6 @@ pub struct CodexAccountSummary {
     pub email: String,
     pub plan_type: Option<String>,
     pub created_at: i64,
-    pub last_used: i64,
 }
 
 impl CodexAccountIndex {
@@ -157,11 +155,6 @@ impl CodexAccount {
             quota_error: None,
             tags: None,
             created_at: now,
-            last_used: now,
         }
-    }
-
-    pub fn update_last_used(&mut self) {
-        self.last_used = chrono::Utc::now().timestamp();
     }
 }

@@ -720,7 +720,7 @@ fn resolve_github_copilot_current_account(
 
     accounts
         .iter()
-        .max_by_key(|account| account.last_used)
+        .max_by_key(|account| account.created_at)
         .cloned()
 }
 
@@ -740,7 +740,7 @@ fn resolve_windsurf_current_account(
 
     accounts
         .iter()
-        .max_by_key(|account| account.last_used)
+        .max_by_key(|account| account.created_at)
         .cloned()
 }
 
@@ -760,7 +760,7 @@ fn resolve_kiro_current_account(
 
     accounts
         .iter()
-        .max_by_key(|account| account.last_used)
+        .max_by_key(|account| account.created_at)
         .cloned()
 }
 

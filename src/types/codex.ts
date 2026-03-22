@@ -10,7 +10,6 @@ export interface CodexAccount {
   quota_error?: CodexQuotaErrorInfo;
   tags?: string[];
   created_at: number;
-  last_used: number;
 }
 
 export interface CodexQuotaErrorInfo {

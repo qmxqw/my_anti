@@ -46,7 +46,6 @@ pub struct WindsurfAccount {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub windsurf_auth_status_raw: Option<serde_json::Value>,
     pub created_at: i64,
-    pub last_used: i64,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -60,7 +59,6 @@ pub struct WindsurfAccountSummary {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub copilot_plan: Option<String>,
     pub created_at: i64,
-    pub last_used: i64,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -132,7 +130,6 @@ impl WindsurfAccount {
             tags: self.tags.clone(),
             copilot_plan: self.copilot_plan.clone(),
             created_at: self.created_at,
-            last_used: self.last_used,
         }
     }
 }

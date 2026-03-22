@@ -415,7 +415,6 @@ fn merge_duplicate_account(primary: &mut KiroAccount, duplicate: &KiroAccount) {
 
     primary.tags = merge_string_list(primary.tags.clone(), duplicate.tags.clone());
     primary.created_at = primary.created_at.min(duplicate.created_at);
-    primary.last_used = primary.last_used.max(duplicate.last_used);
 }
 
 fn choose_primary_account_index(
@@ -439,10 +438,7 @@ fn choose_primary_account_index(
         .max_by(|left, right| {
             let left_account = &accounts[*left];
             let right_account = &accounts[*right];
-            left_account
-                .last_used
-                .cmp(&right_account.last_used)
-                .then_with(|| right_account.created_at.cmp(&left_account.created_at))
+            right_account.created_at.cmp(&left_account.created_at)
         })
         .unwrap_or(group[0])
 }
@@ -607,7 +603,6 @@ fn apply_payload(account: &mut KiroAccount, payload: KiroOAuthCompletePayload) {
     account.kiro_usage_raw = payload.kiro_usage_raw;
     account.status = payload.status;
     account.status_reason = payload.status_reason;
-    account.last_used = now_ts();
 }
 
 pub fn upsert_account(payload: KiroOAuthCompletePayload) -> Result<KiroAccount, String> {
@@ -686,13 +681,11 @@ pub fn upsert_account(payload: KiroOAuthCompletePayload) -> Result<KiroAccount, 
         status: payload.status.clone(),
         status_reason: payload.status_reason.clone(),
         created_at,
-        last_used: now,
     });
 
     apply_payload(&mut account, payload);
     account.id = account_id;
     account.created_at = created_at;
-    account.last_used = now;
 
     save_account_file(&account)?;
     refresh_summary(&mut index, &account);
@@ -719,7 +712,6 @@ pub async fn refresh_account_token(account_id: &str) -> Result<KiroAccount, Stri
     apply_payload(&mut account, payload);
     account.tags = tags;
     account.created_at = created_at;
-    account.last_used = now_ts();
 
     let updated = account.clone();
     upsert_account_record(account)?;
@@ -801,7 +793,6 @@ pub fn remove_accounts(account_ids: &[String]) -> Result<(), String> {
 pub fn update_account_tags(account_id: &str, tags: Vec<String>) -> Result<KiroAccount, String> {
     let mut account = load_account(account_id).ok_or_else(|| "账号不存在".to_string())?;
     account.tags = Some(tags);
-    account.last_used = now_ts();
     let updated = account.clone();
     upsert_account_record(account)?;
     Ok(updated)
@@ -1088,7 +1079,7 @@ fn resolve_current_account_id(accounts: &[KiroAccount]) -> Option<String> {
 
     accounts
         .iter()
-        .max_by_key(|account| account.last_used)
+        .max_by_key(|account| account.created_at)
         .map(|account| account.id.clone())
 }
 
@@ -1148,7 +1139,6 @@ fn pick_quota_alert_recommendation(
         avg_b
             .partial_cmp(&avg_a)
             .unwrap_or(std::cmp::Ordering::Equal)
-            .then_with(|| a.last_used.cmp(&b.last_used))
     });
 
     candidates.into_iter().next()

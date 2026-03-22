@@ -322,21 +322,14 @@ fn merge_account_group(group: Vec<WindsurfAccount>) -> WindsurfAccount {
         .map(|account| account.created_at)
         .min()
         .unwrap_or_else(now_ts);
-    let last_used = group
-        .iter()
-        .map(|account| account.last_used)
-        .max()
-        .unwrap_or(created_at);
-
     let mut merged = group
         .iter()
-        .max_by_key(|account| account.last_used)
+        .max_by_key(|account| account.created_at)
         .cloned()
         .unwrap_or_else(|| group[0].clone());
 
     merged.id = keep_id;
     merged.created_at = created_at;
-    merged.last_used = last_used;
 
     for source in &group {
         merge_tags(&mut merged.tags, source.tags.as_ref());
@@ -565,7 +558,6 @@ fn apply_payload(account: &mut WindsurfAccount, payload: WindsurfOAuthCompletePa
     account.windsurf_user_status = payload.windsurf_user_status;
     account.windsurf_plan_status = payload.windsurf_plan_status;
     account.windsurf_auth_status_raw = payload.windsurf_auth_status_raw;
-    account.last_used = now_ts();
 }
 
 fn value_has_number_like(value: &Value) -> bool {
@@ -754,13 +746,11 @@ pub fn upsert_account(payload: WindsurfOAuthCompletePayload) -> Result<WindsurfA
         windsurf_plan_status: payload.windsurf_plan_status.clone(),
         windsurf_auth_status_raw: payload.windsurf_auth_status_raw.clone(),
         created_at,
-        last_used: now,
     });
 
     apply_payload(&mut account, payload);
     account.id = account_id;
     account.created_at = created_at;
-    account.last_used = now;
 
     save_account_file(&account)?;
     refresh_summary(&mut index, &account);
@@ -803,8 +793,6 @@ pub async fn refresh_account_token(account_id: &str) -> Result<WindsurfAccount, 
     apply_payload(&mut account, payload);
     account.tags = tags;
     account.created_at = created_at;
-    account.last_used = now_ts();
-
     let updated = account.clone();
     upsert_account_record(account)?;
     logger::log_info(&format!(
@@ -895,7 +883,6 @@ pub fn remove_accounts(account_ids: &[String]) -> Result<(), String> {
 pub fn update_account_tags(account_id: &str, tags: Vec<String>) -> Result<WindsurfAccount, String> {
     let mut account = load_account(account_id).ok_or_else(|| "账号不存在".to_string())?;
     account.tags = Some(tags);
-    account.last_used = now_ts();
     let updated = account.clone();
     upsert_account_record(account)?;
     Ok(updated)
@@ -1122,7 +1109,7 @@ fn resolve_current_account_id(accounts: &[WindsurfAccount]) -> Option<String> {
 
     accounts
         .iter()
-        .max_by_key(|account| account.last_used)
+        .max_by_key(|account| account.created_at)
         .map(|account| account.id.clone())
 }
 
@@ -1180,7 +1167,6 @@ fn pick_quota_alert_recommendation(
         avg_b
             .partial_cmp(&avg_a)
             .unwrap_or(std::cmp::Ordering::Equal)
-            .then_with(|| a.last_used.cmp(&b.last_used))
     });
 
     candidates.into_iter().next()

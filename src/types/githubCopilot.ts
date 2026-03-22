@@ -23,7 +23,6 @@ export interface GitHubCopilotAccount {
   copilot_limited_user_reset_date?: number | null;
 
   created_at: number;
-  last_used: number;
 
   // ---- 兼容旧 UI（从 Codex 页面复制而来） ----
   // 这些字段不会由后端直接返回，需要在前端做映射/派生。

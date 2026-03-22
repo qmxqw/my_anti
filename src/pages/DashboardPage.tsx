@@ -511,8 +511,8 @@ export function DashboardPage({ onNavigate, onOpenPlatformLayout, onEasterEggTri
       if (current) return current;
     }
     return githubCopilotAccounts.reduce((prev, curr) => {
-      const prevScore = prev.last_used || prev.created_at || 0;
-      const currScore = curr.last_used || curr.created_at || 0;
+      const prevScore = prev.created_at || 0;
+      const currScore = curr.created_at || 0;
       return currScore > prevScore ? curr : prev;
     });
   }, [githubCopilotAccounts, githubCopilotCurrentId]);
@@ -524,8 +524,8 @@ export function DashboardPage({ onNavigate, onOpenPlatformLayout, onEasterEggTri
       if (current) return current;
     }
     return windsurfAccounts.reduce((prev, curr) => {
-      const prevScore = prev.last_used || prev.created_at || 0;
-      const currScore = curr.last_used || curr.created_at || 0;
+      const prevScore = prev.created_at || 0;
+      const currScore = curr.created_at || 0;
       return currScore > prevScore ? curr : prev;
     });
   }, [windsurfAccounts, windsurfCurrentId]);
@@ -537,8 +537,8 @@ export function DashboardPage({ onNavigate, onOpenPlatformLayout, onEasterEggTri
       if (current) return current;
     }
     return kiroAccounts.reduce((prev, curr) => {
-      const prevScore = prev.last_used || prev.created_at || 0;
-      const currScore = curr.last_used || curr.created_at || 0;
+      const prevScore = prev.created_at || 0;
+      const currScore = curr.created_at || 0;
       return currScore > prevScore ? curr : prev;
     });
   }, [kiroAccounts, kiroCurrentId]);
@@ -607,7 +607,7 @@ export function DashboardPage({ onNavigate, onOpenPlatformLayout, onEasterEggTri
         return 100 - avgUsed;
       }
 
-      return (account.last_used || account.created_at || 0) / 1e9;
+      return (account.created_at || 0) / 1e9;
     };
 
     return others.reduce((prev, curr) => (getScore(curr) > getScore(prev) ? curr : prev));
@@ -638,7 +638,7 @@ export function DashboardPage({ onNavigate, onOpenPlatformLayout, onEasterEggTri
         return 100 - avgUsed;
       }
 
-      return (account.last_used || account.created_at || 0) / 1e9;
+      return (account.created_at || 0) / 1e9;
     };
 
     return others.reduce((prev, curr) => (getScore(curr) > getScore(prev) ? curr : prev));

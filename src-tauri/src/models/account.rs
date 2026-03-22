@@ -35,7 +35,6 @@ pub struct Account {
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub quota_error: Option<QuotaErrorInfo>,
     pub created_at: i64,
-    pub last_used: i64,
     /// 账号被消耗计数（切换时有模型配额低于 60% 的次数）
     #[serde(default, skip_serializing_if = "is_zero_u32")]
     pub usage_count: u32,
@@ -66,15 +65,11 @@ impl Account {
             protected_models: HashSet::new(),
             quota_error: None,
             created_at: now,
-            last_used: now,
             usage_count: 0,
             usage_count_reset_at: None,
         }
     }
 
-    pub fn update_last_used(&mut self) {
-        self.last_used = chrono::Utc::now().timestamp();
-    }
 
     pub fn update_quota(&mut self, quota: QuotaData) {
         self.quota = Some(quota);
@@ -105,7 +100,6 @@ pub struct AccountSummary {
     pub email: String,
     pub name: Option<String>,
     pub created_at: i64,
-    pub last_used: i64,
 }
 
 impl AccountIndex {

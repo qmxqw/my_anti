@@ -34,7 +34,6 @@ pub struct GitHubCopilotAccount {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub copilot_limited_user_reset_date: Option<i64>,
     pub created_at: i64,
-    pub last_used: i64,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -48,7 +47,6 @@ pub struct GitHubCopilotAccountSummary {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub copilot_plan: Option<String>,
     pub created_at: i64,
-    pub last_used: i64,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -112,7 +110,6 @@ impl GitHubCopilotAccount {
             tags: self.tags.clone(),
             copilot_plan: self.copilot_plan.clone(),
             created_at: self.created_at,
-            last_used: self.last_used,
         }
     }
 }

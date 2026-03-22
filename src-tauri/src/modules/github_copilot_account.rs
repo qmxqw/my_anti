@@ -167,7 +167,6 @@ pub fn upsert_account(
         copilot_limited_user_quotas: payload.copilot_limited_user_quotas.clone(),
         copilot_limited_user_reset_date: payload.copilot_limited_user_reset_date,
         created_at,
-        last_used: now,
     });
 
     account.github_login = payload.github_login;
@@ -187,7 +186,6 @@ pub fn upsert_account(
     account.copilot_limited_user_quotas = payload.copilot_limited_user_quotas;
     account.copilot_limited_user_reset_date = payload.copilot_limited_user_reset_date;
     account.created_at = created_at;
-    account.last_used = now;
 
     save_account_file(&account)?;
     refresh_summary(&mut index, &account);
@@ -213,8 +211,6 @@ pub async fn refresh_account_token(account_id: &str) -> Result<GitHubCopilotAcco
     account.copilot_quota_reset_date = bundle.quota_reset_date;
     account.copilot_limited_user_quotas = bundle.limited_user_quotas;
     account.copilot_limited_user_reset_date = bundle.limited_user_reset_date;
-    account.last_used = now_ts();
-
     let updated = account.clone();
     upsert_account_record(account)?;
     Ok(updated)
@@ -280,7 +276,6 @@ pub fn update_account_tags(
 ) -> Result<GitHubCopilotAccount, String> {
     let mut account = load_account_file(account_id).ok_or_else(|| "账号不存在".to_string())?;
     account.tags = Some(tags);
-    account.last_used = now_ts();
     let updated = account.clone();
     upsert_account_record(account)?;
     Ok(updated)
@@ -438,7 +433,7 @@ fn resolve_current_account_id(accounts: &[GitHubCopilotAccount]) -> Option<Strin
 
     accounts
         .iter()
-        .max_by_key(|account| account.last_used)
+        .max_by_key(|account| account.created_at)
         .map(|account| account.id.clone())
 }
 
@@ -496,7 +491,6 @@ fn pick_quota_alert_recommendation(
         avg_b
             .partial_cmp(&avg_a)
             .unwrap_or(std::cmp::Ordering::Equal)
-            .then_with(|| a.last_used.cmp(&b.last_used))
     });
 
     candidates.into_iter().next()

@@ -134,7 +134,6 @@ pub struct AccountInfo {
     pub is_current: bool,
     pub disabled: bool,
     pub has_fingerprint: bool,
-    pub last_used: i64,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub subscription_tier: Option<String>,
 }
@@ -148,7 +147,6 @@ pub struct AccountTokenInfo {
     pub is_current: bool,
     pub disabled: bool,
     pub has_fingerprint: bool,
-    pub last_used: i64,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub subscription_tier: Option<String>,
     pub refresh_token: String,
@@ -617,7 +615,6 @@ fn get_accounts_info() -> Result<(Vec<AccountInfo>, Option<String>), String> {
                 is_current: current_id.as_ref() == Some(&acc.id),
                 disabled: acc.disabled,
                 has_fingerprint: acc.fingerprint_id.is_some(),
-                last_used: acc.last_used,
                 subscription_tier,
             }
         })
@@ -647,7 +644,6 @@ fn get_accounts_with_tokens_info() -> Result<(Vec<AccountTokenInfo>, Option<Stri
                 is_current: current_id.as_ref() == Some(&acc.id),
                 disabled: acc.disabled,
                 has_fingerprint: acc.fingerprint_id.is_some(),
-                last_used: acc.last_used,
                 subscription_tier,
                 refresh_token: acc.token.refresh_token.clone(),
                 access_token: acc.token.access_token.clone(),
@@ -679,7 +675,6 @@ fn get_current_account_info() -> Result<Option<AccountInfo>, String> {
             is_current: current_id.as_ref() == Some(&acc.id),
             disabled: acc.disabled,
             has_fingerprint: acc.fingerprint_id.is_some(),
-            last_used: acc.last_used,
             subscription_tier,
         }
     }))

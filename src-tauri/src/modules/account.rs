@@ -486,7 +486,6 @@ pub fn add_account(
         email: email.clone(),
         name: name.clone(),
         created_at: account.created_at,
-        last_used: account.last_used,
     });
 
     if index.current_account_id.is_none() {
@@ -530,7 +529,6 @@ pub fn upsert_account(
                     account.disabled_reason = None;
                     account.disabled_at = None;
                 }
-                account.update_last_used();
                 save_account(&account)?;
 
                 if let Some(idx_summary) = index.accounts.iter_mut().find(|s| s.id == account_id) {
@@ -1216,7 +1214,6 @@ pub async fn switch_account_internal(account_id: &str) -> Result<Account, String
 
     // 4. 更新工具内部状态
     set_current_account_id(account_id)?;
-    account.update_last_used();
     save_account(&account)?;
 
     // 5. 同步更新默认实例绑定账号，确保默认实例注入目标明确

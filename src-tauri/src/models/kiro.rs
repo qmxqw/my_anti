@@ -60,7 +60,6 @@ pub struct KiroAccount {
     pub status_reason: Option<String>,
 
     pub created_at: i64,
-    pub last_used: i64,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -72,7 +71,6 @@ pub struct KiroAccountSummary {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub plan_name: Option<String>,
     pub created_at: i64,
-    pub last_used: i64,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -150,7 +148,6 @@ impl KiroAccount {
             tags: self.tags.clone(),
             plan_name: self.plan_name.clone(),
             created_at: self.created_at,
-            last_used: self.last_used,
         }
     }
 }

@@ -173,7 +173,6 @@ pub async fn switch_account(app: AppHandle, account_id: String) -> Result<models
 
     // 4. 更新工具内部状态
     modules::set_current_account_id(&account_id)?;
-    account.update_last_used();
     modules::save_account(&account)?;
 
     // 5. 同步更新 Antigravity 默认实例的绑定账号（不同步到 Codex，因为账号体系不同）

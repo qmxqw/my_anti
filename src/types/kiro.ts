@@ -46,7 +46,6 @@ export interface KiroAccount {
   status_reason?: string | null;
 
   created_at: number;
-  last_used: number;
 
   // 兼容复制自 Windsurf 页面的字段（可选）
   github_login?: string;
