@@ -143,9 +143,6 @@ pub struct UserConfig {
     /// 批量刷新时是否跳过已重置（配额已满）的账号
     #[serde(default = "default_batch_refresh_skip_reset")]
     pub batch_refresh_skip_reset: bool,
-    /// 隐藏长时重置帐号阈值（小时），开启隐私模式时生效，设为 0 表示不隐藏
-    #[serde(default = "default_hide_account_above_reset_hours")]
-    pub hide_account_above_reset_hours: i32,
 
     /// 额外刷新次排序键：true=按创建时间升序（旧帐号优先），false=降序（新帐号优先，默认）
     #[serde(default = "default_refresh_sort_oldest_first")]
@@ -291,9 +288,6 @@ fn default_extra_refresh_count() -> i32 {
 fn default_batch_refresh_skip_reset() -> bool {
     false
 }
-fn default_hide_account_above_reset_hours() -> i32 {
-    6
-}
 
 fn default_refresh_sort_oldest_first() -> bool {
     false
@@ -337,7 +331,6 @@ impl Default for UserConfig {
             kiro_quota_alert_threshold: default_kiro_quota_alert_threshold(),
             extra_refresh_count: default_extra_refresh_count(),
             batch_refresh_skip_reset: default_batch_refresh_skip_reset(),
-            hide_account_above_reset_hours: default_hide_account_above_reset_hours(),
 
             refresh_sort_oldest_first: default_refresh_sort_oldest_first(),
         }
@@ -489,15 +482,10 @@ pub fn load_user_config() -> Result<UserConfig, String> {
             );
         }
 
-        if !obj.contains_key("hide_account_above_reset_hours") {
-            obj.insert(
-                "hide_account_above_reset_hours".to_string(),
-                json!(default_hide_account_above_reset_hours()),
-            );
-        }
 
         // 移除已废弃的旧字段避免 serde 反序列化失败
         obj.remove("auto_refresh_mode");
+        obj.remove("hide_account_above_reset_hours");
     }
 
     serde_json::from_value(value).map_err(|e| format!("解析配置文件失败: {}", e))

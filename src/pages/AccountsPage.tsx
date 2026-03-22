@@ -47,7 +47,6 @@ import {
   getSubscriptionTier,
 } from '../utils/account'
 import { listen, UnlistenFn } from '@tauri-apps/api/event'
-import { invoke } from '@tauri-apps/api/core'
 import { GroupSettingsModal } from '../components/GroupSettingsModal'
 import { TagEditModal } from '../components/TagEditModal'
 import { ExportJsonModal } from '../components/ExportJsonModal'
@@ -146,24 +145,7 @@ export function AccountsPage({ onNavigate }: AccountsPageProps) {
     isPrivacyModeEnabledByDefault()
   )
 
-  const [hideAccountAboveResetHours, setHideAccountAboveResetHours] = useState<number>(6)
 
-
-  useEffect(() => {
-    const fetchConfig = () => {
-      invoke<{ hide_account_above_reset_hours?: number }>('get_general_config')
-        .then((cfg) => {
-          setHideAccountAboveResetHours(cfg.hide_account_above_reset_hours ?? 6)
-
-        })
-        .catch(console.error)
-    }
-
-    fetchConfig()
-
-    window.addEventListener('config-updated', fetchConfig)
-    return () => window.removeEventListener('config-updated', fetchConfig)
-  }, [])
 
   // Persist view mode changes
   const handleViewModeChange = (mode: ViewMode) => {
@@ -467,33 +449,7 @@ export function AccountsPage({ onNavigate }: AccountsPageProps) {
     accountSortComparator,
   ])
 
-  // 隐私模式下超限帐号列表（重置时长 > 指定时间的 Claude 模型帐号）
-  const privacyOverLimitAccounts = useMemo(() => {
-    if (!privacyModeEnabled || hideAccountAboveResetHours <= 0) return []
-    const nowMs = Date.now()
-    return filteredAccounts.filter((acc) => {
-      if (!acc.quota?.models) return false
-      for (const model of acc.quota.models) {
-        const modelName = (model.name || '').toLowerCase()
-        if (!modelName.startsWith('claude')) continue
-        if (model.reset_time) {
-          const resetTimeMs = new Date(model.reset_time).getTime()
-          if (!Number.isNaN(resetTimeMs) && resetTimeMs > nowMs) {
-            const diffHours = (resetTimeMs - nowMs) / (1000 * 60 * 60)
-            if (diffHours > hideAccountAboveResetHours) return true
-          }
-        }
-      }
-      return false
-    })
-  }, [filteredAccounts, privacyModeEnabled, hideAccountAboveResetHours])
 
-  // 隐私模式下正常帐号列表（不在超限列表中的帐号）
-  const privacyNormalAccounts = useMemo(() => {
-    if (!privacyModeEnabled || hideAccountAboveResetHours <= 0) return filteredAccounts
-    const overLimitIds = new Set(privacyOverLimitAccounts.map((a) => a.id))
-    return filteredAccounts.filter((a) => !overLimitIds.has(a.id))
-  }, [filteredAccounts, privacyOverLimitAccounts, privacyModeEnabled, hideAccountAboveResetHours])
 
   const groupedAccounts = useMemo(() => {
     if (!groupByTag) return [] as Array<[string, typeof filteredAccounts]>
@@ -1707,23 +1663,10 @@ export function AccountsPage({ onNavigate }: AccountsPageProps) {
 
   // 渲染卡片视图
   const renderGridView = () => {
-    const overLimitLabel = t('accounts.privacyOverLimit', '超限重置中')
-
     if (!groupByTag) {
       return (
         <div className="tag-group-list">
-          <div className="accounts-grid">{renderGridCards(privacyNormalAccounts)}</div>
-          {privacyOverLimitAccounts.length > 0 && (
-            <div className="tag-group-section">
-              <div className="tag-group-header">
-                <span className="tag-group-title">{overLimitLabel}</span>
-                <span className="tag-group-count">{privacyOverLimitAccounts.length}</span>
-              </div>
-              <div className="tag-group-grid accounts-grid">
-                {renderGridCards(privacyOverLimitAccounts, '__privacy_over_limit__')}
-              </div>
-            </div>
-          )}
+          <div className="accounts-grid">{renderGridCards(filteredAccounts)}</div>
         </div>
       )
     }
@@ -1743,17 +1686,6 @@ export function AccountsPage({ onNavigate }: AccountsPageProps) {
             </div>
           </div>
         ))}
-        {privacyOverLimitAccounts.length > 0 && (
-          <div className="tag-group-section">
-            <div className="tag-group-header">
-              <span className="tag-group-title">{overLimitLabel}</span>
-              <span className="tag-group-count">{privacyOverLimitAccounts.length}</span>
-            </div>
-            <div className="tag-group-grid accounts-grid">
-              {renderGridCards(privacyOverLimitAccounts, '__privacy_over_limit__')}
-            </div>
-          </div>
-        )}
       </div>
     )
   }
@@ -2251,7 +2183,6 @@ export function AccountsPage({ onNavigate }: AccountsPageProps) {
 
   // 渲染列表视图
   const renderListView = () => {
-    const overLimitLabel = t('accounts.privacyOverLimit', '超限重置中')
     return (
       <div className={`account-table-container${groupByTag ? ' grouped' : ''}`}>
         <table className="account-table">
@@ -2292,20 +2223,7 @@ export function AccountsPage({ onNavigate }: AccountsPageProps) {
                   {renderListRows(groupAccounts, groupKey)}
                 </Fragment>
               ))
-              : renderListRows(privacyNormalAccounts)}
-            {privacyOverLimitAccounts.length > 0 && (
-              <Fragment key="__privacy_over_limit__">
-                <tr className="tag-group-row">
-                  <td colSpan={5}>
-                    <div className="tag-group-header">
-                      <span className="tag-group-title">{overLimitLabel}</span>
-                      <span className="tag-group-count">{privacyOverLimitAccounts.length}</span>
-                    </div>
-                  </td>
-                </tr>
-                {renderListRows(privacyOverLimitAccounts, '__privacy_over_limit__')}
-              </Fragment>
-            )}
+              : renderListRows(filteredAccounts)}
           </tbody>
         </table>
       </div>

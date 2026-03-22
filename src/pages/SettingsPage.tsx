@@ -59,7 +59,6 @@ interface GeneralConfig {
   kiro_quota_alert_threshold: number;
   extra_refresh_count: number;
   batch_refresh_skip_reset: boolean;
-  hide_account_above_reset_hours: number;
 
 }
 
@@ -136,7 +135,6 @@ export function SettingsPage() {
   const [kiroQuotaAlertEnabled, setKiroQuotaAlertEnabled] = useState(false);
   const [kiroQuotaAlertThreshold, setKiroQuotaAlertThreshold] = useState('20');
 
-  const [hideAccountAboveResetHours, setHideAccountAboveResetHours] = useState('6');
 
   const [autoRefreshCustomMode, setAutoRefreshCustomMode] = useState(false);
   const [codexAutoRefreshCustomMode, setCodexAutoRefreshCustomMode] = useState(false);
@@ -284,7 +282,7 @@ export function SettingsPage() {
     const parsedGhcpQuotaAlertThreshold = Number.parseInt(ghcpQuotaAlertThreshold, 10);
     const parsedWindsurfQuotaAlertThreshold = Number.parseInt(windsurfQuotaAlertThreshold, 10);
     const parsedKiroQuotaAlertThreshold = Number.parseInt(kiroQuotaAlertThreshold, 10);
-    const parsedHideAccountAboveResetHours = Number.parseInt(hideAccountAboveResetHours, 10);
+
 
     if (suppressGeneralSaveRef.current) {
       suppressGeneralSaveRef.current = false;
@@ -333,9 +331,6 @@ export function SettingsPage() {
           kiroQuotaAlertThreshold: Number.isNaN(parsedKiroQuotaAlertThreshold)
             ? 20
             : parsedKiroQuotaAlertThreshold,
-          hideAccountAboveResetHours: Number.isNaN(parsedHideAccountAboveResetHours)
-            ? 6
-            : parsedHideAccountAboveResetHours,
 
         });
         window.dispatchEvent(new Event('config-updated'));
@@ -559,7 +554,7 @@ export function SettingsPage() {
       setWindsurfQuotaAlertThreshold(String(config.windsurf_quota_alert_threshold ?? 20));
       setKiroQuotaAlertEnabled(config.kiro_quota_alert_enabled ?? false);
       setKiroQuotaAlertThreshold(String(config.kiro_quota_alert_threshold ?? 20));
-      setHideAccountAboveResetHours(String(config.hide_account_above_reset_hours ?? 6));
+
 
       setAutoRefreshCustomMode(false);
       setCodexAutoRefreshCustomMode(false);
@@ -816,24 +811,6 @@ export function SettingsPage() {
                   </div>
                 </div>
 
-                <div className="settings-row">
-                  <div className="row-label">
-                    <div className="row-title">{t('settings.general.hideAccountAboveResetHoursTitle', '隐私模式：隐藏重置时间过长的帐号')}</div>
-                    <div className="row-desc">{t('settings.general.hideAccountAboveResetHoursDesc', '开启界面工具栏隐私模式后，若任一模型距下次重置的时长超过此值，该帐号将被隐藏')}</div>
-                  </div>
-                  <div className="row-control">
-                    <select
-                      className="settings-select"
-                      value={hideAccountAboveResetHours}
-                      onChange={(e) => setHideAccountAboveResetHours(e.target.value)}
-                    >
-                      <option value="0">{t('settings.general.hideAccountDisabled', '不隐藏')}</option>
-                      <option value="6">{t('settings.general.hideAccount6Hours', '大于 6 小时')}</option>
-                      <option value="20">{t('settings.general.hideAccount20Hours', '大于 20 小时')}</option>
-                      <option value="120">{t('settings.general.hideAccount120Hours', '大于 120 小时')}</option>
-                    </select>
-                  </div>
-                </div>
 
                 <div className="settings-row">
                   <div className="row-label">

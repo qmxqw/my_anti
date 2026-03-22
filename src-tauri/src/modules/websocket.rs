@@ -793,7 +793,6 @@ fn handle_set_language(language: &str, source: Option<&str>) -> Result<String, S
         kiro_quota_alert_threshold: current.kiro_quota_alert_threshold,
         extra_refresh_count: current.extra_refresh_count,
         batch_refresh_skip_reset: current.batch_refresh_skip_reset,
-        hide_account_above_reset_hours: current.hide_account_above_reset_hours,
 
         refresh_sort_oldest_first: current.refresh_sort_oldest_first,
     };

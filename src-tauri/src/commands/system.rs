@@ -89,8 +89,6 @@ pub struct GeneralConfig {
     pub extra_refresh_count: i32,
     /// 批量刷新时是否跳过已重置（配额已满）的账号
     pub batch_refresh_skip_reset: bool,
-    /// 隐藏长时重置帐号阈值（小时），开启隐私模式时生效
-    pub hide_account_above_reset_hours: i32,
 
     /// 额外刷新次排序键：true=旧帐号优先，false=新帐号优先（默认）
     pub refresh_sort_oldest_first: bool,
@@ -202,7 +200,6 @@ pub fn save_network_config(ws_enabled: bool, ws_port: u16) -> Result<bool, Strin
         kiro_quota_alert_threshold: current.kiro_quota_alert_threshold,
         extra_refresh_count: current.extra_refresh_count,
         batch_refresh_skip_reset: current.batch_refresh_skip_reset,
-        hide_account_above_reset_hours: current.hide_account_above_reset_hours,
 
         refresh_sort_oldest_first: current.refresh_sort_oldest_first,
     };
@@ -261,7 +258,6 @@ pub fn get_general_config() -> Result<GeneralConfig, String> {
         kiro_quota_alert_threshold: user_config.kiro_quota_alert_threshold,
         extra_refresh_count: user_config.extra_refresh_count,
         batch_refresh_skip_reset: user_config.batch_refresh_skip_reset,
-        hide_account_above_reset_hours: user_config.hide_account_above_reset_hours,
 
         refresh_sort_oldest_first: user_config.refresh_sort_oldest_first,
     })
@@ -304,7 +300,6 @@ pub fn save_general_config(
     kiro_quota_alert_threshold: Option<i32>,
     extra_refresh_count: Option<i32>,
     batch_refresh_skip_reset: Option<bool>,
-    hide_account_above_reset_hours: Option<i32>,
 
     refresh_sort_oldest_first: Option<bool>,
 ) -> Result<(), String> {
@@ -387,8 +382,6 @@ pub fn save_general_config(
             .unwrap_or(current.kiro_quota_alert_threshold),
         extra_refresh_count: extra_refresh_count.unwrap_or(current.extra_refresh_count),
         batch_refresh_skip_reset: batch_refresh_skip_reset.unwrap_or(current.batch_refresh_skip_reset),
-        hide_account_above_reset_hours: hide_account_above_reset_hours
-            .unwrap_or(current.hide_account_above_reset_hours),
 
         refresh_sort_oldest_first: refresh_sort_oldest_first
             .unwrap_or(current.refresh_sort_oldest_first),
