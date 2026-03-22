@@ -635,21 +635,8 @@
   border: 1px dashed var(--border);
 }
 
-.accounts-page .tag-pill.usage-count-badge {
-  min-width: 20px;
-  height: 20px;
-  padding: 0 6px;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  border-radius: 999px;
-  background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%);
-  color: #fff;
-  font-size: 10px;
-  font-weight: 700;
-  border: none;
-  box-shadow: 0 2px 6px rgba(217, 119, 6, 0.35);
-  letter-spacing: 0;
+.accounts-page .tag-pill.usage-count-tag {
+  margin-left: auto;
 }
 
 .accounts-page .current-tag {

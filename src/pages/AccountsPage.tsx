@@ -1538,7 +1538,7 @@ export function AccountsPage({ onNavigate }: AccountsPageProps) {
               {moreTagCount > 0 && <span className="tag-pill more">+{moreTagCount}</span>}
               {(account.usage_count ?? 0) > 0 && (
                 <span
-                  className="tag-pill usage-count-badge"
+                  className="tag-pill usage-count-tag"
                   title={`使用消耗次数：${account.usage_count}`}
                 >
                   {account.usage_count}
