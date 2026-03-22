@@ -427,9 +427,13 @@ export function useAutoRefresh() {
     destroyedRef.current = false;
     void setupAutoRefresh();
 
+    let debounceTimer: number | null = null;
     const handleConfigUpdate = () => {
-      console.log('[AutoRefresh] 检测到配置变更，重新设置定时器');
-      void setupAutoRefresh();
+      if (debounceTimer) window.clearTimeout(debounceTimer);
+      debounceTimer = window.setTimeout(() => {
+        console.log('[AutoRefresh] 检测到配置变更，重新设置定时器');
+        void setupAutoRefresh();
+      }, 500);
     };
 
     window.addEventListener('config-updated', handleConfigUpdate);
@@ -437,6 +441,7 @@ export function useAutoRefresh() {
     return () => {
       destroyedRef.current = true;
       setupPendingRef.current = false;
+      if (debounceTimer) window.clearTimeout(debounceTimer);
       clearAllTimers();
       window.removeEventListener('config-updated', handleConfigUpdate);
     };
