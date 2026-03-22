@@ -223,6 +223,7 @@ pub fn run() {
             commands::system::handle_window_close,
             commands::system::open_folder,
             commands::system::delete_corrupted_file,
+            commands::system::get_user_idle_seconds,
             // Wakeup Commands
             commands::wakeup::wakeup_ensure_runtime_ready,
             commands::wakeup::trigger_wakeup,

@@ -111,6 +111,18 @@ export function useAutoRefresh() {
         }
       } catch { /* 查询失败时正常执行 */ }
 
+      // 用户空闲超过 10 分钟时跳过本次刷新
+      try {
+        const idleSeconds = await invoke<number>('get_user_idle_seconds');
+        if (idleSeconds >= 600) {
+          const now = Date.now();
+          const next = Math.ceil(now / intervalMs) * intervalMs;
+          const delay = next - now || intervalMs;
+          ref.current = window.setTimeout(tick, delay);
+          return;
+        }
+      } catch { /* 查询失败时正常执行 */ }
+
       await callback();
       if (ref.current === null) return; // 已被清理
       const now = Date.now();

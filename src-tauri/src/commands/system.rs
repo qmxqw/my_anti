@@ -576,3 +576,40 @@ pub async fn delete_corrupted_file(path: String) -> Result<(), String> {
 
     Ok(())
 }
+
+/// 获取用户空闲时间（秒），即距上次鼠标/键盘操作过去了多久
+#[tauri::command]
+pub fn get_user_idle_seconds() -> u64 {
+    #[cfg(target_os = "windows")]
+    {
+        use std::mem;
+
+        #[repr(C)]
+        struct LASTINPUTINFO {
+            cb_size: u32,
+            dw_time: u32,
+        }
+
+        extern "system" {
+            fn GetLastInputInfo(plii: *mut LASTINPUTINFO) -> i32;
+            fn GetTickCount() -> u32;
+        }
+
+        unsafe {
+            let mut lii = LASTINPUTINFO {
+                cb_size: mem::size_of::<LASTINPUTINFO>() as u32,
+                dw_time: 0,
+            };
+            if GetLastInputInfo(&mut lii) != 0 {
+                let idle_ms = GetTickCount().wrapping_sub(lii.dw_time);
+                return (idle_ms / 1000) as u64;
+            }
+        }
+        0
+    }
+
+    #[cfg(not(target_os = "windows"))]
+    {
+        0 // macOS/Linux 暂不实现，返回0表示不空闲
+    }
+}
