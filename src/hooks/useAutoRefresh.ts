@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef } from 'react';
 import { invoke } from '@tauri-apps/api/core';
+import { getCurrentWindow } from '@tauri-apps/api/window';
 import { useAccountStore } from '../stores/useAccountStore';
 import { useCodexAccountStore } from '../stores/useCodexAccountStore';
 import { useGitHubCopilotAccountStore } from '../stores/useGitHubCopilotAccountStore';
@@ -97,6 +98,19 @@ export function useAutoRefresh() {
     ref: React.MutableRefObject<number | null>,
   ) => {
     const tick = async () => {
+      // 窗口隐藏到托盘时跳过本次刷新
+      try {
+        const visible = await getCurrentWindow().isVisible();
+        if (!visible) {
+          // 继续调度下一次，但跳过本次执行
+          const now = Date.now();
+          const next = Math.ceil(now / intervalMs) * intervalMs;
+          const delay = next - now || intervalMs;
+          ref.current = window.setTimeout(tick, delay);
+          return;
+        }
+      } catch { /* 查询失败时正常执行 */ }
+
       await callback();
       if (ref.current === null) return; // 已被清理
       const now = Date.now();
