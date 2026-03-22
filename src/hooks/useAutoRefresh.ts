@@ -5,6 +5,35 @@ import { useCodexAccountStore } from '../stores/useCodexAccountStore';
 import { useGitHubCopilotAccountStore } from '../stores/useGitHubCopilotAccountStore';
 import { useWindsurfAccountStore } from '../stores/useWindsurfAccountStore';
 import { useKiroAccountStore } from '../stores/useKiroAccountStore';
+import type { Account } from '../types/account';
+
+/**
+ * 从账号列表中筛选智能刷新候选账号。
+ * 条件：非当前账号、未禁用、任意 claude* 模型额度 100% 或已重置。
+ * 返回按 quota.last_updated 升序排序（最久没刷新的优先）。
+ */
+function findSmartRefreshCandidates(accounts: Account[], currentAccountId: string | undefined): Account[] {
+  const now = Date.now();
+  return accounts
+    .filter((acc) => {
+      if (acc.id === currentAccountId) return false;
+      if (acc.disabled) return false;
+      if (!acc.quota?.models?.length) return false;
+
+      return acc.quota.models.some((m) => {
+        const name = (m.name || '').toLowerCase();
+        if (!name.startsWith('claude')) return false;
+        // 额度 100% 或 reset_time 已过期（已重置）
+        if (m.percentage === 100) return true;
+        if (m.reset_time) {
+          const resetDate = new Date(m.reset_time).getTime();
+          if (!Number.isNaN(resetDate) && resetDate <= now) return true;
+        }
+        return false;
+      });
+    })
+    .sort((a, b) => (a.quota?.last_updated ?? 0) - (b.quota?.last_updated ?? 0));
+}
 
 interface GeneralConfig {
   language: string;
@@ -161,7 +190,8 @@ export function useAutoRefresh() {
           clearAllIntervals();
 
           if (config.auto_refresh_minutes > 0) {
-            console.log(`[AutoRefresh] Antigravity 已启用: 每 ${config.auto_refresh_minutes} 分钟（仅刷新本地倒计时）`);
+            const isSmartMode = config.auto_refresh_mode === 'smart';
+            console.log(`[AutoRefresh] Antigravity 已启用: 每 ${config.auto_refresh_minutes} 分钟（模式: ${isSmartMode ? '智能刷新' : '仅本地倒计时'}）`);
             const agMs = config.auto_refresh_minutes * 60 * 1000;
 
             agIntervalRef.current = window.setInterval(async () => {
@@ -171,8 +201,45 @@ export function useAutoRefresh() {
               agRefreshingRef.current = true;
 
               try {
-                console.log('[AutoRefresh] 触发定时倒计时刷新（不向服务器发送请求）...');
-                await fetchAccounts();
+                if (isSmartMode) {
+                  console.log('[AutoRefresh] 触发 Antigravity 智能刷新（当前账号 + 候选账号）...');
+
+                  // Step A: 刷新当前账号
+                  try {
+                    await invoke('refresh_current_quota');
+                    console.log('[AutoRefresh] 当前账号配额已刷新');
+                  } catch (e) {
+                    console.error('[AutoRefresh] 当前账号刷新失败:', e);
+                  }
+
+                  // Step B: 获取最新账号列表并筛选候选账号
+                  await fetchAccounts();
+                  const currentAccount = useAccountStore.getState().currentAccount;
+                  const allAccounts = useAccountStore.getState().accounts;
+                  const candidates = findSmartRefreshCandidates(allAccounts, currentAccount?.id);
+
+                  // Step C: 刷新候选账号（取 last_updated 最早的 1 个）
+                  if (candidates.length > 0) {
+                    const candidate = candidates[0];
+                    console.log(`[AutoRefresh] 智能刷新候选账号: ${candidate.email} (last_updated: ${candidate.quota?.last_updated ?? 'N/A'})`);
+                    try {
+                      await invoke('fetch_account_quota', { accountId: candidate.id });
+                      console.log(`[AutoRefresh] 候选账号 ${candidate.email} 配额已刷新`);
+                    } catch (e) {
+                      console.error(`[AutoRefresh] 候选账号 ${candidate.email} 刷新失败:`, e);
+                    }
+                  } else {
+                    console.log('[AutoRefresh] 智能刷新: 无符合条件的候选账号');
+                  }
+
+                  // Step D: 更新前端 UI
+                  await fetchAccounts();
+                  await fetchCurrentAccount();
+                } else {
+                  // 原有行为：仅读取本地数据刷新倒计时
+                  console.log('[AutoRefresh] 触发定时倒计时刷新（不向服务器发送请求）...');
+                  await fetchAccounts();
+                }
               } catch (e) {
                 console.error('[AutoRefresh] 刷新失败:', e);
               } finally {

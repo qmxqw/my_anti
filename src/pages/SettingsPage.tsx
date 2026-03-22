@@ -107,6 +107,7 @@ export function SettingsPage() {
   const [language, setLanguage] = useState(getCurrentLanguage());
   const [theme, setTheme] = useState('system');
   const [autoRefresh, setAutoRefresh] = useState('5');
+  const [autoRefreshMode, setAutoRefreshMode] = useState('all');
   const [codexAutoRefresh, setCodexAutoRefresh] = useState('10');
   const [ghcpAutoRefresh, setGhcpAutoRefresh] = useState('10');
   const [windsurfAutoRefresh, setWindsurfAutoRefresh] = useState('10');
@@ -301,7 +302,7 @@ export function SettingsPage() {
           windsurfAutoRefreshMinutes: windsurfAutoRefreshNum,
           kiroAutoRefreshMinutes: kiroAutoRefreshNum,
           closeBehavior,
-          autoRefreshMode: 'all',
+          autoRefreshMode,
           batchRefreshSkipReset: true,
           hideDockIcon,
           opencodeAppPath,
@@ -351,6 +352,7 @@ export function SettingsPage() {
     };
   }, [
     autoRefresh,
+    autoRefreshMode,
     codexAutoRefresh,
     ghcpAutoRefresh,
     windsurfAutoRefresh,
@@ -531,6 +533,7 @@ export function SettingsPage() {
       setLanguage(normalizeLanguage(config.language));
       setTheme(config.theme);
       setAutoRefresh(String(config.auto_refresh_minutes));
+      setAutoRefreshMode(config.auto_refresh_mode || 'all');
       setCodexAutoRefresh(String(config.codex_auto_refresh_minutes ?? 10));
       setGhcpAutoRefresh(String(config.ghcp_auto_refresh_minutes ?? 10));
       setWindsurfAutoRefresh(String(config.windsurf_auto_refresh_minutes ?? 10));
@@ -998,6 +1001,26 @@ export function SettingsPage() {
                         )}
                       </div>
                     </div>
+
+                    {autoRefresh !== '-1' && (
+                      <div className="settings-row" style={{ animation: 'fadeUp 0.3s ease both' }}>
+                        <div className="row-label">
+                          <div className="row-title">{t('settings.general.autoRefreshMode', '配额刷新模式')}</div>
+                          <div className="row-desc">{t('settings.general.autoRefreshModeDesc', '设置 Antigravity 自动刷新配额的策略（全局生效）')}</div>
+                        </div>
+                        <div className="row-control">
+                          <select
+                            className="settings-select"
+                            value={autoRefreshMode}
+                            onChange={(e) => setAutoRefreshMode(e.target.value)}
+                          >
+                            <option value="all">{t('settings.general.autoRefreshModeAll', '刷新所有账号')}</option>
+                            <option value="current">{t('settings.general.autoRefreshModeCurrent', '仅当前账号')}</option>
+                            <option value="smart">{t('settings.general.autoRefreshModeSmart', '智能刷新（当前+候选）')}</option>
+                          </select>
+                        </div>
+                      </div>
+                    )}
 
                     <div className="settings-row">
                       <div className="row-label">
