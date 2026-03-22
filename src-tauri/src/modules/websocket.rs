@@ -236,6 +236,12 @@ pub fn broadcast_account_switched(account_id: &str, email: &str) {
         email: email.to_string(),
     });
     crate::modules::logger::log_info("[WS] 广播账号切换");
+
+    // 同时发送 Tauri 事件通知前端刷新
+    if let Some(app_handle) = crate::get_app_handle() {
+        use tauri::Emitter;
+        let _ = app_handle.emit("accounts:refresh", "account_switched");
+    }
 }
 
 /// 广播唤醒互斥开关

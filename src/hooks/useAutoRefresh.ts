@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef } from 'react';
 import { invoke } from '@tauri-apps/api/core';
+import { listen, UnlistenFn } from '@tauri-apps/api/event';
 import { getCurrentWindow } from '@tauri-apps/api/window';
 import { useAccountStore } from '../stores/useAccountStore';
 import { useCodexAccountStore } from '../stores/useCodexAccountStore';
@@ -429,6 +430,20 @@ export function useAutoRefresh() {
     refreshAllWindsurfTokens,
     syncCurrentFromClient,
   ]);
+
+  useEffect(() => {
+    let unlistenAccountsRefresh: UnlistenFn | undefined;
+    listen<string>('accounts:refresh', async () => {
+      await fetchAccounts();
+      await fetchCurrentAccount();
+    }).then((fn) => {
+      unlistenAccountsRefresh = fn;
+    });
+
+    return () => {
+      if (unlistenAccountsRefresh) unlistenAccountsRefresh();
+    };
+  }, [fetchAccounts, fetchCurrentAccount]);
 
   useEffect(() => {
     destroyedRef.current = false;
