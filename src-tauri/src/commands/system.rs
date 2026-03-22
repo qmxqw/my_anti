@@ -93,6 +93,8 @@ pub struct GeneralConfig {
     pub hide_account_above_reset_hours: i32,
     /// 是否过滤可疑重置时间（服务端返回的"当前+5H"假值）
     pub filter_suspicious_reset_time: bool,
+    /// 额外刷新次排序键：true=旧帐号优先，false=新帐号优先（默认）
+    pub refresh_sort_oldest_first: bool,
 }
 
 #[tauri::command]
@@ -203,6 +205,7 @@ pub fn save_network_config(ws_enabled: bool, ws_port: u16) -> Result<bool, Strin
         batch_refresh_skip_reset: current.batch_refresh_skip_reset,
         hide_account_above_reset_hours: current.hide_account_above_reset_hours,
         filter_suspicious_reset_time: current.filter_suspicious_reset_time,
+        refresh_sort_oldest_first: current.refresh_sort_oldest_first,
     };
 
     config::save_user_config(&new_config)?;
@@ -261,6 +264,7 @@ pub fn get_general_config() -> Result<GeneralConfig, String> {
         batch_refresh_skip_reset: user_config.batch_refresh_skip_reset,
         hide_account_above_reset_hours: user_config.hide_account_above_reset_hours,
         filter_suspicious_reset_time: user_config.filter_suspicious_reset_time,
+        refresh_sort_oldest_first: user_config.refresh_sort_oldest_first,
     })
 }
 
@@ -303,6 +307,7 @@ pub fn save_general_config(
     batch_refresh_skip_reset: Option<bool>,
     hide_account_above_reset_hours: Option<i32>,
     filter_suspicious_reset_time: Option<bool>,
+    refresh_sort_oldest_first: Option<bool>,
 ) -> Result<(), String> {
     let current = config::get_user_config();
     let normalized_opencode_path = opencode_app_path.trim().to_string();
@@ -387,6 +392,8 @@ pub fn save_general_config(
             .unwrap_or(current.hide_account_above_reset_hours),
         filter_suspicious_reset_time: filter_suspicious_reset_time
             .unwrap_or(current.filter_suspicious_reset_time),
+        refresh_sort_oldest_first: refresh_sort_oldest_first
+            .unwrap_or(current.refresh_sort_oldest_first),
     };
 
     config::save_user_config(&new_config)?;

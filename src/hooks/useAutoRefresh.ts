@@ -13,7 +13,7 @@ import type { Account } from '../types/account';
  * 条件：非当前账号、未禁用、任意 claude* 模型额度 100% 或已重置。
  * 返回按 quota.last_updated 升序排序（最久没刷新的优先）。
  */
-function findSmartRefreshCandidates(accounts: Account[], currentAccountId: string | undefined): Account[] {
+function findSmartRefreshCandidates(accounts: Account[], currentAccountId: string | undefined, sortOldestFirst: boolean): Account[] {
   const now = Date.now();
   return accounts
     .filter((acc) => {
@@ -37,8 +37,11 @@ function findSmartRefreshCandidates(accounts: Account[], currentAccountId: strin
       const aUpdated = a.quota?.last_updated ?? 0;
       const bUpdated = b.quota?.last_updated ?? 0;
       const diff = aUpdated - bUpdated;
-      // 误差 60 秒以内视为同一优先级，按 created_at 降序
-      if (Math.abs(diff) <= 60_000) {
+      // 误差 60 秒以内视为同一优先级，按 created_at 排序（方向取决于配置）
+      if (Math.abs(diff) <= 60) {
+        if (sortOldestFirst) {
+          return (a.created_at ?? 0) - (b.created_at ?? 0);
+        }
         return (b.created_at ?? 0) - (a.created_at ?? 0);
       }
       return diff;
@@ -63,6 +66,7 @@ interface GeneralConfig {
   opencode_sync_on_switch?: boolean;
   codex_launch_on_switch?: boolean;
   extra_refresh_count?: number;
+  refresh_sort_oldest_first?: boolean;
 }
 
 export function useAutoRefresh() {
@@ -257,7 +261,7 @@ export function useAutoRefresh() {
                   await fetchAccounts();
                   const currentAccount = useAccountStore.getState().currentAccount;
                   const allAccounts = useAccountStore.getState().accounts;
-                  const candidates = findSmartRefreshCandidates(allAccounts, currentAccount?.id);
+                  const candidates = findSmartRefreshCandidates(allAccounts, currentAccount?.id, config.refresh_sort_oldest_first ?? false);
                   const toRefresh = candidates.slice(0, extraCount);
 
                   if (toRefresh.length > 0) {

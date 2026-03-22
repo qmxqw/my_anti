@@ -38,6 +38,7 @@ interface GeneralConfig {
   kiro_quota_alert_enabled: boolean;
   kiro_quota_alert_threshold: number;
   extra_refresh_count: number;
+  refresh_sort_oldest_first: boolean;
 }
 
 export type QuickSettingsType = 'antigravity' | 'codex' | 'github_copilot' | 'windsurf' | 'kiro';
@@ -176,6 +177,7 @@ export function QuickSettingsPopover({ type }: QuickSettingsPopoverProps) {
           kiroQuotaAlertEnabled: merged.kiro_quota_alert_enabled,
           kiroQuotaAlertThreshold: merged.kiro_quota_alert_threshold,
           extraRefreshCount: merged.extra_refresh_count,
+          refreshSortOldestFirst: merged.refresh_sort_oldest_first,
         });
         window.dispatchEvent(new Event('config-updated'));
       } catch (err) {
@@ -582,6 +584,21 @@ export function QuickSettingsPopover({ type }: QuickSettingsPopoverProps) {
                       <option value="5">5</option>
                       <option value="10">10</option>
                       <option value="20">20</option>
+                    </select>
+                  </div>
+                </div>
+                <div className="qs-row" style={{ marginTop: 8 }}>
+                  <div className="qs-row-label">
+                    <span>{t('settings.general.refreshSortOrder', '次排序优先')}</span>
+                  </div>
+                  <div className="qs-row-control">
+                    <select
+                      className="qs-select"
+                      value={config.refresh_sort_oldest_first ? 'asc' : 'desc'}
+                      onChange={(e) => saveConfig({ refresh_sort_oldest_first: e.target.value === 'asc' })}
+                    >
+                      <option value="desc">{t('settings.general.refreshSortNewestFirst', '新帐号优先')}</option>
+                      <option value="asc">{t('settings.general.refreshSortOldestFirst', '旧帐号优先')}</option>
                     </select>
                   </div>
                 </div>
