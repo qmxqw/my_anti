@@ -1244,9 +1244,28 @@ export function AccountsPage({ onNavigate }: AccountsPageProps) {
   }
 
   const toggleTagFilterValue = (tag: string) => {
+    const isRemoving = tagFilter.includes(tag);
     setTagFilter((prev) => {
       if (prev.includes(tag)) return prev.filter((item) => item !== tag);
       return [...prev, tag];
+    });
+
+    // 联动帐号选中状态：勾选分组时选中该组所有帐号，取消勾选时清除该组帐号选中状态
+    const groupName = normalizeTagGroup(tag);
+    const groupAccountIds = accounts
+      .filter((acc) => (acc.tags || []).some((t) => normalizeTagGroup(t) === groupName))
+      .map((acc) => acc.id);
+
+    if (groupAccountIds.length === 0) return;
+
+    setSelected((prev) => {
+      const next = new Set(prev);
+      if (isRemoving) {
+        groupAccountIds.forEach((id) => next.delete(id));
+      } else {
+        groupAccountIds.forEach((id) => next.add(id));
+      }
+      return next;
     });
   };
 
