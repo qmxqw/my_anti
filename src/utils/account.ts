@@ -68,11 +68,10 @@ export function getQuotaClass(percentage: number): string {
 
 type Translate = (key: string, options?: Record<string, unknown>) => string;
 
-const SUSPICIOUS_RESET_MIN_MINUTES = 299;
-const SUSPICIOUS_RESET_MAX_MINUTES = 300;
 
 
-export function formatResetTime(resetTime: string, t: Translate, filterSuspicious?: boolean): string {
+
+export function formatResetTime(resetTime: string, t: Translate): string {
   if (!resetTime) return '';
   try {
     const reset = new Date(resetTime);
@@ -86,10 +85,7 @@ export function formatResetTime(resetTime: string, t: Translate, filterSuspiciou
 
     const totalMinutes = diffMs / (1000 * 60);
 
-    // 过滤可信度检测：恰好接近整个配额窗口（299~300 分钟）时视为不可信
-    if (filterSuspicious && totalMinutes >= SUSPICIOUS_RESET_MIN_MINUTES && totalMinutes <= SUSPICIOUS_RESET_MAX_MINUTES) {
-      return t('common.shared.quota.resetDone');
-    }
+
 
     const totalMinutesInt = Math.floor(totalMinutes);
     const days = Math.floor(totalMinutesInt / (60 * 24));
@@ -121,8 +117,8 @@ export function formatResetTimeAbsolute(resetTime: string): string {
   return `${month}/${day} ${hours}:${minutes}`;
 }
 
-export function formatResetTimeDisplay(resetTime: string, t: Translate, filterSuspicious?: boolean): string {
-  const relative = formatResetTime(resetTime, t, filterSuspicious);
+export function formatResetTimeDisplay(resetTime: string, t: Translate): string {
+  const relative = formatResetTime(resetTime, t);
   const absolute = formatResetTimeAbsolute(resetTime);
   if (!relative && !absolute) return '';
   // 如果已重置（relative 中含有 resetDone 翻译文本），直接返回不拼绝对时间

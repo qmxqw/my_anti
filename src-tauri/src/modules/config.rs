@@ -146,9 +146,7 @@ pub struct UserConfig {
     /// 隐藏长时重置帐号阈值（小时），开启隐私模式时生效，设为 0 表示不隐藏
     #[serde(default = "default_hide_account_above_reset_hours")]
     pub hide_account_above_reset_hours: i32,
-    /// 是否过滤可疑重置时间（服务端返回的"当前+5H"假值），默认启用
-    #[serde(default = "default_filter_suspicious_reset_time")]
-    pub filter_suspicious_reset_time: bool,
+
     /// 额外刷新次排序键：true=按创建时间升序（旧帐号优先），false=降序（新帐号优先，默认）
     #[serde(default = "default_refresh_sort_oldest_first")]
     pub refresh_sort_oldest_first: bool,
@@ -296,9 +294,7 @@ fn default_batch_refresh_skip_reset() -> bool {
 fn default_hide_account_above_reset_hours() -> i32 {
     6
 }
-fn default_filter_suspicious_reset_time() -> bool {
-    true
-}
+
 fn default_refresh_sort_oldest_first() -> bool {
     false
 }
@@ -342,7 +338,7 @@ impl Default for UserConfig {
             extra_refresh_count: default_extra_refresh_count(),
             batch_refresh_skip_reset: default_batch_refresh_skip_reset(),
             hide_account_above_reset_hours: default_hide_account_above_reset_hours(),
-            filter_suspicious_reset_time: default_filter_suspicious_reset_time(),
+
             refresh_sort_oldest_first: default_refresh_sort_oldest_first(),
         }
     }

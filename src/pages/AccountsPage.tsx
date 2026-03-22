@@ -147,14 +147,14 @@ export function AccountsPage({ onNavigate }: AccountsPageProps) {
   )
 
   const [hideAccountAboveResetHours, setHideAccountAboveResetHours] = useState<number>(6)
-  const [filterSuspiciousResetTime, setFilterSuspiciousResetTime] = useState<boolean>(true)
+
 
   useEffect(() => {
     const fetchConfig = () => {
-      invoke<{ hide_account_above_reset_hours?: number; filter_suspicious_reset_time?: boolean }>('get_general_config')
+      invoke<{ hide_account_above_reset_hours?: number }>('get_general_config')
         .then((cfg) => {
           setHideAccountAboveResetHours(cfg.hide_account_above_reset_hours ?? 6)
-          setFilterSuspiciousResetTime(cfg.filter_suspicious_reset_time ?? true)
+
         })
         .catch(console.error)
     }
@@ -1572,7 +1572,7 @@ export function AccountsPage({ onNavigate }: AccountsPageProps) {
             ) : (
               <>
                 {quotaDisplayItems.map((item) => {
-                  const resetLabel = formatResetTimeDisplay(item.resetTime, t, filterSuspiciousResetTime)
+                  const resetLabel = formatResetTimeDisplay(item.resetTime, t)
                   return (
                     <div key={item.key} className="quota-compact-item">
                       <div className="quota-compact-header">
@@ -2161,7 +2161,7 @@ export function AccountsPage({ onNavigate }: AccountsPageProps) {
                       </div>
                       <div className="quota-footer">
                         <span className="quota-reset">
-                          {formatResetTimeDisplay(item.resetTime, t, filterSuspiciousResetTime)}
+                          {formatResetTimeDisplay(item.resetTime, t)}
                         </span>
                       </div>
                     </div>
@@ -3120,7 +3120,7 @@ export function AccountsPage({ onNavigate }: AccountsPageProps) {
                             <div className="quota-reset-info">
                               <p>
                                 <strong>{t('modals.quota.resetTime')}:</strong>{' '}
-                                {formatResetTimeDisplay(item.resetTime, t, filterSuspiciousResetTime)}
+                                {formatResetTimeDisplay(item.resetTime, t)}
                               </p>
                             </div>
                           </div>

@@ -91,8 +91,7 @@ pub struct GeneralConfig {
     pub batch_refresh_skip_reset: bool,
     /// 隐藏长时重置帐号阈值（小时），开启隐私模式时生效
     pub hide_account_above_reset_hours: i32,
-    /// 是否过滤可疑重置时间（服务端返回的"当前+5H"假值）
-    pub filter_suspicious_reset_time: bool,
+
     /// 额外刷新次排序键：true=旧帐号优先，false=新帐号优先（默认）
     pub refresh_sort_oldest_first: bool,
 }
@@ -204,7 +203,7 @@ pub fn save_network_config(ws_enabled: bool, ws_port: u16) -> Result<bool, Strin
         extra_refresh_count: current.extra_refresh_count,
         batch_refresh_skip_reset: current.batch_refresh_skip_reset,
         hide_account_above_reset_hours: current.hide_account_above_reset_hours,
-        filter_suspicious_reset_time: current.filter_suspicious_reset_time,
+
         refresh_sort_oldest_first: current.refresh_sort_oldest_first,
     };
 
@@ -263,7 +262,7 @@ pub fn get_general_config() -> Result<GeneralConfig, String> {
         extra_refresh_count: user_config.extra_refresh_count,
         batch_refresh_skip_reset: user_config.batch_refresh_skip_reset,
         hide_account_above_reset_hours: user_config.hide_account_above_reset_hours,
-        filter_suspicious_reset_time: user_config.filter_suspicious_reset_time,
+
         refresh_sort_oldest_first: user_config.refresh_sort_oldest_first,
     })
 }
@@ -306,7 +305,7 @@ pub fn save_general_config(
     extra_refresh_count: Option<i32>,
     batch_refresh_skip_reset: Option<bool>,
     hide_account_above_reset_hours: Option<i32>,
-    filter_suspicious_reset_time: Option<bool>,
+
     refresh_sort_oldest_first: Option<bool>,
 ) -> Result<(), String> {
     let current = config::get_user_config();
@@ -390,8 +389,7 @@ pub fn save_general_config(
         batch_refresh_skip_reset: batch_refresh_skip_reset.unwrap_or(current.batch_refresh_skip_reset),
         hide_account_above_reset_hours: hide_account_above_reset_hours
             .unwrap_or(current.hide_account_above_reset_hours),
-        filter_suspicious_reset_time: filter_suspicious_reset_time
-            .unwrap_or(current.filter_suspicious_reset_time),
+
         refresh_sort_oldest_first: refresh_sort_oldest_first
             .unwrap_or(current.refresh_sort_oldest_first),
     };

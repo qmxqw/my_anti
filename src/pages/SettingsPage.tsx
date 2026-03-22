@@ -60,7 +60,7 @@ interface GeneralConfig {
   extra_refresh_count: number;
   batch_refresh_skip_reset: boolean;
   hide_account_above_reset_hours: number;
-  filter_suspicious_reset_time: boolean;
+
 }
 
 type AppPathTarget = 'antigravity' | 'codex' | 'vscode' | 'opencode' | 'windsurf' | 'kiro';
@@ -137,7 +137,7 @@ export function SettingsPage() {
   const [kiroQuotaAlertThreshold, setKiroQuotaAlertThreshold] = useState('20');
 
   const [hideAccountAboveResetHours, setHideAccountAboveResetHours] = useState('6');
-  const [filterSuspiciousResetTime, setFilterSuspiciousResetTimeState] = useState(true);
+
   const [autoRefreshCustomMode, setAutoRefreshCustomMode] = useState(false);
   const [codexAutoRefreshCustomMode, setCodexAutoRefreshCustomMode] = useState(false);
   const [ghcpAutoRefreshCustomMode, setGhcpAutoRefreshCustomMode] = useState(false);
@@ -336,7 +336,7 @@ export function SettingsPage() {
           hideAccountAboveResetHours: Number.isNaN(parsedHideAccountAboveResetHours)
             ? 6
             : parsedHideAccountAboveResetHours,
-          filterSuspiciousResetTime,
+
         });
         window.dispatchEvent(new Event('config-updated'));
       } catch (err) {
@@ -382,8 +382,7 @@ export function SettingsPage() {
     windsurfQuotaAlertThreshold,
     kiroQuotaAlertEnabled,
     kiroQuotaAlertThreshold,
-    hideAccountAboveResetHours,
-    filterSuspiciousResetTime,
+
     t,
   ]);
 
@@ -561,7 +560,7 @@ export function SettingsPage() {
       setKiroQuotaAlertEnabled(config.kiro_quota_alert_enabled ?? false);
       setKiroQuotaAlertThreshold(String(config.kiro_quota_alert_threshold ?? 20));
       setHideAccountAboveResetHours(String(config.hide_account_above_reset_hours ?? 6));
-      setFilterSuspiciousResetTimeState(config.filter_suspicious_reset_time ?? true);
+
       setAutoRefreshCustomMode(false);
       setCodexAutoRefreshCustomMode(false);
       setGhcpAutoRefreshCustomMode(false);
@@ -1027,24 +1026,7 @@ export function SettingsPage() {
                       </div>
                     )}
 
-                    <div className="settings-row">
-                      <div className="row-label">
-                        <div className="row-title">{t('settings.general.filterSuspiciousResetTime', '过滤可疑重置时间')}</div>
-                        <div className="row-desc">{t('settings.general.filterSuspiciousResetTimeDesc', '当服务端返回的重置时间恰好接近一个完整配额窗口（约5小时），视为不可信并显示"已重置"，避免倒计时误导')}</div>
-                      </div>
-                      <div className="row-control">
-                        <label className="settings-toggle">
-                          <input
-                            type="checkbox"
-                            checked={filterSuspiciousResetTime}
-                            onChange={(e) => {
-                              setFilterSuspiciousResetTimeState(e.target.checked);
-                            }}
-                          />
-                          <span className="toggle-slider" />
-                        </label>
-                      </div>
-                    </div>
+
 
                     <div className="settings-row">
                       <div className="row-label">

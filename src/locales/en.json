@@ -372,8 +372,7 @@
       "refreshIntervalLimited": "Quota reset wakeup enabled, minimum refresh interval is 2 minutes",
       "batchRefreshSkipReset": "Skip fully-reset accounts in batch refresh",
       "batchRefreshSkipResetDesc": "Skip accounts where all model quotas are at 100% during batch refresh to prevent waste",
-      "filterSuspiciousResetTime": "Filter suspicious reset time",
-      "filterSuspiciousResetTimeDesc": "When the server returns a reset time close to a full quota window (~5 hours), treat it as unreliable and show \"Reset\" instead of a countdown",
+
       "closeBehavior": "Close behavior",
       "closeBehaviorDesc": "Choose the default action when closing the window",
       "closeBehaviorAsk": "Ask every time",

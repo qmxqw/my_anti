@@ -248,7 +248,6 @@ export function buildAntigravityAccountPresentation(
   account: Account,
   displayGroups: DisplayGroup[],
   t: Translate,
-  filterSuspiciousResetTime?: boolean,
 ): UnifiedAccountPresentation {
   const tierBadge = getAntigravityTierBadge(account.quota);
   const quotaItems = getAntigravityQuotaDisplayItems(account, displayGroups).map((item) => ({
@@ -257,7 +256,7 @@ export function buildAntigravityAccountPresentation(
     percentage: item.percentage,
     quotaClass: getAntigravityQuotaClass(item.percentage),
     valueText: `${item.percentage}%`,
-    resetText: item.resetTime ? formatResetTimeDisplay(item.resetTime, t, filterSuspiciousResetTime) : '',
+    resetText: item.resetTime ? formatResetTimeDisplay(item.resetTime, t) : '',
     resetAt: item.resetTime,
   }));
 
