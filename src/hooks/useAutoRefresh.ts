@@ -102,6 +102,7 @@ export function useAutoRefresh() {
   const setupRunningRef = useRef(false);
   const setupPendingRef = useRef(false);
   const destroyedRef = useRef(false);
+  const lastRefreshTimeRef = useRef<number>(0);
 
   /**
    * 创建与时钟边界对齐的自调度定时器。
@@ -432,8 +433,16 @@ export function useAutoRefresh() {
   ]);
 
   useEffect(() => {
+    const MIN_REFRESH_INTERVAL = 30000; // 30 秒内不重复刷新
     let unlistenAccountsRefresh: UnlistenFn | undefined;
     listen<string>('accounts:refresh', async () => {
+      const now = Date.now();
+      if (now - lastRefreshTimeRef.current < MIN_REFRESH_INTERVAL) {
+        console.log('[AutoRefresh] 跳过重复刷新（距上次刷新不足 30 秒）');
+        return;
+      }
+
+      lastRefreshTimeRef.current = now;
       await fetchAccounts();
       await fetchCurrentAccount();
     }).then((fn) => {
