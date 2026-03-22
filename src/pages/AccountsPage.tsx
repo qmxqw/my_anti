@@ -1568,7 +1568,12 @@ export function AccountsPage({ onNavigate }: AccountsPageProps) {
           </div>
 
           <div className="card-footer">
-            <span className="card-date">{formatDate(account.created_at)}</span>
+            <div className="card-date-row">
+              <span className="card-date">{formatDate(account.created_at)}</span>
+              {account.quota?.last_updated ? (
+                <span className="card-date card-date-updated">{formatDate(account.quota.last_updated)}</span>
+              ) : null}
+            </div>
             <div className="card-actions">
               <button
                 className="card-action-btn"

@@ -860,6 +860,13 @@
   border-top: 1px dashed rgba(15, 23, 42, 0.12);
 }
 
+.accounts-page .card-date-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
 .accounts-page .card-date {
   font-size: 10px;
   font-family: var(--font-mono);
@@ -868,7 +875,10 @@
   background: rgba(15, 23, 42, 0.05);
   padding: 4px 8px;
   border-radius: 999px;
-  align-self: flex-start;
+}
+
+.accounts-page .card-date-updated {
+  color: var(--text-muted);
 }
 
 .accounts-page .card-actions {
