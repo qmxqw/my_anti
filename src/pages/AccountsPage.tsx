@@ -198,9 +198,25 @@ export function AccountsPage({ onNavigate }: AccountsPageProps) {
   // 筛选
   const [searchQuery, setSearchQuery] = useState('')
   const [filterType, setFilterType] = useState<FilterType>('all')
-  const [tagFilter, setTagFilter] = useState<string[]>([])
-  const [groupByTag, setGroupByTag] = useState(false)
+  const [tagFilter, setTagFilter] = useState<string[]>(() => {
+    try {
+      const saved = localStorage.getItem('agtools.antigravity.accounts_tag_filter');
+      if (saved) return JSON.parse(saved);
+    } catch { /* ignore */ }
+    return [];
+  })
+  const [groupByTag, setGroupByTag] = useState(() =>
+    localStorage.getItem('agtools.antigravity.accounts_group_by_tag') === 'true'
+  )
   const [showTagFilter, setShowTagFilter] = useState(false)
+
+  useEffect(() => {
+    localStorage.setItem('agtools.antigravity.accounts_group_by_tag', String(groupByTag))
+  }, [groupByTag])
+
+  useEffect(() => {
+    localStorage.setItem('agtools.antigravity.accounts_tag_filter', JSON.stringify(tagFilter))
+  }, [tagFilter])
 
   const [selected, setSelected] = useState<Set<string>>(new Set())
   const [showAddModal, setShowAddModal] = useState(false)

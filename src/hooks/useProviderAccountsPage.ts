@@ -107,11 +107,13 @@ const DEFAULT_SORT_DIRECTION: SortDirection = 'desc';
 const normalizeSortDirection = (value: string | null): SortDirection =>
   value === 'asc' ? 'asc' : DEFAULT_SORT_DIRECTION;
 
-const buildSortStorageKeys = (platformKey: string) => {
+const buildStorageKeys = (platformKey: string) => {
   const scope = platformKey.trim().toLowerCase().replace(/[^a-z0-9]+/g, '_');
   return {
     sortByKey: `agtools.${scope}.accounts_sort_by`,
     sortDirectionKey: `agtools.${scope}.accounts_sort_direction`,
+    groupByTagKey: `agtools.${scope}.accounts_group_by_tag`,
+    tagFilterKey: `agtools.${scope}.accounts_tag_filter`,
   };
 };
 
@@ -293,7 +295,7 @@ export function useProviderAccountsPage<TAccount extends ProviderAccountBase>(
     refreshAllTokens,
     updateAccountTags,
   } = store;
-  const { sortByKey, sortDirectionKey } = buildSortStorageKeys(platformKey);
+  const { sortByKey, sortDirectionKey, groupByTagKey, tagFilterKey } = buildStorageKeys(platformKey);
 
   // ─── Privacy ──────────────────────────────────────────────────────────
   const [privacyModeEnabled, setPrivacyModeEnabled] = useState<boolean>(() =>
@@ -358,8 +360,24 @@ export function useProviderAccountsPage<TAccount extends ProviderAccountBase>(
   );
 
   // ─── Tags ─────────────────────────────────────────────────────────────
-  const [tagFilter, setTagFilter] = useState<string[]>([]);
-  const [groupByTag, setGroupByTag] = useState(false);
+  const [tagFilter, setTagFilter] = useState<string[]>(() => {
+    try {
+      const saved = localStorage.getItem(tagFilterKey);
+      if (saved) return JSON.parse(saved);
+    } catch { /* ignore */ }
+    return [];
+  });
+  const [groupByTag, setGroupByTag] = useState(() => {
+    return localStorage.getItem(groupByTagKey) === 'true';
+  });
+
+  useEffect(() => {
+    localStorage.setItem(groupByTagKey, String(groupByTag));
+  }, [groupByTag, groupByTagKey]);
+
+  useEffect(() => {
+    localStorage.setItem(tagFilterKey, JSON.stringify(tagFilter));
+  }, [tagFilter, tagFilterKey]);
   const [showTagFilter, setShowTagFilter] = useState(false);
   const [showTagModal, setShowTagModal] = useState<string | null>(null);
   const [tagDeleteConfirm, setTagDeleteConfirm] = useState<{
