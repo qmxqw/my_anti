@@ -22,6 +22,8 @@
     "fs:default",
     "notification:default",
     "updater:default",
-    "process:default"
+    "process:default",
+    "global-shortcut:allow-register",
+    "global-shortcut:allow-unregister"
   ]
 }

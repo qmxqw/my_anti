@@ -81,7 +81,7 @@ pub fn run() {
             // 存储全局 AppHandle
             let _ = APP_HANDLE.set(app.handle().clone());
 
-            // 初始化 Updater 插件
+            // 初始化 Updater + Process 插件
             #[cfg(desktop)]
             {
                 app.handle()
@@ -89,6 +89,42 @@ pub fn run() {
                 app.handle()
                     .plugin(tauri_plugin_process::init())?;
                 info!("[Updater] Tauri Updater + Process 插件已初始化");
+            }
+
+            // 初始化全局快捷键插件，注册 Ctrl+F1 智能切号热键
+            #[cfg(desktop)]
+            {
+                use tauri_plugin_global_shortcut::{
+                    Code, GlobalShortcutExt, Modifiers, Shortcut, ShortcutState,
+                };
+                let ctrl_f1 = Shortcut::new(Some(Modifiers::CONTROL), Code::F1);
+                app.handle().plugin(
+                    tauri_plugin_global_shortcut::Builder::new()
+                        .with_handler(move |_app, shortcut, event| {
+                            if shortcut == &ctrl_f1 && event.state() == ShortcutState::Pressed {
+                                logger::log_info("[Hotkey] Ctrl+F1 触发");
+                                tauri::async_runtime::spawn(async {
+                                    match modules::account::hotkey_smart_switch().await {
+                                        Ok(result) => {
+                                            logger::log_info(&format!(
+                                                "[Hotkey] 智能切号结果: {}",
+                                                result
+                                            ));
+                                        }
+                                        Err(e) => {
+                                            logger::log_error(&format!(
+                                                "[Hotkey] 智能切号失败: {}",
+                                                e
+                                            ));
+                                        }
+                                    }
+                                });
+                            }
+                        })
+                        .build(),
+                )?;
+                app.global_shortcut().register(ctrl_f1)?;
+                info!("[Hotkey] Ctrl+F1 全局快捷键已注册");
             }
 
             // 启动时同步：读取共享配置文件，与本地配置比较时间戳后合并

@@ -1261,3 +1261,176 @@ pub async fn prepare_account_for_injection(account_id: &str) -> Result<Account, 
     }
     Ok(account)
 }
+
+/// Ctrl+F1 热键触发的智能切号
+/// 1. 刷新当前帐号配额
+/// 2. 若当前帐号所有 claude* 模型最低 percentage > 20%，跳过
+/// 3. 否则按 findSmartRefreshCandidates 逻辑选取 1 个候选帐号
+/// 4. 调用 switch_account_internal 执行切换
+pub async fn hotkey_smart_switch() -> Result<String, String> {
+    const SKIP_THRESHOLD: i32 = 20;
+
+    modules::logger::log_info("[Hotkey] Ctrl+F1 智能切号开始");
+
+    // 1. 获取当前帐号
+    let current_account = match get_current_account()? {
+        Some(acc) => acc,
+        None => {
+            modules::logger::log_warn("[Hotkey] 无当前帐号，跳过");
+            return Ok("no_current_account".to_string());
+        }
+    };
+    let current_id = current_account.id.clone();
+    let current_email = current_account.email.clone();
+
+    // 2. 刷新当前帐号配额
+    {
+        let mut acc = load_account(&current_id)?;
+        match fetch_quota_with_retry(&mut acc, true).await {
+            Ok(quota) => {
+                update_account_quota(&current_id, quota)?;
+                modules::logger::log_info(&format!(
+                    "[Hotkey] 当前帐号 {} 配额已刷新",
+                    current_email
+                ));
+            }
+            Err(e) => {
+                modules::logger::log_warn(&format!(
+                    "[Hotkey] 当前帐号 {} 配额刷新失败: {}，继续执行切号逻辑",
+                    current_email, e
+                ));
+            }
+        }
+    }
+
+    // 3. 重新加载刷新后的帐号，检查 claude* 模型最低 percentage
+    let refreshed_account = load_account(&current_id)?;
+    if let Some(ref quota) = refreshed_account.quota {
+        let claude_percentages: Vec<i32> = quota
+            .models
+            .iter()
+            .filter(|m| m.name.to_lowercase().starts_with("claude"))
+            .map(|m| m.percentage)
+            .collect();
+
+        if !claude_percentages.is_empty() {
+            let min_percentage = *claude_percentages.iter().min().unwrap();
+            if min_percentage > SKIP_THRESHOLD {
+                modules::logger::log_info(&format!(
+                    "[Hotkey] 当前帐号 {} 配额充足（最低 {}% > {}%），跳过切换",
+                    current_email, min_percentage, SKIP_THRESHOLD
+                ));
+                return Ok(format!("skipped:{}:{}", current_email, min_percentage));
+            }
+            modules::logger::log_info(&format!(
+                "[Hotkey] 当前帐号 {} 配额不足（最低 {}% <= {}%），寻找候选",
+                current_email, min_percentage, SKIP_THRESHOLD
+            ));
+        } else {
+            modules::logger::log_info(&format!(
+                "[Hotkey] 当前帐号 {} 无 claude 模型配额数据，继续寻找候选",
+                current_email
+            ));
+        }
+    } else {
+        modules::logger::log_info(&format!(
+            "[Hotkey] 当前帐号 {} 无配额数据，继续寻找候选",
+            current_email
+        ));
+    }
+
+    // 4. 获取所有帐号，按 findSmartRefreshCandidates 逻辑筛选
+    let all_accounts = list_accounts()?;
+    let now = chrono::Utc::now().timestamp();
+
+    let mut candidates: Vec<&Account> = all_accounts
+        .iter()
+        .filter(|acc| {
+            // 非当前帐号
+            if acc.id == current_id {
+                return false;
+            }
+            // 未禁用
+            if acc.disabled {
+                return false;
+            }
+            // 需要有配额数据
+            let quota = match acc.quota.as_ref() {
+                Some(q) => q,
+                None => return false,
+            };
+            if quota.models.is_empty() {
+                return false;
+            }
+            // 任意 claude* 模型额度 100% 或 reset_time 已过
+            quota.models.iter().any(|m| {
+                let name = m.name.to_lowercase();
+                if !name.starts_with("claude") {
+                    return false;
+                }
+                if m.percentage == 100 {
+                    return true;
+                }
+                if !m.reset_time.is_empty() {
+                    if let Ok(reset) = chrono::DateTime::parse_from_rfc3339(&m.reset_time) {
+                        if reset.timestamp() <= now {
+                            return true;
+                        }
+                    }
+                }
+                false
+            })
+        })
+        .collect();
+
+    // 按 quota.last_updated 升序排序（最久没刷新的优先）
+    // 误差 60 秒以内视为同一优先级，按 created_at 降序
+    candidates.sort_by(|a, b| {
+        let a_updated = a.quota.as_ref().map(|q| q.last_updated).unwrap_or(0);
+        let b_updated = b.quota.as_ref().map(|q| q.last_updated).unwrap_or(0);
+        let diff = a_updated - b_updated;
+        if diff.abs() <= 60 {
+            let b_created = b.created_at;
+            let a_created = a.created_at;
+            b_created.cmp(&a_created)
+        } else {
+            a_updated.cmp(&b_updated)
+        }
+    });
+
+    // 5. 取第 1 个候选帐号
+    let candidate = match candidates.first() {
+        Some(c) => c,
+        None => {
+            modules::logger::log_warn("[Hotkey] 无符合条件的候选帐号");
+            return Ok("no_candidate".to_string());
+        }
+    };
+
+    let candidate_id = candidate.id.clone();
+    let candidate_email = candidate.email.clone();
+    modules::logger::log_info(&format!(
+        "[Hotkey] 选中候选帐号: {} (ID: {})",
+        candidate_email, candidate_id
+    ));
+
+    // 6. 执行切换
+    match switch_account_internal(&candidate_id).await {
+        Ok(account) => {
+            modules::logger::log_info(&format!(
+                "[Hotkey] 智能切号完成: {} -> {}",
+                current_email, account.email
+            ));
+            // 广播切换完成通知
+            modules::websocket::broadcast_account_switched(&account.id, &account.email);
+            Ok(format!("switched:{}:{}", current_email, account.email))
+        }
+        Err(e) => {
+            modules::logger::log_error(&format!(
+                "[Hotkey] 智能切号失败: {} -> {}, error={}",
+                current_email, candidate_email, e
+            ));
+            Err(format!("切换失败: {}", e))
+        }
+    }
+}
