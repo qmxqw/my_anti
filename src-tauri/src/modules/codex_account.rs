@@ -323,7 +323,6 @@ fn upsert_account_with_hints(
         acc.plan_type = plan_type.clone();
         acc.account_id = account_id.clone();
         acc.organization_id = organization_id.clone();
-        acc.update_last_used();
         acc
     } else {
         // 创建新账号
@@ -339,7 +338,6 @@ fn upsert_account_with_hints(
             email: email.clone(),
             plan_type: plan_type.clone(),
             created_at: acc.created_at,
-            last_used: acc.last_used,
         });
         acc
     };
@@ -351,14 +349,12 @@ fn upsert_account_with_hints(
     if let Some(summary) = index.accounts.iter_mut().find(|a| a.id == account.id) {
         summary.email = account.email.clone();
         summary.plan_type = account.plan_type.clone();
-        summary.last_used = account.last_used;
     } else {
         index.accounts.push(CodexAccountSummary {
             id: account.id.clone(),
             email: account.email.clone(),
             plan_type: account.plan_type.clone(),
             created_at: account.created_at,
-            last_used: account.last_used,
         });
     }
 
@@ -533,14 +529,11 @@ pub fn switch_account(account_id: &str) -> Result<CodexAccount, String> {
     index.current_account_id = Some(account_id.to_string());
     save_account_index(&index)?;
 
-    // 更新账号的 last_used
-    let mut updated_account = account.clone();
-    updated_account.update_last_used();
-    save_account(&updated_account)?;
+    save_account(&account)?;
 
     logger::log_info(&format!("已切换到 Codex 账号: {}", account.email));
 
-    Ok(updated_account)
+    Ok(account)
 }
 
 /// 从本地 auth.json 导入账号
@@ -731,7 +724,7 @@ fn resolve_current_account_id(accounts: &[CodexAccount]) -> Option<String> {
 
     accounts
         .iter()
-        .max_by_key(|account| account.last_used)
+        .max_by_key(|account| account.created_at)
         .map(|account| account.id.clone())
 }
 
@@ -756,7 +749,6 @@ fn pick_quota_alert_recommendation(
         avg_b
             .partial_cmp(&avg_a)
             .unwrap_or(std::cmp::Ordering::Equal)
-            .then_with(|| a.last_used.cmp(&b.last_used))
     });
 
     candidates.into_iter().next()
