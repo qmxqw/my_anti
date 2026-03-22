@@ -1383,23 +1383,13 @@ pub async fn hotkey_smart_switch() -> Result<String, String> {
         })
         .collect();
 
-    // 按 quota.last_updated 升序排序（最久没刷新的优先）
-    // 误差 60 秒以内视为同一优先级，按 created_at 排序（方向取决于配置）
+    // 热键切号：仅按 created_at 排序（方向取决于配置 refresh_sort_oldest_first）
     let sort_oldest_first = crate::modules::config::get_user_config().refresh_sort_oldest_first;
     candidates.sort_by(|a, b| {
-        let a_updated = a.quota.as_ref().map(|q| q.last_updated).unwrap_or(0);
-        let b_updated = b.quota.as_ref().map(|q| q.last_updated).unwrap_or(0);
-        let diff = a_updated - b_updated;
-        if diff.abs() <= 60 {
-            if sort_oldest_first {
-                a.created_at.cmp(&b.created_at)
-            } else {
-                let b_created = b.created_at;
-                let a_created = a.created_at;
-                b_created.cmp(&a_created)
-            }
+        if sort_oldest_first {
+            a.created_at.cmp(&b.created_at)
         } else {
-            a_updated.cmp(&b_updated)
+            b.created_at.cmp(&a.created_at)
         }
     });
 

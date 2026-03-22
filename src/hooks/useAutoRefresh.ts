@@ -13,7 +13,7 @@ import type { Account } from '../types/account';
  * 条件：非当前账号、未禁用、任意 claude* 模型额度 100% 或已重置。
  * 返回按 quota.last_updated 升序排序（最久没刷新的优先）。
  */
-function findSmartRefreshCandidates(accounts: Account[], currentAccountId: string | undefined, sortOldestFirst: boolean): Account[] {
+function findSmartRefreshCandidates(accounts: Account[], currentAccountId: string | undefined, sortOldestFirst: boolean, skipLastUpdatedSort = false): Account[] {
   const now = Date.now();
   return accounts
     .filter((acc) => {
@@ -34,17 +34,20 @@ function findSmartRefreshCandidates(accounts: Account[], currentAccountId: strin
       });
     })
     .sort((a, b) => {
-      const aUpdated = a.quota?.last_updated ?? 0;
-      const bUpdated = b.quota?.last_updated ?? 0;
-      const diff = aUpdated - bUpdated;
-      // 误差 60 秒以内视为同一优先级，按 created_at 排序（方向取决于配置）
-      if (Math.abs(diff) <= 60) {
-        if (sortOldestFirst) {
-          return (a.created_at ?? 0) - (b.created_at ?? 0);
+      // 非 skipLastUpdatedSort 模式下，先按 last_updated 升序（60秒容差外）
+      if (!skipLastUpdatedSort) {
+        const aUpdated = a.quota?.last_updated ?? 0;
+        const bUpdated = b.quota?.last_updated ?? 0;
+        const diff = aUpdated - bUpdated;
+        if (Math.abs(diff) > 60) {
+          return diff;
         }
-        return (b.created_at ?? 0) - (a.created_at ?? 0);
       }
-      return diff;
+      // fallback：按 created_at 排序（方向取决于配置）
+      if (sortOldestFirst) {
+        return (a.created_at ?? 0) - (b.created_at ?? 0);
+      }
+      return (b.created_at ?? 0) - (a.created_at ?? 0);
     });
 }
 
