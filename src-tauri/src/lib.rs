@@ -204,6 +204,7 @@ pub fn run() {
             commands::account::switch_account,
             commands::account::broadcast_auto_switch,
             commands::account::set_accounts_disabled,
+            commands::account::trigger_smart_switch,
             commands::account::bind_account_fingerprint,
             commands::account::get_bound_accounts,
             commands::account::update_account_tags,

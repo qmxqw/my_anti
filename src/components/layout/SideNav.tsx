@@ -1,3 +1,4 @@
+import { invoke } from '@tauri-apps/api/core';
 import { Settings, Rocket, GaugeCircle, LayoutGrid, SlidersHorizontal } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { useState, useRef, useCallback, useEffect, useMemo } from 'react';
@@ -70,6 +71,11 @@ export function SideNav({
     }, 1500);
 
     onEasterEggTriggerClick();
+
+    // 触发智能切号（与 Ctrl+F1 相同逻辑）
+    invoke('trigger_smart_switch').catch((err: unknown) => {
+      console.error('[SideNav] 智能切号失败:', err);
+    });
   }, [onEasterEggTriggerClick]);
 
   useEffect(() => {

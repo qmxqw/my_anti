@@ -351,3 +351,11 @@ pub async fn set_accounts_disabled(account_ids: Vec<String>, disabled: bool) -> 
     modules::websocket::broadcast_data_changed("accounts_disabled_changed");
     Ok(())
 }
+
+/// 前端触发智能切号（与 Ctrl+F1 热键相同逻辑）
+#[tauri::command]
+pub async fn trigger_smart_switch(app: AppHandle) -> Result<String, String> {
+    let result = modules::account::hotkey_smart_switch().await?;
+    let _ = crate::modules::tray::update_tray_menu(&app);
+    Ok(result)
+}
