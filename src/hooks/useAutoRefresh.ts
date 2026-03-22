@@ -33,7 +33,16 @@ function findSmartRefreshCandidates(accounts: Account[], currentAccountId: strin
         return false;
       });
     })
-    .sort((a, b) => (a.quota?.last_updated ?? 0) - (b.quota?.last_updated ?? 0));
+    .sort((a, b) => {
+      const aUpdated = a.quota?.last_updated ?? 0;
+      const bUpdated = b.quota?.last_updated ?? 0;
+      const diff = aUpdated - bUpdated;
+      // 误差 60 秒以内视为同一优先级，按 created_at 降序
+      if (Math.abs(diff) <= 60_000) {
+        return (b.created_at ?? 0) - (a.created_at ?? 0);
+      }
+      return diff;
+    });
 }
 
 interface GeneralConfig {
