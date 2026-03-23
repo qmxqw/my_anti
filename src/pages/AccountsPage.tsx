@@ -115,7 +115,6 @@ export function AccountsPage({ onNavigate }: AccountsPageProps) {
     fetchCurrentAccount,
     deleteAccounts,
     refreshQuota,
-    refreshAllQuotas,
     startOAuthLogin,
     switchAccount,
     updateAccountTags
@@ -823,10 +822,28 @@ export function AccountsPage({ onNavigate }: AccountsPageProps) {
   }
 
   const handleRefreshAll = async () => {
+    if (selected.size === 0) return
     setRefreshingAll(true)
     try {
-      const stats = await refreshAllQuotas()
-      setRefreshWarnings(buildWarningMapFromDetails(stats.details || []))
+      // 只刷新选中的账号
+      const results = await Promise.allSettled(
+        Array.from(selected).map((id) => refreshQuota(id))
+      )
+      const warnings: Record<string, { kind: 'auth' | 'error'; message: string }> = {}
+      results.forEach((result, index) => {
+        if (result.status === 'rejected') {
+          const id = Array.from(selected)[index]
+          const target = accounts.find((acc) => acc.id === id)
+          if (target) {
+            const reason = normalizeWarningMessage(String(result.reason))
+            warnings[target.email] = {
+              kind: isAuthFailure(reason) ? 'auth' : 'error',
+              message: reason
+            }
+          }
+        }
+      })
+      setRefreshWarnings((prev) => ({ ...prev, ...warnings }))
     } catch (e) {
       console.error(e)
     } finally {
@@ -1373,31 +1390,8 @@ export function AccountsPage({ onNavigate }: AccountsPageProps) {
     )
   }
 
-  const parseRefreshDetail = (
-    detail: string
-  ): { email: string; reason: string } | null => {
-    const match = detail.match(/^Account\s+(.+?):\s+(.+)$/)
-    if (!match) return null
-    const email = match[1].trim()
-    let reason = match[2].trim()
-    reason = reason.replace(/^Fetch quota failed\s*-\s*/i, '')
-    reason = reason.replace(/^Save quota failed\s*-\s*/i, '')
-    return { email, reason }
-  }
 
-  const buildWarningMapFromDetails = (details: string[]) => {
-    const next: Record<string, { kind: 'auth' | 'error'; message: string }> = {}
-    details.forEach((detail) => {
-      const parsed = parseRefreshDetail(detail)
-      if (!parsed) return
-      const reason = normalizeWarningMessage(parsed.reason)
-      next[parsed.email] = {
-        kind: isAuthFailure(reason) ? 'auth' : 'error',
-        message: reason
-      }
-    })
-    return next
-  }
+
 
   useEffect(() => {
     if (Object.keys(refreshWarnings).length === 0) return
