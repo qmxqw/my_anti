@@ -22,6 +22,12 @@ function findSmartRefreshCandidates(accounts: Account[], currentAccountId: strin
       if (acc.disabled) return false;
       if (!acc.quota?.models?.length) return false;
 
+      // 排除 UNKNOWN 等级帐号，逻辑与 getSubscriptionTier 保持一致：
+      // subscription_tier 为空 → UNKNOWN；含 ultra → ULTRA；含 pro → PRO；其他 → FREE
+      const rawTier = (acc.quota.subscription_tier ?? '').trim().toLowerCase();
+      if (!rawTier) return false; // UNKNOWN
+      // ULTRA/PRO/FREE 都是有效等级，不过滤
+
       return acc.quota.models.some((m) => {
         const name = (m.name || '').toLowerCase();
         if (!name.startsWith('claude')) return false;

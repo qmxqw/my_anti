@@ -1281,10 +1281,26 @@ pub async fn hotkey_smart_switch() -> Result<String, String> {
             let min_percentage = *claude_percentages.iter().min().unwrap();
             if min_percentage > SKIP_THRESHOLD {
                 modules::logger::log_info(&format!(
-                    "[Hotkey] 当前帐号 {} 配额充足（最低 {}% > {}%），跳过切换",
+                    "[Hotkey] 当前帐号 {} 配额充足（最低 {}% > {}%），切换到当前帐号以确保程序重启",
                     current_email, min_percentage, SKIP_THRESHOLD
                 ));
-                return Ok(format!("skipped:{}:{}", current_email, min_percentage));
+                return match switch_account_internal(&current_id).await {
+                    Ok(account) => {
+                        modules::logger::log_info(&format!(
+                            "[Hotkey] 当前帐号重启完成: {}",
+                            account.email
+                        ));
+                        modules::websocket::broadcast_account_switched(&account.id, &account.email);
+                        Ok(format!("restarted:{}", account.email))
+                    }
+                    Err(e) => {
+                        modules::logger::log_error(&format!(
+                            "[Hotkey] 当前帐号重启失败: {}",
+                            e
+                        ));
+                        Err(format!("重启失败: {}", e))
+                    }
+                };
             }
             modules::logger::log_info(&format!(
                 "[Hotkey] 当前帐号 {} 配额不足（最低 {}% <= {}%），寻找候选",
@@ -1325,6 +1341,12 @@ pub async fn hotkey_smart_switch() -> Result<String, String> {
             };
             if quota.models.is_empty() {
                 return false;
+            }
+            // 排除 UNKNOWN 等级帐号，逻辑与前端 getSubscriptionTier 保持一致：
+            // subscription_tier 为空 → UNKNOWN（排除）；非空均视为有效等级
+            let tier = quota.subscription_tier.as_deref().unwrap_or("").trim().to_string();
+            if tier.is_empty() {
+                return false; // UNKNOWN
             }
             // 任意 claude* 模型额度 100% 或 reset_time 已过
             quota.models.iter().any(|m| {
