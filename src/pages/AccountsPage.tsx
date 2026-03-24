@@ -400,8 +400,9 @@ export function AccountsPage({ onNavigate }: AccountsPageProps) {
         sortDirection,
         displayGroups,
         secondarySortOldestFirst,
+        currentAccountId: currentAccount?.id,
       }),
-    [displayGroups, sortBy, sortDirection, secondarySortOldestFirst]
+    [displayGroups, sortBy, sortDirection, secondarySortOldestFirst, currentAccount?.id]
   )
 
   const availableTags = useMemo(() => {

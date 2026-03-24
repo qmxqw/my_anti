@@ -14,13 +14,14 @@ export const ANTIGRAVITY_RESET_SORT_PREFIX = 'reset:';
 export const DEFAULT_ANTIGRAVITY_SORT_BY = 'overall';
 export const DEFAULT_ANTIGRAVITY_SORT_DIRECTION: AntigravitySortDirection = 'desc';
 
-const getAccountQuotas = (account: Account): Record<string, number> => {
+const getAccountQuotas = (account: Account, isCurrentAccount = false): Record<string, number> => {
   const quotas: Record<string, number> = {};
   if (!account.quota?.models) {
     return quotas;
   }
   for (const model of account.quota.models) {
-    quotas[model.name] = model.percentage;
+    // 当前帐号按余额排序时等效于 100%
+    quotas[model.name] = isCurrentAccount ? 100 : model.percentage;
   }
   return quotas;
 };
@@ -33,11 +34,16 @@ const compareByCreatedAtSecondary = (
   a: Account,
   b: Account,
   oldestFirst?: boolean,
+  currentAccountId?: string,
 ) => {
+  // 当前帐号始终排在最前面：新帐号优先时等效 2200/1/1，旧帐号优先时等效 0
+  const FUTURE_TS = new Date('2200-01-01T00:00:00Z').getTime();
+  const aTs = a.id === currentAccountId ? (oldestFirst ? 0 : FUTURE_TS) : (a.created_at ?? 0);
+  const bTs = b.id === currentAccountId ? (oldestFirst ? 0 : FUTURE_TS) : (b.created_at ?? 0);
   if (oldestFirst) {
-    return (a.created_at ?? 0) - (b.created_at ?? 0);
+    return aTs - bTs;
   }
-  return (b.created_at ?? 0) - (a.created_at ?? 0);
+  return bTs - aTs;
 };
 
 const buildGroupSettings = (displayGroups: DisplayGroup[]): GroupSettings => {
@@ -64,13 +70,14 @@ const compareByOverallQuota = (
   b: Account,
   direction: AntigravitySortDirection,
   secondarySortOldestFirst?: boolean,
+  currentAccountId?: string,
 ) => {
-  const aQuota = calculateOverallQuota(getAccountQuotas(a));
-  const bQuota = calculateOverallQuota(getAccountQuotas(b));
+  const aQuota = calculateOverallQuota(getAccountQuotas(a, a.id === currentAccountId));
+  const bQuota = calculateOverallQuota(getAccountQuotas(b, b.id === currentAccountId));
   const diff = toDirectionValue(bQuota - aQuota, direction);
   if (diff !== 0) return diff;
   // 配额相同时按 created_at 次排序
-  return compareByCreatedAtSecondary(a, b, secondarySortOldestFirst);
+  return compareByCreatedAtSecondary(a, b, secondarySortOldestFirst, currentAccountId);
 };
 
 const compareByCreatedAt = (
@@ -100,21 +107,24 @@ const compareByGroupQuota = (
   direction: AntigravitySortDirection,
   displayGroups: DisplayGroup[],
   secondarySortOldestFirst?: boolean,
+  currentAccountId?: string,
 ) => {
   const groupSettings = buildGroupSettings(displayGroups);
-  const aGroupQuota = calculateGroupQuota(sortBy, getAccountQuotas(a), groupSettings) ?? 0;
-  const bGroupQuota = calculateGroupQuota(sortBy, getAccountQuotas(b), groupSettings) ?? 0;
+  const aIsCurrent = a.id === currentAccountId;
+  const bIsCurrent = b.id === currentAccountId;
+  const aGroupQuota = calculateGroupQuota(sortBy, getAccountQuotas(a, aIsCurrent), groupSettings) ?? 0;
+  const bGroupQuota = calculateGroupQuota(sortBy, getAccountQuotas(b, bIsCurrent), groupSettings) ?? 0;
 
   if (aGroupQuota !== bGroupQuota) {
     return toDirectionValue(bGroupQuota - aGroupQuota, direction);
   }
 
-  const aOverall = calculateOverallQuota(getAccountQuotas(a));
-  const bOverall = calculateOverallQuota(getAccountQuotas(b));
+  const aOverall = calculateOverallQuota(getAccountQuotas(a, aIsCurrent));
+  const bOverall = calculateOverallQuota(getAccountQuotas(b, bIsCurrent));
   const overallDiff = toDirectionValue(bOverall - aOverall, direction);
   if (overallDiff !== 0) return overallDiff;
   // 分组配额和总配额都相同时按 created_at 次排序
-  return compareByCreatedAtSecondary(a, b, secondarySortOldestFirst);
+  return compareByCreatedAtSecondary(a, b, secondarySortOldestFirst, currentAccountId);
 };
 
 export interface AntigravityAccountSortOptions {
@@ -122,6 +132,8 @@ export interface AntigravityAccountSortOptions {
   sortDirection: AntigravitySortDirection;
   displayGroups: DisplayGroup[];
   secondarySortOldestFirst?: boolean;
+  /** 当前帐号 ID，按余额排序时该帐号配额等效 100% */
+  currentAccountId?: string;
 }
 
 export const normalizeAntigravitySortBy = (sortBy: string | null | undefined) => {
@@ -138,6 +150,7 @@ export const createAntigravityAccountComparator = ({
   sortDirection,
   displayGroups,
   secondarySortOldestFirst,
+  currentAccountId,
 }: AntigravityAccountSortOptions) => {
   const normalizedSortBy = normalizeAntigravitySortBy(sortBy);
 
@@ -159,9 +172,9 @@ export const createAntigravityAccountComparator = ({
       normalizedSortBy !== 'overall' &&
       displayGroups.length > 0
     ) {
-      return compareByGroupQuota(a, b, normalizedSortBy, sortDirection, displayGroups, secondarySortOldestFirst);
+      return compareByGroupQuota(a, b, normalizedSortBy, sortDirection, displayGroups, secondarySortOldestFirst, currentAccountId);
     }
 
-    return compareByOverallQuota(a, b, sortDirection, secondarySortOldestFirst);
+    return compareByOverallQuota(a, b, sortDirection, secondarySortOldestFirst, currentAccountId);
   };
 };
