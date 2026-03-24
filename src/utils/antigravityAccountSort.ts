@@ -28,6 +28,18 @@ const getAccountQuotas = (account: Account): Record<string, number> => {
 const toDirectionValue = (diff: number, direction: AntigravitySortDirection) =>
   direction === 'desc' ? diff : -diff;
 
+/** 配额相同时按 created_at 次排序（方向由配置决定） */
+const compareByCreatedAtSecondary = (
+  a: Account,
+  b: Account,
+  oldestFirst?: boolean,
+) => {
+  if (oldestFirst) {
+    return (a.created_at ?? 0) - (b.created_at ?? 0);
+  }
+  return (b.created_at ?? 0) - (a.created_at ?? 0);
+};
+
 const buildGroupSettings = (displayGroups: DisplayGroup[]): GroupSettings => {
   const settings: GroupSettings = {
     groupMappings: {},
@@ -51,10 +63,14 @@ const compareByOverallQuota = (
   a: Account,
   b: Account,
   direction: AntigravitySortDirection,
+  secondarySortOldestFirst?: boolean,
 ) => {
   const aQuota = calculateOverallQuota(getAccountQuotas(a));
   const bQuota = calculateOverallQuota(getAccountQuotas(b));
-  return toDirectionValue(bQuota - aQuota, direction);
+  const diff = toDirectionValue(bQuota - aQuota, direction);
+  if (diff !== 0) return diff;
+  // 配额相同时按 created_at 次排序
+  return compareByCreatedAtSecondary(a, b, secondarySortOldestFirst);
 };
 
 const compareByCreatedAt = (
@@ -83,6 +99,7 @@ const compareByGroupQuota = (
   sortBy: string,
   direction: AntigravitySortDirection,
   displayGroups: DisplayGroup[],
+  secondarySortOldestFirst?: boolean,
 ) => {
   const groupSettings = buildGroupSettings(displayGroups);
   const aGroupQuota = calculateGroupQuota(sortBy, getAccountQuotas(a), groupSettings) ?? 0;
@@ -94,13 +111,17 @@ const compareByGroupQuota = (
 
   const aOverall = calculateOverallQuota(getAccountQuotas(a));
   const bOverall = calculateOverallQuota(getAccountQuotas(b));
-  return toDirectionValue(bOverall - aOverall, direction);
+  const overallDiff = toDirectionValue(bOverall - aOverall, direction);
+  if (overallDiff !== 0) return overallDiff;
+  // 分组配额和总配额都相同时按 created_at 次排序
+  return compareByCreatedAtSecondary(a, b, secondarySortOldestFirst);
 };
 
 export interface AntigravityAccountSortOptions {
   sortBy: string;
   sortDirection: AntigravitySortDirection;
   displayGroups: DisplayGroup[];
+  secondarySortOldestFirst?: boolean;
 }
 
 export const normalizeAntigravitySortBy = (sortBy: string | null | undefined) => {
@@ -116,6 +137,7 @@ export const createAntigravityAccountComparator = ({
   sortBy,
   sortDirection,
   displayGroups,
+  secondarySortOldestFirst,
 }: AntigravityAccountSortOptions) => {
   const normalizedSortBy = normalizeAntigravitySortBy(sortBy);
 
@@ -137,9 +159,9 @@ export const createAntigravityAccountComparator = ({
       normalizedSortBy !== 'overall' &&
       displayGroups.length > 0
     ) {
-      return compareByGroupQuota(a, b, normalizedSortBy, sortDirection, displayGroups);
+      return compareByGroupQuota(a, b, normalizedSortBy, sortDirection, displayGroups, secondarySortOldestFirst);
     }
 
-    return compareByOverallQuota(a, b, sortDirection);
+    return compareByOverallQuota(a, b, sortDirection, secondarySortOldestFirst);
   };
 };

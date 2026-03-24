@@ -47,6 +47,7 @@ import {
   getSubscriptionTier,
 } from '../utils/account'
 import { listen, UnlistenFn } from '@tauri-apps/api/event'
+import { invoke } from '@tauri-apps/api/core'
 import { GroupSettingsModal } from '../components/GroupSettingsModal'
 import { TagEditModal } from '../components/TagEditModal'
 import { ExportJsonModal } from '../components/ExportJsonModal'
@@ -271,6 +272,7 @@ export function AccountsPage({ onNavigate }: AccountsPageProps) {
       localStorage.getItem(ANTIGRAVITY_ACCOUNTS_SORT_DIRECTION_STORAGE_KEY)
     )
   )
+  const [secondarySortOldestFirst, setSecondarySortOldestFirst] = useState(false)
 
   // Compact view model sorting
   const [compactGroupOrder, setCompactGroupOrder] = useState<string[]>([])
@@ -397,8 +399,9 @@ export function AccountsPage({ onNavigate }: AccountsPageProps) {
         sortBy,
         sortDirection,
         displayGroups,
+        secondarySortOldestFirst,
       }),
-    [displayGroups, sortBy, sortDirection]
+    [displayGroups, sortBy, sortDirection, secondarySortOldestFirst]
   )
 
   const availableTags = useMemo(() => {
@@ -660,6 +663,10 @@ export function AccountsPage({ onNavigate }: AccountsPageProps) {
     fetchCurrentAccount()
     loadFingerprints()
     loadDisplayGroups()
+    // 加载次排序配置
+    invoke<{ refresh_sort_oldest_first?: boolean }>('get_general_config')
+      .then((cfg) => setSecondarySortOldestFirst(Boolean(cfg.refresh_sort_oldest_first)))
+      .catch(() => {})
 
     let unlisten: UnlistenFn | undefined
     let unlistenGroups: UnlistenFn | undefined
@@ -688,9 +695,18 @@ export function AccountsPage({ onNavigate }: AccountsPageProps) {
       unlistenGroups = fn
     })
 
+    // 监听配置变更，同步次排序设置
+    const handleConfigUpdated = () => {
+      invoke<{ refresh_sort_oldest_first?: boolean }>('get_general_config')
+        .then((cfg) => setSecondarySortOldestFirst(Boolean(cfg.refresh_sort_oldest_first)))
+        .catch(() => {})
+    }
+    window.addEventListener('config-updated', handleConfigUpdated)
+
     return () => {
       if (unlisten) unlisten()
       if (unlistenGroups) unlistenGroups()
+      window.removeEventListener('config-updated', handleConfigUpdated)
     }
   }, [fetchAccounts, fetchCurrentAccount, refreshQuota])
 

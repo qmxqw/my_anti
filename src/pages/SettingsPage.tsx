@@ -59,6 +59,7 @@ interface GeneralConfig {
   kiro_quota_alert_threshold: number;
   extra_refresh_count: number;
   batch_refresh_skip_reset: boolean;
+  refresh_sort_oldest_first: boolean;
 
 }
 
@@ -134,6 +135,7 @@ export function SettingsPage() {
   const [windsurfQuotaAlertThreshold, setWindsurfQuotaAlertThreshold] = useState('20');
   const [kiroQuotaAlertEnabled, setKiroQuotaAlertEnabled] = useState(false);
   const [kiroQuotaAlertThreshold, setKiroQuotaAlertThreshold] = useState('20');
+  const [refreshSortOldestFirst, setRefreshSortOldestFirst] = useState(false);
 
 
   const [autoRefreshCustomMode, setAutoRefreshCustomMode] = useState(false);
@@ -331,6 +333,7 @@ export function SettingsPage() {
           kiroQuotaAlertThreshold: Number.isNaN(parsedKiroQuotaAlertThreshold)
             ? 20
             : parsedKiroQuotaAlertThreshold,
+          refreshSortOldestFirst,
 
         });
         window.dispatchEvent(new Event('config-updated'));
@@ -377,6 +380,7 @@ export function SettingsPage() {
     windsurfQuotaAlertThreshold,
     kiroQuotaAlertEnabled,
     kiroQuotaAlertThreshold,
+    refreshSortOldestFirst,
 
     t,
   ]);
@@ -554,6 +558,7 @@ export function SettingsPage() {
       setWindsurfQuotaAlertThreshold(String(config.windsurf_quota_alert_threshold ?? 20));
       setKiroQuotaAlertEnabled(config.kiro_quota_alert_enabled ?? false);
       setKiroQuotaAlertThreshold(String(config.kiro_quota_alert_threshold ?? 20));
+      setRefreshSortOldestFirst(Boolean(config.refresh_sort_oldest_first));
 
 
       setAutoRefreshCustomMode(false);
@@ -1002,6 +1007,23 @@ export function SettingsPage() {
                         </div>
                       </div>
                     )}
+
+                    <div className="settings-row">
+                      <div className="row-label">
+                        <div className="row-title">{t('settings.general.refreshSortOrder', '次排序优先')}</div>
+                        <div className="row-desc">{t('settings.general.refreshSortOrderDesc', '配额相同时，按帐号创建时间的排序方向')}</div>
+                      </div>
+                      <div className="row-control">
+                        <select
+                          className="settings-select"
+                          value={refreshSortOldestFirst ? 'asc' : 'desc'}
+                          onChange={(e) => setRefreshSortOldestFirst(e.target.value === 'asc')}
+                        >
+                          <option value="desc">{t('settings.general.refreshSortNewestFirst', '新帐号优先')}</option>
+                          <option value="asc">{t('settings.general.refreshSortOldestFirst', '旧帐号优先')}</option>
+                        </select>
+                      </div>
+                    </div>
 
 
 

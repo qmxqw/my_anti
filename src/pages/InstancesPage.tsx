@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
+import { invoke } from '@tauri-apps/api/core';
 import { useTranslation } from 'react-i18next';
 import { InstancesManager } from '../components/InstancesManager';
 import { OverviewTabsHeader } from '../components/OverviewTabsHeader';
@@ -38,6 +39,7 @@ export function InstancesPage({ onNavigate }: InstancesPageProps) {
       localStorage.getItem(ANTIGRAVITY_ACCOUNTS_SORT_DIRECTION_STORAGE_KEY),
     ),
   );
+  const [secondarySortOldestFirst, setSecondarySortOldestFirst] = useState(false);
 
   const accountSortComparator = useMemo(
     () =>
@@ -45,8 +47,9 @@ export function InstancesPage({ onNavigate }: InstancesPageProps) {
         sortBy,
         sortDirection,
         displayGroups,
+        secondarySortOldestFirst,
       }),
-    [displayGroups, sortBy, sortDirection],
+    [displayGroups, sortBy, sortDirection, secondarySortOldestFirst],
   );
   const sortedAccountsForSelect = useMemo(
     () => [...accounts].sort(accountSortComparator),
@@ -61,6 +64,9 @@ export function InstancesPage({ onNavigate }: InstancesPageProps) {
       .catch((error) => {
         console.error('Failed to load display groups:', error);
       });
+    invoke<{ refresh_sort_oldest_first?: boolean }>('get_general_config')
+      .then((cfg) => setSecondarySortOldestFirst(Boolean(cfg.refresh_sort_oldest_first)))
+      .catch(() => {});
   }, []);
 
   const renderAccountQuotaPreview = (account: Account) => {
