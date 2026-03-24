@@ -4195,8 +4195,8 @@ pub fn close_antigravity_instances(
                 default_dir.as_deref(),
             )
         },
-        None,
-        None,
+        Some(send_graceful_close_signal as fn(u32)),
+        Some(10),
         #[cfg(target_os = "windows")]
         Some(log_antigravity_process_details_for_pids as fn(&[u32])),
         #[cfg(not(target_os = "windows"))]
@@ -4243,6 +4243,58 @@ pub fn close_pid(pid: u32, timeout_secs: u64) -> Result<(), String> {
     }
 }
 
+/// 优雅关闭信号：发送 WM_CLOSE（等同鼠标点关闭按钮），让应用有机会保存会话
+fn send_graceful_close_signal(pid: u32) {
+    if pid == 0 || !is_pid_running(pid) {
+        return;
+    }
+
+    #[cfg(target_os = "windows")]
+    {
+        use std::os::windows::process::CommandExt;
+
+        crate::modules::logger::log_info(&format!("[AG Close] graceful taskkill (WM_CLOSE) pid={}", pid));
+        let output = Command::new("taskkill")
+            .args(["/PID", &pid.to_string()])
+            .creation_flags(CREATE_NO_WINDOW)
+            .stdin(Stdio::null())
+            .stdout(Stdio::null())
+            .stderr(Stdio::null())
+            .output();
+        match output {
+            Ok(value) => {
+                if value.status.success() {
+                    crate::modules::logger::log_info(&format!(
+                        "[AG Close] graceful taskkill sent pid={}",
+                        pid
+                    ));
+                } else {
+                    let stderr = String::from_utf8_lossy(&value.stderr);
+                    crate::modules::logger::log_warn(&format!(
+                        "[AG Close] graceful taskkill failed pid={} stderr={}",
+                        pid,
+                        stderr.trim()
+                    ));
+                }
+            }
+            Err(err) => {
+                crate::modules::logger::log_warn(&format!(
+                    "[AG Close] graceful taskkill error pid={} err={}",
+                    pid, err
+                ));
+            }
+        }
+    }
+
+    #[cfg(any(target_os = "macos", target_os = "linux"))]
+    {
+        let _ = Command::new("kill")
+            .args(["-15", &pid.to_string()])
+            .output();
+    }
+}
+
+/// 强制关闭信号：立即终止进程树，不等待保存
 fn send_close_signal(pid: u32) {
     if pid == 0 || !is_pid_running(pid) {
         return;
@@ -4252,7 +4304,7 @@ fn send_close_signal(pid: u32) {
     {
         use std::os::windows::process::CommandExt;
 
-        crate::modules::logger::log_info(&format!("[AG Close] taskkill start pid={}", pid));
+        crate::modules::logger::log_info(&format!("[AG Close] force taskkill pid={}", pid));
         let output = Command::new("taskkill")
             .args(["/PID", &pid.to_string(), "/T", "/F"])
             .creation_flags(CREATE_NO_WINDOW)
@@ -4264,13 +4316,13 @@ fn send_close_signal(pid: u32) {
             Ok(value) => {
                 if value.status.success() {
                     crate::modules::logger::log_info(&format!(
-                        "[AG Close] taskkill success pid={} status={}",
+                        "[AG Close] force taskkill success pid={} status={}",
                         pid, value.status
                     ));
                 } else {
                     let stderr = String::from_utf8_lossy(&value.stderr);
                     crate::modules::logger::log_warn(&format!(
-                        "[AG Close] taskkill failed pid={} status={} stderr={}",
+                        "[AG Close] force taskkill failed pid={} status={} stderr={}",
                         pid,
                         value.status,
                         stderr.trim()
@@ -4279,7 +4331,7 @@ fn send_close_signal(pid: u32) {
             }
             Err(err) => {
                 crate::modules::logger::log_warn(&format!(
-                    "[AG Close] taskkill error pid={} err={}",
+                    "[AG Close] force taskkill error pid={} err={}",
                     pid, err
                 ));
             }
@@ -4289,7 +4341,7 @@ fn send_close_signal(pid: u32) {
     #[cfg(any(target_os = "macos", target_os = "linux"))]
     {
         let _ = Command::new("kill")
-            .args(["-15", &pid.to_string()])
+            .args(["-9", &pid.to_string()])
             .output();
     }
 }
