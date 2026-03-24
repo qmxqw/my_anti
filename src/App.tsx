@@ -267,6 +267,25 @@ function App() {
   // 启用自动刷新 hook
   useAutoRefresh();
 
+  // 应用内 Ctrl+Z 热键：触发智能切号（与全局 Ctrl+F1 相同逻辑）
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.ctrlKey && e.key === 'z' && !e.shiftKey && !e.altKey && !e.metaKey) {
+        // 如果焦点在输入框/文本域中，不拦截，保留原生撤销
+        const tag = (e.target as HTMLElement)?.tagName;
+        if (tag === 'INPUT' || tag === 'TEXTAREA' || (e.target as HTMLElement)?.isContentEditable) {
+          return;
+        }
+        e.preventDefault();
+        invoke('trigger_smart_switch').catch((err: unknown) => {
+          console.error('[App] Ctrl+Z 智能切号失败:', err);
+        });
+      }
+    };
+    document.addEventListener('keydown', handleKeyDown);
+    return () => document.removeEventListener('keydown', handleKeyDown);
+  }, []);
+
   const openUpdateNotification = useCallback((source: UpdateCheckSource) => {
     setUpdateCheckSource(source);
     if (source === 'manual') {
