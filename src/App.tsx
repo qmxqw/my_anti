@@ -267,7 +267,7 @@ function App() {
   // 启用自动刷新 hook
   useAutoRefresh();
 
-  // 应用内 Ctrl+Z 热键：触发智能切号（与全局 Ctrl+F1 相同逻辑）
+  // 应用内 Ctrl+Z 热键：触发智能切号（与全局 Alt+F1 相同逻辑）
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.ctrlKey && e.key === 'z' && !e.shiftKey && !e.altKey && !e.metaKey) {

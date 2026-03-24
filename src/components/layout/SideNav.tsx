@@ -72,7 +72,7 @@ export function SideNav({
 
     onEasterEggTriggerClick();
 
-    // 触发智能切号（与 Ctrl+F1 相同逻辑）
+    // 触发智能切号（与 Alt+F1 相同逻辑）
     invoke('trigger_smart_switch').catch((err: unknown) => {
       console.error('[SideNav] 智能切号失败:', err);
     });

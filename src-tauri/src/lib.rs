@@ -91,18 +91,23 @@ pub fn run() {
                 info!("[Updater] Tauri Updater + Process 插件已初始化");
             }
 
-            // 初始化全局快捷键插件，注册 Ctrl+F1 智能切号热键
+            // 初始化全局快捷键插件，注册 Alt+F1 智能切号热键 + Alt+` 窗口三态切换热键
             #[cfg(desktop)]
             {
                 use tauri_plugin_global_shortcut::{
                     Code, GlobalShortcutExt, Modifiers, Shortcut, ShortcutState,
                 };
-                let ctrl_f1 = Shortcut::new(Some(Modifiers::CONTROL), Code::F1);
+                let alt_f1 = Shortcut::new(Some(Modifiers::ALT), Code::F1);
+                let alt_backquote = Shortcut::new(Some(Modifiers::ALT), Code::Backquote);
+                let app_handle = app.handle().clone();
                 app.handle().plugin(
                     tauri_plugin_global_shortcut::Builder::new()
                         .with_handler(move |_app, shortcut, event| {
-                            if shortcut == &ctrl_f1 && event.state() == ShortcutState::Pressed {
-                                logger::log_info("[Hotkey] Ctrl+F1 触发");
+                            if event.state() != ShortcutState::Pressed {
+                                return;
+                            }
+                            if shortcut == &alt_f1 {
+                                logger::log_info("[Hotkey] Alt+F1 触发");
                                 tauri::async_runtime::spawn(async {
                                     match modules::account::hotkey_smart_switch().await {
                                         Ok(result) => {
@@ -119,12 +124,35 @@ pub fn run() {
                                         }
                                     }
                                 });
+                            } else if shortcut == &alt_backquote {
+                                logger::log_info("[Hotkey] Alt+` 触发");
+                                if let Some(window) = app_handle.get_webview_window("main") {
+                                    let is_visible = window.is_visible().unwrap_or(false);
+                                    let is_maximized = window.is_maximized().unwrap_or(false);
+                                    if !is_visible {
+                                        // 窗口不可见 → 从托盘唤醒并显示
+                                        let _ = window.show();
+                                        let _ = window.unminimize();
+                                        let _ = window.set_focus();
+                                        logger::log_info("[Hotkey] Alt+` 窗口已从托盘唤醒");
+                                    } else if !is_maximized {
+                                        // 窗口可见但未最大化 → 最大化
+                                        let _ = window.maximize();
+                                        let _ = window.set_focus();
+                                        logger::log_info("[Hotkey] Alt+` 窗口已最大化");
+                                    } else {
+                                        // 窗口可见且已最大化 → 隐藏到托盘
+                                        let _ = window.hide();
+                                        logger::log_info("[Hotkey] Alt+` 窗口已隐藏到托盘");
+                                    }
+                                }
                             }
                         })
                         .build(),
                 )?;
-                app.global_shortcut().register(ctrl_f1)?;
-                info!("[Hotkey] Ctrl+F1 全局快捷键已注册");
+                app.global_shortcut().register(alt_f1)?;
+                app.global_shortcut().register(alt_backquote)?;
+                info!("[Hotkey] Alt+F1, Alt+` 全局快捷键已注册");
             }
 
             // 启动时同步：读取共享配置文件，与本地配置比较时间戳后合并

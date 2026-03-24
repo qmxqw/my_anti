@@ -1226,7 +1226,7 @@ pub async fn prepare_account_for_injection(account_id: &str) -> Result<Account, 
     Ok(account)
 }
 
-/// Ctrl+F1 热键触发的智能切号
+/// Alt+F1 热键触发的智能切号
 /// 1. 刷新当前帐号配额
 /// 2. 若当前帐号所有 claude* 模型最低 percentage > 20%，跳过
 /// 3. 否则按 findSmartRefreshCandidates 逻辑选取 1 个候选帐号
@@ -1234,7 +1234,7 @@ pub async fn prepare_account_for_injection(account_id: &str) -> Result<Account, 
 pub async fn hotkey_smart_switch() -> Result<String, String> {
     const SKIP_THRESHOLD: i32 = 20;
 
-    modules::logger::log_info("[Hotkey] Ctrl+F1 智能切号开始");
+    modules::logger::log_info("[Hotkey] Alt+F1 智能切号开始");
 
     // 1. 获取当前帐号
     let current_account = match get_current_account()? {
