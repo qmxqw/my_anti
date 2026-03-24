@@ -1319,9 +1319,34 @@ pub async fn hotkey_smart_switch() -> Result<String, String> {
         ));
     }
 
-    // 4. 获取所有帐号，按 findSmartRefreshCandidates 逻辑筛选
+    // 4. 获取所有帐号，筛选有效候选（不再要求必须满额或已过期）
     let all_accounts = list_accounts()?;
     let now = chrono::Utc::now().timestamp();
+
+    // 计算帐号的 claude* 模型有效最低 percentage（已过期视为 100%）
+    let effective_min_percentage = |acc: &Account| -> i32 {
+        let quota = match acc.quota.as_ref() {
+            Some(q) => q,
+            None => return -1,
+        };
+        quota
+            .models
+            .iter()
+            .filter(|m| m.name.to_lowercase().starts_with("claude"))
+            .map(|m| {
+                // reset_time 已过期的模型视为额度已重置（等效 100%）
+                if !m.reset_time.is_empty() {
+                    if let Ok(reset) = chrono::DateTime::parse_from_rfc3339(&m.reset_time) {
+                        if reset.timestamp() <= now {
+                            return 100;
+                        }
+                    }
+                }
+                m.percentage
+            })
+            .min()
+            .unwrap_or(-1)
+    };
 
     let mut candidates: Vec<&Account> = all_accounts
         .iter()
@@ -1348,35 +1373,23 @@ pub async fn hotkey_smart_switch() -> Result<String, String> {
             if tier.is_empty() {
                 return false; // UNKNOWN
             }
-            // 任意 claude* 模型额度 100% 或 reset_time 已过
-            quota.models.iter().any(|m| {
-                let name = m.name.to_lowercase();
-                if !name.starts_with("claude") {
-                    return false;
-                }
-                if m.percentage == 100 {
-                    return true;
-                }
-                if !m.reset_time.is_empty() {
-                    if let Ok(reset) = chrono::DateTime::parse_from_rfc3339(&m.reset_time) {
-                        if reset.timestamp() <= now {
-                            return true;
-                        }
-                    }
-                }
-                false
-            })
+            // 需要至少有一个 claude* 模型
+            quota.models.iter().any(|m| m.name.to_lowercase().starts_with("claude"))
         })
         .collect();
 
-    // 热键切号：仅按 created_at 排序（方向取决于配置 refresh_sort_oldest_first）
+    // 按 claude* 最低 percentage 从高到低排序；同 percentage 时按 created_at 排序
     let sort_oldest_first = crate::modules::config::get_user_config().refresh_sort_oldest_first;
     candidates.sort_by(|a, b| {
-        if sort_oldest_first {
-            a.created_at.cmp(&b.created_at)
-        } else {
-            b.created_at.cmp(&a.created_at)
-        }
+        let pct_a = effective_min_percentage(a);
+        let pct_b = effective_min_percentage(b);
+        pct_b.cmp(&pct_a).then_with(|| {
+            if sort_oldest_first {
+                a.created_at.cmp(&b.created_at)
+            } else {
+                b.created_at.cmp(&a.created_at)
+            }
+        })
     });
 
     // 5. 取第 1 个候选帐号
