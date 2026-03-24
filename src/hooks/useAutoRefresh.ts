@@ -110,6 +110,81 @@ export function useAutoRefresh() {
   const destroyedRef = useRef(false);
   const lastRefreshTimeRef = useRef<number>(0);
 
+  // 独立的唤醒任务配置修正副作用
+  useEffect(() => {
+    let unmounted = false;
+
+    const checkAndFixInterval = async () => {
+      try {
+        const wakeupEnabled = localStorage.getItem('agtools.wakeup.enabled') === 'true';
+        if (!wakeupEnabled) return;
+
+        const tasksJson = localStorage.getItem('agtools.wakeup.tasks');
+        if (!tasksJson) return;
+
+        const tasks = JSON.parse(tasksJson);
+        const hasActiveResetTask = Array.isArray(tasks) && tasks.some(
+          (task: unknown) => {
+            if (!task || typeof task !== 'object') return false;
+            const taskObj = task as { enabled?: boolean; schedule?: { wakeOnReset?: boolean } };
+            return Boolean(taskObj.enabled && taskObj.schedule?.wakeOnReset);
+          }
+        );
+
+        if (!hasActiveResetTask) return;
+
+        const config = await invoke<GeneralConfig>('get_general_config');
+        if (config.auto_refresh_minutes === -1 || config.auto_refresh_minutes > 2) {
+          console.log(`[AutoRefresh] 检测到活跃的配额重置任务，自动修正刷新间隔: ${config.auto_refresh_minutes} -> 2`);
+          
+          await invoke('save_general_config', {
+            language: config.language,
+            theme: config.theme,
+            autoRefreshMinutes: 2,
+            codexAutoRefreshMinutes: config.codex_auto_refresh_minutes,
+            ghcpAutoRefreshMinutes: config.ghcp_auto_refresh_minutes,
+            windsurfAutoRefreshMinutes: config.windsurf_auto_refresh_minutes,
+            kiroAutoRefreshMinutes: config.kiro_auto_refresh_minutes,
+            closeBehavior: config.close_behavior || 'ask',
+            opencodeAppPath: config.opencode_app_path ?? '',
+            antigravityAppPath: config.antigravity_app_path ?? '',
+            codexAppPath: config.codex_app_path ?? '',
+            vscodeAppPath: config.vscode_app_path ?? '',
+            windsurfAppPath: config.windsurf_app_path ?? '',
+            opencodeSyncOnSwitch: config.opencode_sync_on_switch ?? true,
+            codexLaunchOnSwitch: config.codex_launch_on_switch ?? true,
+            extraRefreshCount: config.extra_refresh_count ?? 20,
+            refreshSortOldestFirst: config.refresh_sort_oldest_first ?? false,
+          });
+          
+          if (!unmounted) {
+            window.dispatchEvent(new Event('config-updated'));
+          }
+        }
+      } catch (err) {
+        console.error('[AutoRefresh] 检测和修正配额重置任务刷新间隔失败:', err);
+      }
+    };
+
+    // 初始化检测
+    void checkAndFixInterval();
+
+    // 监听任务改变
+    const handleStorage = (e: StorageEvent) => {
+      if (e.key === 'agtools.wakeup.tasks' || e.key === 'agtools.wakeup.enabled') {
+        void checkAndFixInterval();
+      }
+    };
+    window.addEventListener('storage', handleStorage);
+    window.addEventListener('wakeup-tasks-updated', checkAndFixInterval);
+
+    return () => {
+      unmounted = true;
+      window.removeEventListener('storage', handleStorage);
+      window.removeEventListener('wakeup-tasks-updated', checkAndFixInterval);
+    };
+  }, []);
+
   /**
    * 创建与时钟边界对齐的自调度定时器。
    * 例如 intervalMs = 2min 时，执行时间为 :00:00, :02:00, :04:00 …
@@ -190,55 +265,6 @@ export function useAutoRefresh() {
           const config = await invoke<GeneralConfig>('get_general_config');
           if (destroyedRef.current) {
             return;
-          }
-
-          // 检测配额重置任务状态及唤醒总开关
-          const wakeupEnabled = localStorage.getItem('agtools.wakeup.enabled') === 'true';
-          if (wakeupEnabled) {
-            const tasksJson = localStorage.getItem('agtools.wakeup.tasks');
-            if (tasksJson) {
-              try {
-                const tasks = JSON.parse(tasksJson);
-                const hasActiveResetTask = Array.isArray(tasks) && tasks.some(
-                  (task: unknown) => {
-                    if (!task || typeof task !== 'object') {
-                      return false;
-                    }
-                    const taskObj = task as {
-                      enabled?: boolean;
-                      schedule?: { wakeOnReset?: boolean };
-                    };
-                    return Boolean(taskObj.enabled && taskObj.schedule?.wakeOnReset);
-                  },
-                );
-
-                // 如果有活跃的重置任务，且刷新间隔为禁用(-1)或大于2分钟，则强制修正为2分钟
-                if (hasActiveResetTask && (config.auto_refresh_minutes === -1 || config.auto_refresh_minutes > 2)) {
-                  console.log(`[AutoRefresh] 检测到活跃的配额重置任务，自动修正刷新间隔: ${config.auto_refresh_minutes} -> 2`);
-                  await invoke('save_general_config', {
-                    language: config.language,
-                    theme: config.theme,
-                    autoRefreshMinutes: 2,
-                    codexAutoRefreshMinutes: config.codex_auto_refresh_minutes,
-                    ghcpAutoRefreshMinutes: config.ghcp_auto_refresh_minutes,
-                    windsurfAutoRefreshMinutes: config.windsurf_auto_refresh_minutes,
-                    kiroAutoRefreshMinutes: config.kiro_auto_refresh_minutes,
-                    closeBehavior: config.close_behavior || 'ask',
-                    opencodeAppPath: config.opencode_app_path ?? '',
-                    antigravityAppPath: config.antigravity_app_path ?? '',
-                    codexAppPath: config.codex_app_path ?? '',
-                    vscodeAppPath: config.vscode_app_path ?? '',
-                    windsurfAppPath: config.windsurf_app_path ?? '',
-                    opencodeSyncOnSwitch: config.opencode_sync_on_switch ?? true,
-                    codexLaunchOnSwitch: config.codex_launch_on_switch ?? true,
-                    extraRefreshCount: 20,
-                  });
-                  config.auto_refresh_minutes = 2;
-                }
-              } catch (e) {
-                console.error('[AutoRefresh] 解析任务列表失败:', e);
-              }
-            }
           }
 
           if (destroyedRef.current) {
