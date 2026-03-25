@@ -39,6 +39,7 @@ interface GeneralConfig {
   kiro_quota_alert_threshold: number;
   extra_refresh_count: number;
   refresh_sort_oldest_first: boolean;
+  refresh_when_tray?: boolean;
 }
 
 export type QuickSettingsType = 'antigravity' | 'codex' | 'github_copilot' | 'windsurf' | 'kiro';
@@ -178,6 +179,7 @@ export function QuickSettingsPopover({ type }: QuickSettingsPopoverProps) {
           kiroQuotaAlertThreshold: merged.kiro_quota_alert_threshold,
           extraRefreshCount: merged.extra_refresh_count,
           refreshSortOldestFirst: merged.refresh_sort_oldest_first,
+          refreshWhenTray: merged.refresh_when_tray ?? false,
         });
         window.dispatchEvent(new Event('config-updated'));
       } catch (err) {
@@ -526,45 +528,52 @@ export function QuickSettingsPopover({ type }: QuickSettingsPopoverProps) {
                 <span>{getRefreshLabel()}</span>
               </div>
               <div className="qs-field-group">
-                {showRefreshInput ? (
-                  <div className="qs-inline-input">
-                    <input
-                      type="number"
-                      min={1}
-                      max={999}
-                      className="qs-select qs-select--input-mode qs-select--with-unit"
-                      value={customRefresh}
-                      placeholder={t('quickSettings.inputMinutes', '输入分钟数')}
-                      onChange={(e) => setCustomRefresh(e.target.value.replace(/[^\d]/g, ''))}
-                      onBlur={handleCustomRefreshApply}
-                      onKeyDown={(e) => {
-                        if (e.key === 'Enter') {
-                          e.preventDefault();
-                          handleCustomRefreshApply();
-                        }
-                      }}
-                    />
-                    <span className="qs-input-unit">{t('settings.general.minutes')}</span>
+                <div className="qs-row">
+                  <div className="qs-row-label">
+                    <span>{t('quickSettings.refreshIntervalLabel', '刷新间隔')}</span>
                   </div>
-                ) : (
-                  <select
-                    className="qs-select"
-                    value={String(refreshValue)}
-                    onChange={(e) => handleRefreshSelectChange(e.target.value)}
-                  >
-                    {!isPreset && (
-                      <option value={String(refreshValue)}>
-                        {refreshValue} {t('settings.general.minutes')}
-                      </option>
+                  <div className="qs-row-control">
+                    {showRefreshInput ? (
+                      <div className="qs-inline-input">
+                        <input
+                          type="number"
+                          min={1}
+                          max={999}
+                          className="qs-select qs-select--input-mode qs-select--with-unit"
+                          value={customRefresh}
+                          placeholder={t('quickSettings.inputMinutes', '输入分钟数')}
+                          onChange={(e) => setCustomRefresh(e.target.value.replace(/[^\d]/g, ''))}
+                          onBlur={handleCustomRefreshApply}
+                          onKeyDown={(e) => {
+                            if (e.key === 'Enter') {
+                              e.preventDefault();
+                              handleCustomRefreshApply();
+                            }
+                          }}
+                        />
+                        <span className="qs-input-unit">{t('settings.general.minutes')}</span>
+                      </div>
+                    ) : (
+                      <select
+                        className="qs-select"
+                        value={String(refreshValue)}
+                        onChange={(e) => handleRefreshSelectChange(e.target.value)}
+                      >
+                        {!isPreset && (
+                          <option value={String(refreshValue)}>
+                            {refreshValue} {t('settings.general.minutes')}
+                          </option>
+                        )}
+                        <option value="-1">{t('settings.general.autoRefreshDisabled')}</option>
+                        <option value="2">2 {t('settings.general.minutes')}</option>
+                        <option value="5">5 {t('settings.general.minutes')}</option>
+                        <option value="10">10 {t('settings.general.minutes')}</option>
+                        <option value="15">15 {t('settings.general.minutes')}</option>
+                        <option value="custom">{t('quickSettings.customInput', '自定义')}</option>
+                      </select>
                     )}
-                    <option value="-1">{t('settings.general.autoRefreshDisabled')}</option>
-                    <option value="2">2 {t('settings.general.minutes')}</option>
-                    <option value="5">5 {t('settings.general.minutes')}</option>
-                    <option value="10">10 {t('settings.general.minutes')}</option>
-                    <option value="15">15 {t('settings.general.minutes')}</option>
-                    <option value="custom">{t('quickSettings.customInput', '自定义')}</option>
-                  </select>
-                )}
+                  </div>
+                </div>
                 {/* ─── Extra Refresh Count (global) ─── */}
                 <div className="qs-row" style={{ marginTop: 8 }}>
                   <div className="qs-row-label">
@@ -602,6 +611,24 @@ export function QuickSettingsPopover({ type }: QuickSettingsPopoverProps) {
                     </select>
                   </div>
                 </div>
+
+                {type === 'antigravity' && (
+                  <div className="qs-row" style={{ marginTop: 8 }}>
+                    <div className="qs-row-label">
+                      <span>{t('settings.general.refreshWhenTray', '托盘区刷新')}</span>
+                    </div>
+                    <div className="qs-row-control">
+                      <label className="qs-switch">
+                        <input
+                          type="checkbox"
+                          checked={Boolean(config.refresh_when_tray)}
+                          onChange={(e) => saveConfig({ refresh_when_tray: e.target.checked })}
+                        />
+                        <span className="qs-switch-slider"></span>
+                      </label>
+                    </div>
+                  </div>
+                )}
               </div>
             </div>
 

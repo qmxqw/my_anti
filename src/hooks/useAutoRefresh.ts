@@ -279,7 +279,7 @@ export function useAutoRefresh() {
 
           if (config.auto_refresh_minutes > 0) {
             const extraCount = config.extra_refresh_count ?? 0;
-            const traySkip = !(config.refresh_when_tray ?? false);
+            const traySkip = config.refresh_when_tray ?? false;
             console.log(`[AutoRefresh] Antigravity 已启用: 每 ${config.auto_refresh_minutes} 分钟（额外刷新: ${extraCount} 个帐号，托盘跳过: ${traySkip}）`);
             const agMs = config.auto_refresh_minutes * 60 * 1000;
 
