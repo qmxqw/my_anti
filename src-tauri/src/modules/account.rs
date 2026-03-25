@@ -1406,19 +1406,40 @@ pub async fn hotkey_smart_switch() -> Result<String, String> {
         })
         .collect();
 
-    // 按 claude* 最低 percentage 从高到低排序；同 percentage 时按 created_at 排序
-    let sort_oldest_first = crate::modules::config::get_user_config().refresh_sort_oldest_first;
-    candidates.sort_by(|a, b| {
-        let pct_a = effective_min_percentage(a);
-        let pct_b = effective_min_percentage(b);
-        pct_b.cmp(&pct_a).then_with(|| {
-            if sort_oldest_first {
-                a.created_at.cmp(&b.created_at)
-            } else {
-                b.created_at.cmp(&a.created_at)
-            }
-        })
-    });
+    // 按配置决定候选帐号排序策略
+    let user_cfg = crate::modules::config::get_user_config();
+    let sort_oldest_first = user_cfg.refresh_sort_oldest_first;
+    let sort_mode = user_cfg.switch_quota_sort_mode;
+
+    if sort_mode == "min_first" {
+        // 最小优先模式：只保留额度 > 20% 的候选，按额度从小到大排序
+        const MIN_FIRST_THRESHOLD: i32 = 20;
+        candidates.retain(|acc| effective_min_percentage(acc) > MIN_FIRST_THRESHOLD);
+        candidates.sort_by(|a, b| {
+            let pct_a = effective_min_percentage(a);
+            let pct_b = effective_min_percentage(b);
+            pct_a.cmp(&pct_b).then_with(|| {
+                if sort_oldest_first {
+                    a.created_at.cmp(&b.created_at)
+                } else {
+                    b.created_at.cmp(&a.created_at)
+                }
+            })
+        });
+    } else {
+        // 最大优先模式（默认）：按额度从高到低排序
+        candidates.sort_by(|a, b| {
+            let pct_a = effective_min_percentage(a);
+            let pct_b = effective_min_percentage(b);
+            pct_b.cmp(&pct_a).then_with(|| {
+                if sort_oldest_first {
+                    a.created_at.cmp(&b.created_at)
+                } else {
+                    b.created_at.cmp(&a.created_at)
+                }
+            })
+        });
+    }
 
     // 5. 取第 1 个候选帐号
     let candidate = match candidates.first() {

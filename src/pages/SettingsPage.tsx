@@ -61,6 +61,7 @@ interface GeneralConfig {
   batch_refresh_skip_reset: boolean;
   refresh_sort_oldest_first: boolean;
   refresh_when_tray?: boolean;
+  switch_quota_sort_mode: string;
 
 }
 
@@ -138,6 +139,7 @@ export function SettingsPage() {
   const [kiroQuotaAlertThreshold, setKiroQuotaAlertThreshold] = useState('20');
   const [refreshSortOldestFirst, setRefreshSortOldestFirst] = useState(false);
   const [refreshWhenTray, setRefreshWhenTray] = useState(false);
+  const [switchQuotaSortMode, setSwitchQuotaSortMode] = useState('max_first');
 
 
   const [autoRefreshCustomMode, setAutoRefreshCustomMode] = useState(false);
@@ -337,6 +339,7 @@ export function SettingsPage() {
             : parsedKiroQuotaAlertThreshold,
           refreshSortOldestFirst,
           refreshWhenTray,
+          switchQuotaSortMode,
 
         });
         window.dispatchEvent(new Event('config-updated'));
@@ -385,6 +388,7 @@ export function SettingsPage() {
     kiroQuotaAlertThreshold,
     refreshSortOldestFirst,
     refreshWhenTray,
+    switchQuotaSortMode,
 
     t,
   ]);
@@ -564,6 +568,7 @@ export function SettingsPage() {
       setKiroQuotaAlertThreshold(String(config.kiro_quota_alert_threshold ?? 20));
       setRefreshSortOldestFirst(Boolean(config.refresh_sort_oldest_first));
       setRefreshWhenTray(Boolean(config.refresh_when_tray));
+      setSwitchQuotaSortMode(config.switch_quota_sort_mode || 'max_first');
 
 
       setAutoRefreshCustomMode(false);

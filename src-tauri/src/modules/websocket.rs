@@ -796,6 +796,7 @@ fn handle_set_language(language: &str, source: Option<&str>) -> Result<String, S
 
         refresh_sort_oldest_first: current.refresh_sort_oldest_first,
         refresh_when_tray: current.refresh_when_tray,
+        switch_quota_sort_mode: current.switch_quota_sort_mode,
     };
 
     config::save_user_config(&new_config)?;

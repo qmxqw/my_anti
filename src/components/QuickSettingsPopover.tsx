@@ -40,6 +40,7 @@ interface GeneralConfig {
   extra_refresh_count: number;
   refresh_sort_oldest_first: boolean;
   refresh_when_tray?: boolean;
+  switch_quota_sort_mode: string;
 }
 
 export type QuickSettingsType = 'antigravity' | 'codex' | 'github_copilot' | 'windsurf' | 'kiro';
@@ -180,6 +181,7 @@ export function QuickSettingsPopover({ type }: QuickSettingsPopoverProps) {
           extraRefreshCount: merged.extra_refresh_count,
           refreshSortOldestFirst: merged.refresh_sort_oldest_first,
           refreshWhenTray: merged.refresh_when_tray ?? false,
+          switchQuotaSortMode: merged.switch_quota_sort_mode ?? 'max_first',
         });
         window.dispatchEvent(new Event('config-updated'));
       } catch (err) {
@@ -818,6 +820,22 @@ export function QuickSettingsPopover({ type }: QuickSettingsPopoverProps) {
                     </div>
                   </div>
                 )}
+
+                <div className="qs-row" style={{ marginTop: 6 }}>
+                  <div className="qs-row-label">
+                    <span>{t('quickSettings.switchQuotaSort.label', '切号额度优先')}</span>
+                  </div>
+                  <div className="qs-row-control">
+                    <select
+                      className="qs-select"
+                      value={config.switch_quota_sort_mode || 'max_first'}
+                      onChange={(e) => saveConfig({ switch_quota_sort_mode: e.target.value })}
+                    >
+                      <option value="max_first">{t('quickSettings.switchQuotaSort.maxFirst', '最大优先')}</option>
+                      <option value="min_first">{t('quickSettings.switchQuotaSort.minFirst', '最小优先')}</option>
+                    </select>
+                  </div>
+                </div>
 
                 <div className="qs-hint">
                   {t(

@@ -150,6 +150,9 @@ pub struct UserConfig {
     /// 托盘区（窗口隐藏时）是否仍然执行刷新（默认 false = 跳过）
     #[serde(default = "default_refresh_when_tray")]
     pub refresh_when_tray: bool,
+    /// 快速切号额度排序模式："max_first"=最大优先（默认），"min_first"=最小优先（额度>20%）
+    #[serde(default = "default_switch_quota_sort_mode")]
+    pub switch_quota_sort_mode: String,
 }
 
 /// 窗口关闭行为
@@ -300,6 +303,10 @@ fn default_refresh_when_tray() -> bool {
     false
 }
 
+fn default_switch_quota_sort_mode() -> String {
+    "max_first".to_string()
+}
+
 impl Default for UserConfig {
     fn default() -> Self {
         Self {
@@ -341,6 +348,7 @@ impl Default for UserConfig {
 
             refresh_sort_oldest_first: default_refresh_sort_oldest_first(),
             refresh_when_tray: default_refresh_when_tray(),
+            switch_quota_sort_mode: default_switch_quota_sort_mode(),
         }
     }
 }
