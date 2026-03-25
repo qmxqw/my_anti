@@ -1167,6 +1167,25 @@ export function SettingsPage() {
 
                     <div className="settings-row">
                       <div className="row-label">
+                        <div className="row-title">{t('quickSettings.switchQuotaSort.label', '手动切号 选号逻辑')}</div>
+                        <div className="row-desc">{t('quickSettings.switchQuotaSort.desc', 'Alt+F1 热键智能切号时，按此规则选择候选帐号')}</div>
+                      </div>
+                      <div className="row-control">
+                        <select
+                          className="settings-select"
+                          value={switchQuotaSortMode}
+                          onChange={(e) => setSwitchQuotaSortMode(e.target.value)}
+                        >
+                          <option value="max_first">{t('quickSettings.switchQuotaSort.maxFirst', 'Claude额度 最大的')}</option>
+                          <option value="min_first">{t('quickSettings.switchQuotaSort.minFirst', 'Claude额度 最小的')}</option>
+                          <option value="reset_soonest">{t('quickSettings.switchQuotaSort.resetSoonest', '重置时间 最短的')}</option>
+                          <option value="reset_latest">{t('quickSettings.switchQuotaSort.resetLatest', '重置时间 最长的')}</option>
+                        </select>
+                      </div>
+                    </div>
+
+                    <div className="settings-row">
+                      <div className="row-label">
                         <div className="row-title">{t('quickSettings.quotaAlert.enable', '超额预警')}</div>
                         <div className="row-desc">{t('quickSettings.quotaAlert.hint', '当当前账号任意模型配额低于阈值时，发送原生通知并在页面提示快捷切号。')}</div>
                       </div>

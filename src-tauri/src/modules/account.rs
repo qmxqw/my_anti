@@ -1411,10 +1411,31 @@ pub async fn hotkey_smart_switch() -> Result<String, String> {
     let sort_oldest_first = user_cfg.refresh_sort_oldest_first;
     let sort_mode = user_cfg.switch_quota_sort_mode;
 
+    // 额度要求 > 20% 的共享阈值
+    const QUOTA_THRESHOLD: i32 = 20;
+
+    // 计算账号的最早 claude* 模型重置时间戳（未来的，已过期/空则 None）
+    let earliest_reset_ts = |acc: &Account| -> Option<i64> {
+        let quota = acc.quota.as_ref()?;
+        quota
+            .models
+            .iter()
+            .filter(|m| m.name.to_lowercase().starts_with("claude"))
+            .filter_map(|m| {
+                if m.reset_time.is_empty() {
+                    return None;
+                }
+                let ts = chrono::DateTime::parse_from_rfc3339(&m.reset_time)
+                    .ok()
+                    .map(|t| t.timestamp())?;
+                if ts <= now { None } else { Some(ts) }
+            })
+            .min()
+    };
+
     if sort_mode == "min_first" {
-        // 最小优先模式：只保留额度 > 20% 的候选，按额度从小到大排序
-        const MIN_FIRST_THRESHOLD: i32 = 20;
-        candidates.retain(|acc| effective_min_percentage(acc) > MIN_FIRST_THRESHOLD);
+        // Claude额度 最小的：只保留额度 > 20% 的候选，按额度从小到大排序
+        candidates.retain(|acc| effective_min_percentage(acc) > QUOTA_THRESHOLD);
         candidates.sort_by(|a, b| {
             let pct_a = effective_min_percentage(a);
             let pct_b = effective_min_percentage(b);
@@ -1426,8 +1447,46 @@ pub async fn hotkey_smart_switch() -> Result<String, String> {
                 }
             })
         });
+    } else if sort_mode == "reset_soonest" {
+        // 重置时间 最短的：只保留额度 > 20% 的候选，按最早重置时间升序（越快重置越靠前）
+        candidates.retain(|acc| effective_min_percentage(acc) > QUOTA_THRESHOLD);
+        candidates.sort_by(|a, b| {
+            let ts_a = earliest_reset_ts(a);
+            let ts_b = earliest_reset_ts(b);
+            match (ts_a, ts_b) {
+                (Some(ta), Some(tb)) => ta.cmp(&tb),
+                (Some(_), None) => std::cmp::Ordering::Less,
+                (None, Some(_)) => std::cmp::Ordering::Greater,
+                (None, None) => {
+                    if sort_oldest_first {
+                        a.created_at.cmp(&b.created_at)
+                    } else {
+                        b.created_at.cmp(&a.created_at)
+                    }
+                }
+            }
+        });
+    } else if sort_mode == "reset_latest" {
+        // 重置时间 最长的：只保留额度 > 20% 的候选，按最早重置时间降序（越晚重置越靠前）
+        candidates.retain(|acc| effective_min_percentage(acc) > QUOTA_THRESHOLD);
+        candidates.sort_by(|a, b| {
+            let ts_a = earliest_reset_ts(a);
+            let ts_b = earliest_reset_ts(b);
+            match (ts_a, ts_b) {
+                (Some(ta), Some(tb)) => tb.cmp(&ta),
+                (Some(_), None) => std::cmp::Ordering::Less,
+                (None, Some(_)) => std::cmp::Ordering::Greater,
+                (None, None) => {
+                    if sort_oldest_first {
+                        a.created_at.cmp(&b.created_at)
+                    } else {
+                        b.created_at.cmp(&a.created_at)
+                    }
+                }
+            }
+        });
     } else {
-        // 最大优先模式（默认）：按额度从高到低排序
+        // Claude额度 最大的（默认）：按额度从高到低排序
         candidates.sort_by(|a, b| {
             let pct_a = effective_min_percentage(a);
             let pct_b = effective_min_percentage(b);

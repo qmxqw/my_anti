@@ -750,7 +750,7 @@ export function QuickSettingsPopover({ type }: QuickSettingsPopoverProps) {
               <div className="qs-section qs-section--highlight">
                 <div className="qs-section-header">
                   <Zap size={15} />
-                  <span>{t('quickSettings.autoSwitch.title', '自动切号')}</span>
+                  <span>{t('quickSettings.autoSwitch.title', '切换帐号')}</span>
                 </div>
 
                 <div className="qs-row">
@@ -839,7 +839,7 @@ export function QuickSettingsPopover({ type }: QuickSettingsPopoverProps) {
 
                 <div className="qs-row" style={{ marginTop: 6 }}>
                   <div className="qs-row-label">
-                    <span>{t('quickSettings.switchQuotaSort.label', '切号额度优先')}</span>
+                    <span>{t('quickSettings.switchQuotaSort.label', '手动切号 选号逻辑')}</span>
                   </div>
                   <div className="qs-row-control">
                     <select
@@ -847,8 +847,10 @@ export function QuickSettingsPopover({ type }: QuickSettingsPopoverProps) {
                       value={config.switch_quota_sort_mode || 'max_first'}
                       onChange={(e) => saveConfig({ switch_quota_sort_mode: e.target.value })}
                     >
-                      <option value="max_first">{t('quickSettings.switchQuotaSort.maxFirst', '最大优先')}</option>
-                      <option value="min_first">{t('quickSettings.switchQuotaSort.minFirst', '最小优先')}</option>
+                      <option value="max_first">{t('quickSettings.switchQuotaSort.maxFirst', 'Claude额度 最大的')}</option>
+                      <option value="min_first">{t('quickSettings.switchQuotaSort.minFirst', 'Claude额度 最小的')}</option>
+                      <option value="reset_soonest">{t('quickSettings.switchQuotaSort.resetSoonest', '重置时间 最短的')}</option>
+                      <option value="reset_latest">{t('quickSettings.switchQuotaSort.resetLatest', '重置时间 最长的')}</option>
                     </select>
                   </div>
                 </div>
