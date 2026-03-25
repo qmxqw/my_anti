@@ -65,8 +65,14 @@ export function InstancesPage({ onNavigate }: InstancesPageProps) {
       .catch((error) => {
         console.error('Failed to load display groups:', error);
       });
-    invoke<{ refresh_sort_oldest_first?: boolean }>('get_general_config')
-      .then((cfg) => setSecondarySortOldestFirst(Boolean(cfg.refresh_sort_oldest_first)))
+    invoke<{ switch_sort_rules?: string }>('get_general_config')
+      .then((cfg) => {
+        try {
+          const rules = JSON.parse(cfg.switch_sort_rules || '[]');
+          const createdRule = Array.isArray(rules) && rules.find((r: { key: string }) => r.key === 'created_at');
+          setSecondarySortOldestFirst(createdRule?.dir === 'asc');
+        } catch { setSecondarySortOldestFirst(false); }
+      })
       .catch(() => {});
   }, []);
 

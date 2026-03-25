@@ -933,13 +933,6 @@ export function QuickSettingsPopover({ type }: QuickSettingsPopoverProps) {
                   })()}
                 </div>
 
-                <div className="qs-hint">
-                  {t(
-                    'quickSettings.autoSwitch.hint',
-                    '当任意模型配额低于阈值时，自动切换到配额最高的账号。'
-                  )}
-                </div>
-
                 {renderQuotaAlertControls()}
               </div>
             )}

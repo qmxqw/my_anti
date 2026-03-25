@@ -78,6 +78,7 @@ interface GeneralConfig {
   extra_refresh_count?: number;
   refresh_sort_oldest_first?: boolean;
   refresh_when_tray?: boolean;
+  switch_sort_rules?: string;
 }
 
 export function useAutoRefresh() {
@@ -303,7 +304,14 @@ export function useAutoRefresh() {
                   await fetchAccounts();
                   const currentAccount = useAccountStore.getState().currentAccount;
                   const allAccounts = useAccountStore.getState().accounts;
-                  const candidates = findSmartRefreshCandidates(allAccounts, currentAccount?.id, config.refresh_sort_oldest_first ?? false);
+                  // 从 switch_sort_rules 中读取 created_at 方向（即使被禁用也可读取值）
+                  let sortOldestFirst = false;
+                  try {
+                    const rules = JSON.parse(config.switch_sort_rules || '[]');
+                    const createdRule = Array.isArray(rules) && rules.find((r: { key: string }) => r.key === 'created_at');
+                    sortOldestFirst = createdRule?.dir === 'asc';
+                  } catch { /* fallback to false */ }
+                  const candidates = findSmartRefreshCandidates(allAccounts, currentAccount?.id, sortOldestFirst);
                   const toRefresh = candidates.slice(0, extraCount);
 
                   if (toRefresh.length > 0) {
