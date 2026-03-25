@@ -286,6 +286,53 @@ function App() {
     return () => document.removeEventListener('keydown', handleKeyDown);
   }, []);
 
+  // 应用内 Alt+S 热键：
+  //   账号页面（overview/codex/github-copilot/windsurf/kiro）→ 显示/关闭 QuickSettingsPopover
+  //   dashboard → 切换到 settings
+  //   settings  → 切换回 dashboard
+  const pageRef = useRef(page);
+  useEffect(() => {
+    pageRef.current = page;
+  }, [page]);
+
+  useEffect(() => {
+    const getQuickSettingsTypeForPage = (p: Page): QuickSettingsType | null => {
+      switch (p) {
+        case 'overview': return 'antigravity';
+        case 'codex': return 'codex';
+        case 'github-copilot': return 'github_copilot';
+        case 'windsurf': return 'windsurf';
+        case 'kiro': return 'kiro';
+        default: return null;
+      }
+    };
+
+    const handleAltS = (e: KeyboardEvent) => {
+      if (!e.altKey || e.key !== 's' || e.ctrlKey || e.shiftKey || e.metaKey) {
+        return;
+      }
+      // 避免在输入框中触发
+      const tag = (e.target as HTMLElement)?.tagName;
+      if (tag === 'INPUT' || tag === 'TEXTAREA' || (e.target as HTMLElement)?.isContentEditable) {
+        return;
+      }
+      e.preventDefault();
+      const currentPage = pageRef.current;
+      const qsType = getQuickSettingsTypeForPage(currentPage);
+      if (qsType !== null) {
+        // 账号页面：toggle QuickSettingsPopover
+        window.dispatchEvent(new CustomEvent('quick-settings:toggle', { detail: { type: qsType } }));
+      } else if (currentPage === 'dashboard') {
+        setPage('settings');
+      } else if (currentPage === 'settings') {
+        setPage('dashboard');
+      }
+    };
+
+    document.addEventListener('keydown', handleAltS);
+    return () => document.removeEventListener('keydown', handleAltS);
+  }, [setPage]);
+
   const openUpdateNotification = useCallback((source: UpdateCheckSource) => {
     setUpdateCheckSource(source);
     if (source === 'manual') {

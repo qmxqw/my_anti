@@ -115,6 +115,22 @@ export function QuickSettingsPopover({ type }: QuickSettingsPopoverProps) {
     };
   }, [type]);
 
+  // 外部触发：按平台类型切换（显示/关闭）设置弹框（Alt+S 热键使用）
+  useEffect(() => {
+    const handleExternalToggle = (event: Event) => {
+      const customEvent = event as CustomEvent<{ type?: QuickSettingsType }>;
+      if (customEvent.detail?.type !== type) {
+        return;
+      }
+      setIsOpen((prev) => !prev);
+    };
+
+    window.addEventListener('quick-settings:toggle', handleExternalToggle as EventListener);
+    return () => {
+      window.removeEventListener('quick-settings:toggle', handleExternalToggle as EventListener);
+    };
+  }, [type]);
+
   const loadConfig = async () => {
     try {
       const cfg = await invoke<GeneralConfig>('get_general_config');
