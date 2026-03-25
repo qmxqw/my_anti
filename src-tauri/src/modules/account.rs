@@ -1406,10 +1406,8 @@ pub async fn hotkey_smart_switch() -> Result<String, String> {
         })
         .collect();
 
-    // 按配置决定候选帐号排序策略
+    // 按配置的排序规则对候选帐号排序
     let user_cfg = crate::modules::config::get_user_config();
-    let sort_oldest_first = user_cfg.refresh_sort_oldest_first;
-    let sort_mode = user_cfg.switch_quota_sort_mode;
 
     // 额度要求 > 20% 的共享阈值
     const QUOTA_THRESHOLD: i32 = 20;
@@ -1433,72 +1431,96 @@ pub async fn hotkey_smart_switch() -> Result<String, String> {
             .min()
     };
 
-    if sort_mode == "min_first" {
-        // Claude额度 最小的：只保留额度 > 20% 的候选，按额度从小到大排序
-        candidates.retain(|acc| effective_min_percentage(acc) > QUOTA_THRESHOLD);
-        candidates.sort_by(|a, b| {
-            let pct_a = effective_min_percentage(a);
-            let pct_b = effective_min_percentage(b);
-            pct_a.cmp(&pct_b).then_with(|| {
-                if sort_oldest_first {
-                    a.created_at.cmp(&b.created_at)
-                } else {
-                    b.created_at.cmp(&a.created_at)
-                }
-            })
-        });
-    } else if sort_mode == "reset_soonest" {
-        // 重置时间 最短的：只保留额度 > 20% 的候选，按最早重置时间升序（越快重置越靠前）
-        candidates.retain(|acc| effective_min_percentage(acc) > QUOTA_THRESHOLD);
-        candidates.sort_by(|a, b| {
-            let ts_a = earliest_reset_ts(a);
-            let ts_b = earliest_reset_ts(b);
-            match (ts_a, ts_b) {
-                (Some(ta), Some(tb)) => ta.cmp(&tb),
-                (Some(_), None) => std::cmp::Ordering::Less,
-                (None, Some(_)) => std::cmp::Ordering::Greater,
-                (None, None) => {
-                    if sort_oldest_first {
-                        a.created_at.cmp(&b.created_at)
-                    } else {
-                        b.created_at.cmp(&a.created_at)
-                    }
-                }
-            }
-        });
-    } else if sort_mode == "reset_latest" {
-        // 重置时间 最长的：只保留额度 > 20% 的候选，按最早重置时间降序（越晚重置越靠前）
-        candidates.retain(|acc| effective_min_percentage(acc) > QUOTA_THRESHOLD);
-        candidates.sort_by(|a, b| {
-            let ts_a = earliest_reset_ts(a);
-            let ts_b = earliest_reset_ts(b);
-            match (ts_a, ts_b) {
-                (Some(ta), Some(tb)) => tb.cmp(&ta),
-                (Some(_), None) => std::cmp::Ordering::Less,
-                (None, Some(_)) => std::cmp::Ordering::Greater,
-                (None, None) => {
-                    if sort_oldest_first {
-                        a.created_at.cmp(&b.created_at)
-                    } else {
-                        b.created_at.cmp(&a.created_at)
-                    }
-                }
-            }
-        });
-    } else {
-        // Claude额度 最大的（默认）：按额度从高到低排序
-        candidates.sort_by(|a, b| {
-            let pct_a = effective_min_percentage(a);
-            let pct_b = effective_min_percentage(b);
-            pct_b.cmp(&pct_a).then_with(|| {
-                if sort_oldest_first {
-                    a.created_at.cmp(&b.created_at)
-                } else {
-                    b.created_at.cmp(&a.created_at)
-                }
-            })
-        });
+    // 解析排序规则 JSON
+    #[derive(Debug, Clone, serde::Deserialize)]
+    struct SortRule {
+        key: String,
+        dir: String,
+        on: bool,
     }
+
+    let sort_rules: Vec<SortRule> = serde_json::from_str(&user_cfg.switch_sort_rules)
+        .unwrap_or_default();
+
+    // 检查是否有任何启用了 quota 或 reset_time 规则（需要 >20% 过滤）
+    let has_active_quota_rule = sort_rules.iter().any(|r| r.on && r.key == "quota");
+    let has_active_reset_rule = sort_rules.iter().any(|r| r.on && r.key == "reset_time");
+
+    // 如果有 quota（非 desc，即 min_first）或 reset_time 规则启用，对候选帐号额度 > 20% 过滤
+    // 保持向后兼容：只有主排序为额度最大时不限制，其他模式都要求 > 20%
+    let need_quota_filter = if sort_rules.is_empty() {
+        false // 空规则 = 默认 max_first，不过滤
+    } else {
+        // 检查第一个启用的规则
+        sort_rules.iter().find(|r| r.on).map_or(false, |first| {
+            !(first.key == "quota" && first.dir == "desc")
+        })
+    };
+
+    if need_quota_filter {
+        candidates.retain(|acc| effective_min_percentage(acc) > QUOTA_THRESHOLD);
+    }
+
+    // 多键排序
+    candidates.sort_by(|a, b| {
+        let mut ordering = std::cmp::Ordering::Equal;
+
+        for rule in &sort_rules {
+            if !rule.on {
+                continue;
+            }
+            if ordering != std::cmp::Ordering::Equal {
+                break;
+            }
+
+            let cmp = match rule.key.as_str() {
+                "quota" => {
+                    let pct_a = effective_min_percentage(a);
+                    let pct_b = effective_min_percentage(b);
+                    if rule.dir == "asc" {
+                        pct_a.cmp(&pct_b)
+                    } else {
+                        pct_b.cmp(&pct_a)
+                    }
+                }
+                "reset_time" => {
+                    let ts_a = earliest_reset_ts(a);
+                    let ts_b = earliest_reset_ts(b);
+                    match (ts_a, ts_b) {
+                        (Some(ta), Some(tb)) => {
+                            if rule.dir == "asc" {
+                                ta.cmp(&tb)
+                            } else {
+                                tb.cmp(&ta)
+                            }
+                        }
+                        (Some(_), None) => std::cmp::Ordering::Less,
+                        (None, Some(_)) => std::cmp::Ordering::Greater,
+                        (None, None) => std::cmp::Ordering::Equal,
+                    }
+                }
+                "created_at" => {
+                    if rule.dir == "asc" {
+                        a.created_at.cmp(&b.created_at)
+                    } else {
+                        b.created_at.cmp(&a.created_at)
+                    }
+                }
+                "usage_count" => {
+                    if rule.dir == "asc" {
+                        a.usage_count.cmp(&b.usage_count)
+                    } else {
+                        b.usage_count.cmp(&a.usage_count)
+                    }
+                }
+                _ => std::cmp::Ordering::Equal,
+            };
+
+            ordering = cmp;
+        }
+
+        ordering
+    });
 
     // 5. 取第 1 个候选帐号
     let candidate = match candidates.first() {

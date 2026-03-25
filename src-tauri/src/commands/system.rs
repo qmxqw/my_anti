@@ -96,6 +96,8 @@ pub struct GeneralConfig {
     pub refresh_when_tray: bool,
     /// 快速切号额度排序模式："max_first" | "min_first"
     pub switch_quota_sort_mode: String,
+    /// 切号排序规则列表（JSON 字符串）
+    pub switch_sort_rules: String,
 }
 
 #[tauri::command]
@@ -208,6 +210,7 @@ pub fn save_network_config(ws_enabled: bool, ws_port: u16) -> Result<bool, Strin
         refresh_sort_oldest_first: current.refresh_sort_oldest_first,
         refresh_when_tray: current.refresh_when_tray,
         switch_quota_sort_mode: current.switch_quota_sort_mode.clone(),
+        switch_sort_rules: current.switch_sort_rules.clone(),
     };
 
     config::save_user_config(&new_config)?;
@@ -268,6 +271,7 @@ pub fn get_general_config() -> Result<GeneralConfig, String> {
         refresh_sort_oldest_first: user_config.refresh_sort_oldest_first,
         refresh_when_tray: user_config.refresh_when_tray,
         switch_quota_sort_mode: user_config.switch_quota_sort_mode.clone(),
+        switch_sort_rules: user_config.switch_sort_rules.clone(),
     })
 }
 
@@ -312,6 +316,7 @@ pub fn save_general_config(
     refresh_sort_oldest_first: Option<bool>,
     refresh_when_tray: Option<bool>,
     switch_quota_sort_mode: Option<String>,
+    switch_sort_rules: Option<String>,
 ) -> Result<(), String> {
     let current = config::get_user_config();
     let normalized_opencode_path = opencode_app_path.trim().to_string();
@@ -398,6 +403,8 @@ pub fn save_general_config(
         refresh_when_tray: refresh_when_tray.unwrap_or(current.refresh_when_tray),
         switch_quota_sort_mode: switch_quota_sort_mode
             .unwrap_or(current.switch_quota_sort_mode),
+        switch_sort_rules: switch_sort_rules
+            .unwrap_or(current.switch_sort_rules),
     };
 
     config::save_user_config(&new_config)?;

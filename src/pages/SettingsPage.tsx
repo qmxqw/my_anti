@@ -62,6 +62,7 @@ interface GeneralConfig {
   refresh_sort_oldest_first: boolean;
   refresh_when_tray?: boolean;
   switch_quota_sort_mode: string;
+  switch_sort_rules: string;
 
 }
 
@@ -140,6 +141,7 @@ export function SettingsPage() {
   const [refreshSortOldestFirst, setRefreshSortOldestFirst] = useState(false);
   const [refreshWhenTray, setRefreshWhenTray] = useState(false);
   const [switchQuotaSortMode, setSwitchQuotaSortMode] = useState('max_first');
+  const [switchSortRules, setSwitchSortRules] = useState('');
 
 
   const [autoRefreshCustomMode, setAutoRefreshCustomMode] = useState(false);
@@ -340,6 +342,7 @@ export function SettingsPage() {
           refreshSortOldestFirst,
           refreshWhenTray,
           switchQuotaSortMode,
+          switchSortRules,
 
         });
         window.dispatchEvent(new Event('config-updated'));
@@ -389,6 +392,7 @@ export function SettingsPage() {
     refreshSortOldestFirst,
     refreshWhenTray,
     switchQuotaSortMode,
+    switchSortRules,
 
     t,
   ]);
@@ -569,6 +573,7 @@ export function SettingsPage() {
       setRefreshSortOldestFirst(Boolean(config.refresh_sort_oldest_first));
       setRefreshWhenTray(Boolean(config.refresh_when_tray));
       setSwitchQuotaSortMode(config.switch_quota_sort_mode || 'max_first');
+      setSwitchSortRules(config.switch_sort_rules || '');
 
 
       setAutoRefreshCustomMode(false);
@@ -1170,17 +1175,111 @@ export function SettingsPage() {
                         <div className="row-title">{t('quickSettings.switchQuotaSort.label', '手动切号 选号逻辑')}</div>
                         <div className="row-desc">{t('quickSettings.switchQuotaSort.desc', 'Alt+F1 热键智能切号时，按此规则选择候选帐号')}</div>
                       </div>
-                      <div className="row-control">
-                        <select
-                          className="settings-select"
-                          value={switchQuotaSortMode}
-                          onChange={(e) => setSwitchQuotaSortMode(e.target.value)}
-                        >
-                          <option value="max_first">{t('quickSettings.switchQuotaSort.maxFirst', 'Claude额度 最大的')}</option>
-                          <option value="min_first">{t('quickSettings.switchQuotaSort.minFirst', 'Claude额度 最小的')}</option>
-                          <option value="reset_soonest">{t('quickSettings.switchQuotaSort.resetSoonest', '重置时间 最短的')}</option>
-                          <option value="reset_latest">{t('quickSettings.switchQuotaSort.resetLatest', '重置时间 最长的')}</option>
-                        </select>
+                      <div className="row-control" style={{ flex: 1, maxWidth: 320 }}>
+                        {(() => {
+                          const defaultRules = [
+                            { key: 'quota', dir: 'desc', on: true },
+                            { key: 'reset_time', dir: 'asc', on: false },
+                            { key: 'created_at', dir: 'desc', on: false },
+                            { key: 'usage_count', dir: 'asc', on: false },
+                          ];
+                          let rules: { key: string; dir: string; on: boolean }[];
+                          try {
+                            const parsed = JSON.parse(switchSortRules || '[]');
+                            rules = Array.isArray(parsed) && parsed.length === 4 ? parsed : defaultRules;
+                          } catch {
+                            rules = defaultRules;
+                          }
+
+                          const labelMap: Record<string, string> = {
+                            quota: t('quickSettings.switchQuotaSort.quota', 'Claude额度'),
+                            reset_time: t('quickSettings.switchQuotaSort.resetTime', '重置时间'),
+                            created_at: t('quickSettings.switchQuotaSort.createdAt', '创建时间'),
+                            usage_count: t('quickSettings.switchQuotaSort.usageCount', '使用次数'),
+                          };
+                          const dirLabelMap: Record<string, Record<string, string>> = {
+                            quota: {
+                              desc: t('quickSettings.switchQuotaSort.maxFirst', '最多'),
+                              asc: t('quickSettings.switchQuotaSort.minFirst', '最少'),
+                            },
+                            reset_time: {
+                              asc: t('quickSettings.switchQuotaSort.resetSoonest', '最快'),
+                              desc: t('quickSettings.switchQuotaSort.resetLatest', '最慢'),
+                            },
+                            created_at: {
+                              asc: t('quickSettings.switchQuotaSort.oldestFirst', '最早'),
+                              desc: t('quickSettings.switchQuotaSort.newestFirst', '最晚'),
+                            },
+                            usage_count: {
+                              asc: t('quickSettings.switchQuotaSort.leastUsed', '最少'),
+                              desc: t('quickSettings.switchQuotaSort.mostUsed', '最多'),
+                            },
+                          };
+
+                          const updateRules = (newRules: typeof rules) => {
+                            setSwitchSortRules(JSON.stringify(newRules));
+                          };
+
+                          const moveUp = (idx: number) => {
+                            if (idx <= 0) return;
+                            const next = [...rules];
+                            [next[idx - 1], next[idx]] = [next[idx], next[idx - 1]];
+                            updateRules(next);
+                          };
+
+                          const moveDown = (idx: number) => {
+                            if (idx >= rules.length - 1) return;
+                            const next = [...rules];
+                            [next[idx], next[idx + 1]] = [next[idx + 1], next[idx]];
+                            updateRules(next);
+                          };
+
+                          const toggleEnabled = (idx: number) => {
+                            const next = [...rules];
+                            next[idx] = { ...next[idx], on: !next[idx].on };
+                            updateRules(next);
+                          };
+
+                          const toggleDir = (idx: number) => {
+                            const next = [...rules];
+                            next[idx] = { ...next[idx], dir: next[idx].dir === 'asc' ? 'desc' : 'asc' };
+                            updateRules(next);
+                          };
+
+                          return (
+                            <div className="qs-sort-rules">
+                              {rules.map((rule, idx) => (
+                                <div key={rule.key} className={`qs-sort-rule-item${rule.on ? '' : ' qs-sort-rule-item--disabled'}`}>
+                                  <div className="qs-sort-rule-arrows">
+                                    <button
+                                      className="qs-sort-rule-arrow"
+                                      disabled={idx === 0}
+                                      onClick={() => moveUp(idx)}
+                                    >↑</button>
+                                    <button
+                                      className="qs-sort-rule-arrow"
+                                      disabled={idx === rules.length - 1}
+                                      onClick={() => moveDown(idx)}
+                                    >↓</button>
+                                  </div>
+                                  <span className="qs-sort-rule-label">{labelMap[rule.key] || rule.key}</span>
+                                  <button
+                                    className="qs-sort-rule-dir"
+                                    onClick={() => toggleDir(idx)}
+                                  >{dirLabelMap[rule.key]?.[rule.dir] || rule.dir}</button>
+                                  <label className="qs-switch qs-switch--small">
+                                    <input
+                                      type="checkbox"
+                                      checked={rule.on}
+                                      onChange={() => toggleEnabled(idx)}
+                                    />
+                                    <span className="qs-switch-slider"></span>
+                                  </label>
+                                </div>
+                              ))}
+                            </div>
+                          );
+                        })()}
                       </div>
                     </div>
 

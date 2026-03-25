@@ -153,6 +153,11 @@ pub struct UserConfig {
     /// 快速切号额度排序模式："max_first"=最大优先（默认），"min_first"=最小优先（额度>20%）
     #[serde(default = "default_switch_quota_sort_mode")]
     pub switch_quota_sort_mode: String,
+    /// 切号排序规则列表（JSON 字符串），格式: [{"key":"quota","dir":"desc","on":true}, ...]
+    /// 数组顺序即排序优先级，key: quota/reset_time/created_at/usage_count
+    /// dir: asc/desc, on: true/false
+    #[serde(default = "default_switch_sort_rules")]
+    pub switch_sort_rules: String,
 }
 
 /// 窗口关闭行为
@@ -307,6 +312,10 @@ fn default_switch_quota_sort_mode() -> String {
     "max_first".to_string()
 }
 
+fn default_switch_sort_rules() -> String {
+    String::new()
+}
+
 impl Default for UserConfig {
     fn default() -> Self {
         Self {
@@ -349,6 +358,7 @@ impl Default for UserConfig {
             refresh_sort_oldest_first: default_refresh_sort_oldest_first(),
             refresh_when_tray: default_refresh_when_tray(),
             switch_quota_sort_mode: default_switch_quota_sort_mode(),
+            switch_sort_rules: default_switch_sort_rules(),
         }
     }
 }
@@ -502,6 +512,33 @@ pub fn load_user_config() -> Result<UserConfig, String> {
         // 移除已废弃的旧字段避免 serde 反序列化失败
         obj.remove("auto_refresh_mode");
         obj.remove("hide_account_above_reset_hours");
+
+        // 旧配置迁移：若 switch_sort_rules 为空，从旧字段生成等价规则
+        let rules_val = obj.get("switch_sort_rules").and_then(|v| v.as_str()).unwrap_or("");
+        if rules_val.is_empty() || rules_val == "[]" {
+            let old_mode = obj.get("switch_quota_sort_mode").and_then(|v| v.as_str()).unwrap_or("max_first");
+            let old_oldest = obj.get("refresh_sort_oldest_first").and_then(|v| v.as_bool()).unwrap_or(false);
+            let created_dir = if old_oldest { "asc" } else { "desc" };
+            let migrated = match old_mode {
+                "min_first" => format!(
+                    r#"[{{"key":"quota","dir":"asc","on":true}},{{"key":"created_at","dir":"{}","on":true}},{{"key":"reset_time","dir":"asc","on":false}},{{"key":"usage_count","dir":"asc","on":false}}]"#,
+                    created_dir
+                ),
+                "reset_soonest" => format!(
+                    r#"[{{"key":"reset_time","dir":"asc","on":true}},{{"key":"created_at","dir":"{}","on":true}},{{"key":"quota","dir":"desc","on":false}},{{"key":"usage_count","dir":"asc","on":false}}]"#,
+                    created_dir
+                ),
+                "reset_latest" => format!(
+                    r#"[{{"key":"reset_time","dir":"desc","on":true}},{{"key":"created_at","dir":"{}","on":true}},{{"key":"quota","dir":"desc","on":false}},{{"key":"usage_count","dir":"asc","on":false}}]"#,
+                    created_dir
+                ),
+                _ => format!( // max_first (default)
+                    r#"[{{"key":"quota","dir":"desc","on":true}},{{"key":"created_at","dir":"{}","on":true}},{{"key":"reset_time","dir":"asc","on":false}},{{"key":"usage_count","dir":"asc","on":false}}]"#,
+                    created_dir
+                ),
+            };
+            obj.insert("switch_sort_rules".to_string(), json!(migrated));
+        }
     }
 
     serde_json::from_value(value).map_err(|e| format!("解析配置文件失败: {}", e))
