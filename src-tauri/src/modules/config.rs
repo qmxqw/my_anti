@@ -147,6 +147,9 @@ pub struct UserConfig {
     /// 额外刷新次排序键：true=按创建时间升序（旧帐号优先），false=降序（新帐号优先，默认）
     #[serde(default = "default_refresh_sort_oldest_first")]
     pub refresh_sort_oldest_first: bool,
+    /// 托盘区（窗口隐藏时）是否仍然执行刷新（默认 false = 跳过）
+    #[serde(default = "default_refresh_when_tray")]
+    pub refresh_when_tray: bool,
 }
 
 /// 窗口关闭行为
@@ -293,6 +296,10 @@ fn default_refresh_sort_oldest_first() -> bool {
     false
 }
 
+fn default_refresh_when_tray() -> bool {
+    false
+}
+
 impl Default for UserConfig {
     fn default() -> Self {
         Self {
@@ -333,6 +340,7 @@ impl Default for UserConfig {
             batch_refresh_skip_reset: default_batch_refresh_skip_reset(),
 
             refresh_sort_oldest_first: default_refresh_sort_oldest_first(),
+            refresh_when_tray: default_refresh_when_tray(),
         }
     }
 }

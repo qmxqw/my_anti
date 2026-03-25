@@ -60,6 +60,7 @@ interface GeneralConfig {
   extra_refresh_count: number;
   batch_refresh_skip_reset: boolean;
   refresh_sort_oldest_first: boolean;
+  refresh_when_tray?: boolean;
 
 }
 
@@ -136,6 +137,7 @@ export function SettingsPage() {
   const [kiroQuotaAlertEnabled, setKiroQuotaAlertEnabled] = useState(false);
   const [kiroQuotaAlertThreshold, setKiroQuotaAlertThreshold] = useState('20');
   const [refreshSortOldestFirst, setRefreshSortOldestFirst] = useState(false);
+  const [refreshWhenTray, setRefreshWhenTray] = useState(false);
 
 
   const [autoRefreshCustomMode, setAutoRefreshCustomMode] = useState(false);
@@ -334,6 +336,7 @@ export function SettingsPage() {
             ? 20
             : parsedKiroQuotaAlertThreshold,
           refreshSortOldestFirst,
+          refreshWhenTray,
 
         });
         window.dispatchEvent(new Event('config-updated'));
@@ -381,6 +384,7 @@ export function SettingsPage() {
     kiroQuotaAlertEnabled,
     kiroQuotaAlertThreshold,
     refreshSortOldestFirst,
+    refreshWhenTray,
 
     t,
   ]);
@@ -559,6 +563,7 @@ export function SettingsPage() {
       setKiroQuotaAlertEnabled(config.kiro_quota_alert_enabled ?? false);
       setKiroQuotaAlertThreshold(String(config.kiro_quota_alert_threshold ?? 20));
       setRefreshSortOldestFirst(Boolean(config.refresh_sort_oldest_first));
+      setRefreshWhenTray(Boolean(config.refresh_when_tray));
 
 
       setAutoRefreshCustomMode(false);
@@ -1025,7 +1030,22 @@ export function SettingsPage() {
                       </div>
                     </div>
 
-
+                    <div className="settings-row">
+                      <div className="row-label">
+                        <div className="row-title">{t('settings.general.refreshWhenTray', '托盘区刷新')}</div>
+                        <div className="row-desc">{t('settings.general.refreshWhenTrayDesc', '程序隐藏到托盘区时是否继续定时刷新额度')}</div>
+                      </div>
+                      <div className="row-control">
+                        <label className="switch">
+                          <input
+                            type="checkbox"
+                            checked={refreshWhenTray}
+                            onChange={(e) => setRefreshWhenTray(e.target.checked)}
+                          />
+                          <span className="slider"></span>
+                        </label>
+                      </div>
+                    </div>
 
                     <div className="settings-row">
                       <div className="row-label">

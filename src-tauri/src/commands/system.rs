@@ -92,6 +92,8 @@ pub struct GeneralConfig {
 
     /// 额外刷新次排序键：true=旧帐号优先，false=新帐号优先（默认）
     pub refresh_sort_oldest_first: bool,
+    /// 托盘区（窗口隐藏时）是否仍然执行刷新
+    pub refresh_when_tray: bool,
 }
 
 #[tauri::command]
@@ -202,6 +204,7 @@ pub fn save_network_config(ws_enabled: bool, ws_port: u16) -> Result<bool, Strin
         batch_refresh_skip_reset: current.batch_refresh_skip_reset,
 
         refresh_sort_oldest_first: current.refresh_sort_oldest_first,
+        refresh_when_tray: current.refresh_when_tray,
     };
 
     config::save_user_config(&new_config)?;
@@ -260,6 +263,7 @@ pub fn get_general_config() -> Result<GeneralConfig, String> {
         batch_refresh_skip_reset: user_config.batch_refresh_skip_reset,
 
         refresh_sort_oldest_first: user_config.refresh_sort_oldest_first,
+        refresh_when_tray: user_config.refresh_when_tray,
     })
 }
 
@@ -302,6 +306,7 @@ pub fn save_general_config(
     batch_refresh_skip_reset: Option<bool>,
 
     refresh_sort_oldest_first: Option<bool>,
+    refresh_when_tray: Option<bool>,
 ) -> Result<(), String> {
     let current = config::get_user_config();
     let normalized_opencode_path = opencode_app_path.trim().to_string();
@@ -385,6 +390,7 @@ pub fn save_general_config(
 
         refresh_sort_oldest_first: refresh_sort_oldest_first
             .unwrap_or(current.refresh_sort_oldest_first),
+        refresh_when_tray: refresh_when_tray.unwrap_or(current.refresh_when_tray),
     };
 
     config::save_user_config(&new_config)?;

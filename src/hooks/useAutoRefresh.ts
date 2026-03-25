@@ -77,6 +77,7 @@ interface GeneralConfig {
   codex_launch_on_switch?: boolean;
   extra_refresh_count?: number;
   refresh_sort_oldest_first?: boolean;
+  refresh_when_tray?: boolean;
 }
 
 export function useAutoRefresh() {
@@ -195,20 +196,23 @@ export function useAutoRefresh() {
     intervalMs: number,
     callback: () => Promise<void> | void,
     ref: React.MutableRefObject<number | null>,
+    skipTrayCheck = false,
   ) => {
     const tick = async () => {
-      // 窗口隐藏到托盘时跳过本次刷新
-      try {
-        const visible = await getCurrentWindow().isVisible();
-        if (!visible) {
-          // 继续调度下一次，但跳过本次执行
-          const now = Date.now();
-          const next = Math.ceil(now / intervalMs) * intervalMs;
-          const delay = next - now || intervalMs;
-          ref.current = window.setTimeout(tick, delay);
-          return;
-        }
-      } catch { /* 查询失败时正常执行 */ }
+      // 窗口隐藏到托盘时跳过本次刷新（可通过配置关闭此行为）
+      if (!skipTrayCheck) {
+        try {
+          const visible = await getCurrentWindow().isVisible();
+          if (!visible) {
+            // 继续调度下一次，但跳过本次执行
+            const now = Date.now();
+            const next = Math.ceil(now / intervalMs) * intervalMs;
+            const delay = next - now || intervalMs;
+            ref.current = window.setTimeout(tick, delay);
+            return;
+          }
+        } catch { /* 查询失败时正常执行 */ }
+      }
 
       // 用户空闲超过 10 分钟时跳过本次刷新
       try {
@@ -275,7 +279,8 @@ export function useAutoRefresh() {
 
           if (config.auto_refresh_minutes > 0) {
             const extraCount = config.extra_refresh_count ?? 0;
-            console.log(`[AutoRefresh] Antigravity 已启用: 每 ${config.auto_refresh_minutes} 分钟（额外刷新: ${extraCount} 个帐号）`);
+            const traySkip = !(config.refresh_when_tray ?? false);
+            console.log(`[AutoRefresh] Antigravity 已启用: 每 ${config.auto_refresh_minutes} 分钟（额外刷新: ${extraCount} 个帐号，托盘跳过: ${traySkip}）`);
             const agMs = config.auto_refresh_minutes * 60 * 1000;
 
             scheduleAligned(agMs, async () => {
@@ -324,7 +329,7 @@ export function useAutoRefresh() {
               } finally {
                 agRefreshingRef.current = false;
               }
-            }, agIntervalRef);
+            }, agIntervalRef, traySkip);
           } else {
             console.log('[AutoRefresh] Antigravity 已禁用');
           }
