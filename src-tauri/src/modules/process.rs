@@ -4101,16 +4101,34 @@ where
     ));
 
     if let Some(graceful_close_fn) = graceful_close {
+        // 首次向所有 pid 发送优雅关闭信号
         for pid in &pids {
             graceful_close_fn(*pid);
         }
         if let Some(wait_secs) = graceful_wait_secs {
-            if wait_pids_exit(&pids, wait_secs) {
-                crate::modules::logger::log_info(&format!(
-                    "[{}] graceful close finished, targets={:?}",
-                    log_prefix, pids
-                ));
-                return Ok(());
+            // 等待期内周期性重发信号：Electron 多窗口每次 WM_CLOSE 只关一个窗口，
+            // 需要重复发送直到进程退出，避免残余窗口被强杀导致会话丢失
+            let start = std::time::Instant::now();
+            let deadline = Duration::from_secs(wait_secs);
+            loop {
+                thread::sleep(Duration::from_millis(800));
+                let all_exited = pids.iter().all(|pid| *pid == 0 || !is_pid_running(*pid));
+                if all_exited {
+                    crate::modules::logger::log_info(&format!(
+                        "[{}] graceful close finished, targets={:?}",
+                        log_prefix, pids
+                    ));
+                    return Ok(());
+                }
+                if start.elapsed() >= deadline {
+                    break;
+                }
+                // 对仍存活的 pid 重发关闭信号（处理多窗口：每次只关一个窗口）
+                for pid in &pids {
+                    if *pid != 0 && is_pid_running(*pid) {
+                        graceful_close_fn(*pid);
+                    }
+                }
             }
         }
     }
