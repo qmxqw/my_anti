@@ -12,7 +12,8 @@ import { ALL_PLATFORM_IDS, PlatformId } from '../types/platform';
 import './settings/Settings.css';
 import {
   Github, User, Rocket, Save, FolderOpen,
-  AlertCircle, RefreshCw, Heart, MessageSquare
+  AlertCircle, RefreshCw, Heart, MessageSquare,
+  ChevronUp, ChevronDown
 } from 'lucide-react';
 
 
@@ -1027,7 +1028,7 @@ export function SettingsPage() {
 
                     <div className="settings-row">
                       <div className="row-label">
-                        <div className="row-title">{t('settings.general.refreshWhenTray', '最小化到托盘时继续刷新')}</div>
+                        <div className="row-title">{t('settings.general.refreshWhenTray', '保持后台刷新')}</div>
                         <div className="row-desc">{t('settings.general.refreshWhenTrayDesc', '程序隐藏到托盘区时是否继续定时刷新额度')}</div>
                       </div>
                       <div className="row-control">
@@ -1157,10 +1158,10 @@ export function SettingsPage() {
 
                     <div className="settings-row">
                       <div className="row-label">
-                        <div className="row-title">{t('quickSettings.switchQuotaSort.label', '手动切号 选号逻辑')}</div>
-                        <div className="row-desc">{t('quickSettings.switchQuotaSort.desc', 'Alt+F1 热键智能切号时，按此规则选择候选帐号')}</div>
+                        <div className="row-title">{t('quickSettings.switchQuotaSort.label', '快速切号逻辑')}</div>
+                        <div className="row-desc">{t('quickSettings.switchQuotaSort.desc', '小火箭 或 Alt+F1 热键智能切号时，按此规则选择候选帐号')}</div>
                       </div>
-                      <div className="row-control" style={{ flex: 1, maxWidth: 320 }}>
+                      <div className="row-control" style={{ width: '50%', justifyContent: 'flex-end' }}>
                         {(() => {
                           const defaultRules = [
                             { key: 'quota', dir: 'desc', on: true },
@@ -1240,12 +1241,12 @@ export function SettingsPage() {
                                       className="qs-sort-rule-arrow"
                                       disabled={idx === 0}
                                       onClick={() => moveUp(idx)}
-                                    >↑</button>
+                                    ><ChevronUp size={14} /></button>
                                     <button
                                       className="qs-sort-rule-arrow"
                                       disabled={idx === rules.length - 1}
                                       onClick={() => moveDown(idx)}
-                                    >↓</button>
+                                    ><ChevronDown size={14} /></button>
                                   </div>
                                   <span className="qs-sort-rule-label">{labelMap[rule.key] || rule.key}</span>
                                   <button

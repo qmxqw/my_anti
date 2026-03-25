@@ -3,7 +3,7 @@ import { useTranslation } from 'react-i18next';
 import { createPortal } from 'react-dom';
 import { open } from '@tauri-apps/plugin-dialog';
 import { invoke } from '@tauri-apps/api/core';
-import { Settings, RefreshCw, FolderOpen, Zap, X } from 'lucide-react';
+import { Settings, RefreshCw, FolderOpen, Zap, X, ChevronUp, ChevronDown } from 'lucide-react';
 import './QuickSettingsPopover.css';
 
 /** GeneralConfig from backend */
@@ -620,7 +620,7 @@ export function QuickSettingsPopover({ type }: QuickSettingsPopoverProps) {
                 {type === 'antigravity' && (
                   <div className="qs-row" style={{ marginTop: 8 }}>
                     <div className="qs-row-label">
-                      <span>{t('settings.general.refreshWhenTray', '最小化到托盘时继续刷新')}</span>
+                      <span>{t('settings.general.refreshWhenTray', '保持后台刷新')}</span>
                     </div>
                     <div className="qs-row-control">
                       <label className="qs-switch">
@@ -826,7 +826,7 @@ export function QuickSettingsPopover({ type }: QuickSettingsPopoverProps) {
 
                 <div className="qs-sort-rules" style={{ marginTop: 6 }}>
                   <div className="qs-row-label" style={{ marginBottom: 4 }}>
-                    <span>{t('quickSettings.switchQuotaSort.label', '手动切号 选号逻辑')}</span>
+                    <span>{t('quickSettings.switchQuotaSort.label', '快速切号逻辑')}</span>
                   </div>
                   {(() => {
                     const defaultRules = [
@@ -906,13 +906,13 @@ export function QuickSettingsPopover({ type }: QuickSettingsPopoverProps) {
                             disabled={idx === 0}
                             onClick={() => moveUp(idx)}
                             title={t('common.moveUp', '上移')}
-                          >↑</button>
+                          ><ChevronUp size={14} /></button>
                           <button
                             className="qs-sort-rule-arrow"
                             disabled={idx === rules.length - 1}
                             onClick={() => moveDown(idx)}
                             title={t('common.moveDown', '下移')}
-                          >↓</button>
+                          ><ChevronDown size={14} /></button>
                         </div>
                         <span className="qs-sort-rule-label">{labelMap[rule.key] || rule.key}</span>
                         <button

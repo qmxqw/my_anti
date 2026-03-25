@@ -373,14 +373,12 @@
       "extraRefreshCountDesc": "每次定时刷新时，除当前帐号外额外刷新的帐号数量",
       "batchRefreshSkipReset": "批量刷新跳过已重置账号",
       "batchRefreshSkipResetDesc": "批量刷新时跳过配额已满的账号，防止刷新后获得新额度造成浪费",
-
       "refreshIntervalLimited": "配额重置唤醒已启用，刷新间隔最小值为 2 分钟",
       "closeBehavior": "窗口关闭行为",
       "closeBehaviorDesc": "选择关闭窗口时的默认行为",
       "closeBehaviorAsk": "每次询问",
       "closeBehaviorMinimize": "最小化到托盘",
       "closeBehaviorQuit": "退出应用",
-
       "minimizeBehavior": "窗口最小化行为（仅 macOS）",
       "minimizeBehaviorDesc": "选择最小化窗口时保留在程序坞和菜单栏，或仅保留在菜单栏",
       "minimizeBehaviorDockAndTray": "程序坞 + 菜单栏（推荐默认）",
@@ -1283,7 +1281,7 @@
     "codexRefreshInterval": "配额自动刷新",
     "ghcpRefreshInterval": "配额自动刷新",
     "autoSwitch": {
-      "title": "自动切号",
+      "title": "帐号切换",
       "enable": "自动切号",
       "threshold": "切号阈值",
       "thresholdDesc": "任意模型配额低于此百分比时触发自动切号",
