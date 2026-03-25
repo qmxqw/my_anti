@@ -164,7 +164,35 @@ pub async fn switch_account(app: AppHandle, account_id: String) -> Result<models
         }
     }
 
-    // 4. 记录当前账号使用消耗（切换前判断当前账号配额是否低于阈值）
+    // 4. 切换前刷新当前帐号的配额
+    if let Ok(Some(ref current_acc)) = modules::get_current_account() {
+        let cur_id = current_acc.id.clone();
+        let cur_email = current_acc.email.clone();
+        let mut acc_for_quota = match modules::load_account(&cur_id) {
+            Ok(a) => a,
+            Err(_) => current_acc.clone(),
+        };
+        match modules::fetch_quota_with_retry(&mut acc_for_quota, true).await {
+            Ok(quota) => {
+                if let Err(e) = modules::update_account_quota(&cur_id, quota) {
+                    modules::logger::log_warn(&format!(
+                        "[Switch] 当前帐号 {} 配额保存失败: {}", cur_email, e
+                    ));
+                } else {
+                    modules::logger::log_info(&format!(
+                        "[Switch] 当前帐号 {} 配额已刷新", cur_email
+                    ));
+                }
+            }
+            Err(e) => {
+                modules::logger::log_warn(&format!(
+                    "[Switch] 当前帐号 {} 配额刷新失败: {}，继续切换", cur_email, e
+                ));
+            }
+        }
+    }
+
+    // 5. 记录当前账号使用消耗（切换前判断当前账号配额是否低于阈值）
     if let Ok(Some(mut current_account)) = modules::get_current_account() {
         if let Err(e) = modules::account::record_account_usage_if_needed(&mut current_account) {
             modules::logger::log_warn(&format!("[UsageCount] 记录使用消耗失败: {}", e));
