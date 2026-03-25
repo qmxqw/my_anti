@@ -1032,7 +1032,7 @@ export function SettingsPage() {
 
                     <div className="settings-row">
                       <div className="row-label">
-                        <div className="row-title">{t('settings.general.refreshWhenTray', '托盘区刷新')}</div>
+                        <div className="row-title">{t('settings.general.refreshWhenTray', '最小化到托盘时继续刷新')}</div>
                         <div className="row-desc">{t('settings.general.refreshWhenTrayDesc', '程序隐藏到托盘区时是否继续定时刷新额度')}</div>
                       </div>
                       <div className="row-control">

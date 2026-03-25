@@ -615,7 +615,7 @@ export function QuickSettingsPopover({ type }: QuickSettingsPopoverProps) {
                 {type === 'antigravity' && (
                   <div className="qs-row" style={{ marginTop: 8 }}>
                     <div className="qs-row-label">
-                      <span>{t('settings.general.refreshWhenTray', '托盘区刷新')}</span>
+                      <span>{t('settings.general.refreshWhenTray', '最小化到托盘时继续刷新')}</span>
                     </div>
                     <div className="qs-row-control">
                       <label className="qs-switch">
