@@ -41,7 +41,19 @@ function findSmartRefreshCandidates(accounts: Account[], currentAccountId: strin
       });
     })
     .sort((a, b) => {
-      // 非 skipLastUpdatedSort 模式下，先按 last_updated 升序（60秒容差外）
+      // 第一优先级：已重置账号（reset_time 已过期）优先于纯额度 100% 账号
+      const isReset = (acc: Account) =>
+        acc.quota?.models?.some((m) => {
+          if (!(m.name || '').toLowerCase().startsWith('claude')) return false;
+          if (!m.reset_time) return false;
+          const ts = new Date(m.reset_time).getTime();
+          return !Number.isNaN(ts) && ts <= now;
+        }) ?? false;
+      const aIsReset = isReset(a);
+      const bIsReset = isReset(b);
+      if (aIsReset !== bIsReset) return aIsReset ? -1 : 1;
+
+      // 第二优先级：按 last_updated 升序（60秒容差外）
       if (!skipLastUpdatedSort) {
         const aUpdated = a.quota?.last_updated ?? 0;
         const bUpdated = b.quota?.last_updated ?? 0;
