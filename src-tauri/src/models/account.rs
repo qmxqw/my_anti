@@ -35,7 +35,7 @@ pub struct Account {
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub quota_error: Option<QuotaErrorInfo>,
     pub created_at: i64,
-    /// 账号被消耗计数（切换时有模型配额低于 60% 的次数）
+    /// 账号被消耗计数（切换时 Claude 模型额度 <= 20% 的次数）
     #[serde(default, skip_serializing_if = "is_zero_u32")]
     pub usage_count: u32,
     /// 当前计数周期的配额重置截止时间（Unix 时间戳秒）

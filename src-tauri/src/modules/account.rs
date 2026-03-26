@@ -261,21 +261,21 @@ pub fn save_account(account: &Account) -> Result<(), String> {
 }
 
 /// 记录账号使用消耗（如有需要）
-/// 规则：若账号有任意模型配额 < 60%，则计为消耗一次；
-///       取这些低配额模型的 reset_time 最大值作为当前周期截止；
+/// 规则：若账号 Claude 模型配额 <= 20%，则计为消耗一次；
+///       取这些低配额 Claude 模型的 reset_time 最大值作为当前周期截止；
 ///       若当前时间 < usage_count_reset_at（当前周期未到期），跳过计数（去重）。
 pub fn record_account_usage_if_needed(account: &mut Account) -> Result<(), String> {
     let Some(quota) = account.quota.as_ref() else {
         return Ok(());
     };
 
-    const USAGE_THRESHOLD: i32 = 60;
+    const USAGE_THRESHOLD: i32 = 20;
 
-    // 收集所有低于阈值的模型
+    // 收集所有 Claude 模型中低于阈值的模型
     let low_models: Vec<_> = quota
         .models
         .iter()
-        .filter(|m| m.percentage < USAGE_THRESHOLD)
+        .filter(|m| m.name.to_lowercase().starts_with("claude") && m.percentage <= USAGE_THRESHOLD)
         .collect();
 
     if low_models.is_empty() {
@@ -309,7 +309,7 @@ pub fn record_account_usage_if_needed(account: &mut Account) -> Result<(), Strin
     account.usage_count_reset_at = new_reset_at;
 
     modules::logger::log_info(&format!(
-        "[UsageCount] 账号 {} 使用计数 +1 → {}（reset_at={:?}）",
+        "[UsageCount] 账号 {} Claude 额度 <=20%，使用计数 +1 → {}（reset_at={:?}）",
         account.email, account.usage_count, account.usage_count_reset_at
     ));
 
