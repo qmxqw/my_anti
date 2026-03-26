@@ -19,7 +19,7 @@ struct LocalTimer;
 impl tracing_subscriber::fmt::time::FormatTime for LocalTimer {
     fn format_time(&self, w: &mut tracing_subscriber::fmt::format::Writer<'_>) -> std::fmt::Result {
         let now = chrono::Local::now();
-        write!(w, "{}", now.to_rfc3339())
+        write!(w, "{}", now.format("%Y-%m-%d %H:%M:%S"))
     }
 }
 
@@ -128,7 +128,7 @@ pub fn init_logger() {
     let file_layer = fmt::Layer::new()
         .with_writer(non_blocking)
         .with_ansi(false)
-        .with_target(true)
+        .with_target(false)
         .with_level(true)
         .with_timer(LocalTimer);
 
