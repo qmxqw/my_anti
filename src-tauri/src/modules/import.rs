@@ -808,7 +808,7 @@ pub async fn import_from_local_logic() -> Result<models::Account, String> {
     // 添加或更新账号
     let account = modules::upsert_account(email.clone(), user_info.get_display_name(), token)?;
 
-    modules::logger::log_info(&format!("本地账号导入成功: {}", email));
+    modules::logger::log_info(&format!("本地账号导入成功: {}", crate::utils::mask_email(&email)));
 
     // 广播数据变更通知
     modules::websocket::broadcast_data_changed("import_from_local");
@@ -838,7 +838,7 @@ pub async fn import_from_json_logic(json_content: String) -> Result<Vec<models::
         let mut imported = Vec::new();
 
         for simple in accounts {
-            modules::logger::log_info(&format!("正在导入账号: {}", simple.email));
+            modules::logger::log_info(&format!("正在导入账号: {}", crate::utils::mask_email(&simple.email)));
 
             // 使用 refresh_token 获取 access_token
             match modules::oauth::refresh_access_token(&simple.refresh_token).await {
@@ -870,7 +870,7 @@ pub async fn import_from_json_logic(json_content: String) -> Result<Vec<models::
                     }
                 }
                 Err(e) => {
-                    modules::logger::log_error(&format!("刷新 Token 失败 {}: {}", simple.email, e));
+                    modules::logger::log_error(&format!("刷新 Token 失败 {}: {}", crate::utils::mask_email(&simple.email), e));
                 }
             }
         }
@@ -897,7 +897,7 @@ pub async fn import_from_json_logic(json_content: String) -> Result<Vec<models::
                 imported.push(new_account);
             }
             Err(e) => {
-                modules::logger::log_error(&format!("导入账号失败 {}: {}", old_account.email, e));
+                modules::logger::log_error(&format!("导入账号失败 {}: {}", crate::utils::mask_email(&old_account.email), e));
             }
         }
     }
@@ -947,7 +947,7 @@ pub async fn import_from_extension_credentials(app: Option<&tauri::AppHandle>) -
         };
 
         if existing_emails.contains(&email.trim().to_lowercase()) {
-            modules::logger::log_info(&format!("插件导入跳过已存在账号: {}", email));
+            modules::logger::log_info(&format!("插件导入跳过已存在账号: {}", crate::utils::mask_email(&email)));
             continue;
         }
 
@@ -974,12 +974,12 @@ pub async fn import_from_extension_credentials(app: Option<&tauri::AppHandle>) -
                         existing_emails.insert(account.email.trim().to_lowercase());
                     }
                     Err(e) => {
-                        modules::logger::log_error(&format!("导入账号失败 {}: {}", email, e));
+                        modules::logger::log_error(&format!("导入账号失败 {}: {}", crate::utils::mask_email(&email), e));
                     }
                 }
             }
             Err(e) => {
-                modules::logger::log_error(&format!("刷新 Token 失败 {}: {}", email, e));
+                modules::logger::log_error(&format!("刷新 Token 失败 {}: {}", crate::utils::mask_email(&email), e));
             }
         }
     }

@@ -4,24 +4,9 @@ export const PRIVACY_MODE_CHANGED_EVENT = 'agtools:privacy-mode-changed'
 
 
 function maskEmail(value: string): string {
-  const [localPart = '', domainPart = ''] = value.split('@')
-
-  const rawLocal = localPart.trim()
-  let localMasked = rawLocal
-  if (rawLocal) {
-    if (rawLocal.length > 3) {
-      localMasked = `${rawLocal.slice(0, 2)}...${rawLocal.slice(-1)}`
-    } else if (rawLocal.length > 1) {
-      localMasked = `${rawLocal.slice(0, 1)}...${rawLocal.slice(-1)}`
-    } else {
-      localMasked = `${rawLocal}...`
-    }
-  }
-
-  const rawDomain = domainPart.trim()
-  if (!rawDomain) return localMasked ? `${localMasked}@` : value
-
-  return `${localMasked}@${rawDomain.slice(0, 2)}`
+  const raw = value.trim()
+  if (!raw) return raw
+  return `${raw.slice(0, 6)}...`
 }
 
 function maskGeneric(value: string): string {

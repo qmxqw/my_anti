@@ -31,7 +31,7 @@ pub async fn add_account(refresh_token: String) -> Result<models::Account, Strin
 
     let account =
         modules::upsert_account(user_info.email.clone(), user_info.get_display_name(), token)?;
-    modules::logger::log_info(&format!("添加账号成功: {}", account.email));
+    modules::logger::log_info(&format!("添加账号成功: {}", crate::utils::mask_email(&account.email)));
 
     // 广播通知
     modules::websocket::broadcast_data_changed("account_added");
@@ -117,7 +117,7 @@ pub async fn switch_account(app: AppHandle, account_id: String) -> Result<models
     let mut account = modules::load_account(&account_id)?;
     modules::logger::log_info(&format!(
         "正在切换到账号: {} (ID: {})",
-        account.email, account.id
+        crate::utils::mask_email(&account.email), account.id
     ));
 
     // 预检应用路径：路径缺失时只触发引导，不执行任何关闭/注入动作。
@@ -141,7 +141,7 @@ pub async fn switch_account(app: AppHandle, account_id: String) -> Result<models
 
     // 如果 Token 更新了，保存回账号文件
     if fresh_token.access_token != account.token.access_token {
-        modules::logger::log_info(&format!("Token 已刷新: {}", account.email));
+        modules::logger::log_info(&format!("Token 已刷新: {}", crate::utils::mask_email(&account.email)));
         account.token = fresh_token.clone();
         modules::save_account(&account)?;
     }
@@ -176,17 +176,17 @@ pub async fn switch_account(app: AppHandle, account_id: String) -> Result<models
             Ok(quota) => {
                 if let Err(e) = modules::update_account_quota(&cur_id, quota) {
                     modules::logger::log_warn(&format!(
-                        "[Switch] 当前帐号 {} 配额保存失败: {}", cur_email, e
+                        "[Switch] 当前帐号 {} 配额保存失败: {}", crate::utils::mask_email(&cur_email), e
                     ));
                 } else {
                     modules::logger::log_info(&format!(
-                        "[Switch] 当前帐号 {} 配额已刷新", cur_email
+                        "[Switch] 当前帐号 {} 配额已刷新", crate::utils::mask_email(&cur_email)
                     ));
                 }
             }
             Err(e) => {
                 modules::logger::log_warn(&format!(
-                    "[Switch] 当前帐号 {} 配额刷新失败: {}，继续切换", cur_email, e
+                    "[Switch] 当前帐号 {} 配额刷新失败: {}，继续切换", crate::utils::mask_email(&cur_email), e
                 ));
             }
         }
@@ -254,7 +254,7 @@ pub async fn switch_account(app: AppHandle, account_id: String) -> Result<models
         return Err(format!("账号已切换，但启动 Antigravity 失败: {}", err));
     }
 
-    modules::logger::log_info(&format!("账号切换完成: {}", account.email));
+    modules::logger::log_info(&format!("账号切换完成: {}", crate::utils::mask_email(&account.email)));
 
     // 广播切换完成通知
     modules::websocket::broadcast_account_switched(&account.id, &account.email);
@@ -339,7 +339,7 @@ pub async fn sync_current_from_client() -> Result<Option<String>, String> {
                 // 当前账号不一致，静默更新
                 modules::logger::log_info(&format!(
                     "[SyncClient] 检测到客户端账号变更，同步至: {}",
-                    account.email
+                    crate::utils::mask_email(&account.email)
                 ));
                 modules::set_current_account_id(&account.id)?;
                 return Ok(Some(account.id.clone()));

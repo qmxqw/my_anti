@@ -102,12 +102,13 @@ fn header_value(headers: &reqwest::header::HeaderMap, name: reqwest::header::Hea
 }
 
 fn log_subscription_tier_result(email: &str, subscription_tier: Option<&String>, reason: &str) {
+    let masked = crate::utils::mask_email(email);
     if let Some(tier) = subscription_tier {
-        crate::modules::logger::log_info(&format!("📊 [{}] 订阅识别成功: {}", email, tier));
+        crate::modules::logger::log_info(&format!("📊 [{}] 订阅识别成功: {}", masked, tier));
     } else {
         crate::modules::logger::log_warn(&format!(
             "⚠️ [{}] 订阅识别失败: UNKNOWN ({})",
-            email, reason
+            masked, reason
         ));
     }
 }
@@ -548,7 +549,7 @@ pub async fn fetch_project_id_with_context(
                                         Err(err) => {
                                             crate::modules::logger::log_warn(&format!(
                                                 "⚠️ [{}] onboardUser 失败: {}",
-                                                email, err
+                                                crate::utils::mask_email(email), err
                                             ));
                                         }
                                     }
@@ -651,7 +652,7 @@ pub async fn fetch_project_id_with_context(
     }
 
     if let Some(err) = last_error {
-        crate::modules::logger::log_error(&format!("❌ [{}] loadCodeAssist 失败: {}", email, err));
+        crate::modules::logger::log_error(&format!("❌ [{}] loadCodeAssist 失败: {}", crate::utils::mask_email(email), err));
         log_subscription_tier_result(email, subscription_tier.as_ref(), &err);
     } else {
         log_subscription_tier_result(email, subscription_tier.as_ref(), "未知错误");

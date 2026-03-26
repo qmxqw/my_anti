@@ -499,16 +499,16 @@ pub async fn prepare_account_for_injection(account_id: &str) -> Result<CodexAcco
     let mut account =
         load_account(account_id).ok_or_else(|| format!("账号不存在: {}", account_id))?;
     if codex_oauth::is_token_expired(&account.tokens.access_token) {
-        logger::log_info(&format!("账号 {} 的 Token 已过期，尝试刷新", account.email));
+        logger::log_info(&format!("账号 {} 的 Token 已过期，尝试刷新", crate::utils::mask_email(&account.email)));
         if let Some(ref refresh_token) = account.tokens.refresh_token {
             match codex_oauth::refresh_access_token(refresh_token).await {
                 Ok(new_tokens) => {
-                    logger::log_info(&format!("账号 {} 的 Token 刷新成功", account.email));
+                    logger::log_info(&format!("账号 {} 的 Token 刷新成功", crate::utils::mask_email(&account.email)));
                     account.tokens = new_tokens;
                     save_account(&account)?;
                 }
                 Err(e) => {
-                    logger::log_error(&format!("账号 {} Token 刷新失败: {}", account.email, e));
+                    logger::log_error(&format!("账号 {} Token 刷新失败: {}", crate::utils::mask_email(&account.email), e));
                     return Err(format!("Token 已过期且刷新失败: {}", e));
                 }
             }
@@ -531,7 +531,7 @@ pub fn switch_account(account_id: &str) -> Result<CodexAccount, String> {
 
     save_account(&account)?;
 
-    logger::log_info(&format!("已切换到 Codex 账号: {}", account.email));
+    logger::log_info(&format!("已切换到 Codex 账号: {}", crate::utils::mask_email(&account.email)));
 
     Ok(account)
 }

@@ -72,7 +72,7 @@ pub async fn start_oauth_login(app_handle: AppHandle) -> Result<models::Account,
 
     modules::logger::log_info(&format!(
         "用户: {} ({})",
-        user_info.email,
+        crate::utils::mask_email(&user_info.email),
         user_info.name.as_deref().unwrap_or("无名称")
     ));
 
@@ -97,7 +97,7 @@ pub async fn start_oauth_login(app_handle: AppHandle) -> Result<models::Account,
 
     let account = refresh_account_quota_after_login(account).await;
 
-    modules::logger::log_info(&format!("账号添加成功: {}", account.email));
+    modules::logger::log_info(&format!("账号添加成功: {}", crate::utils::mask_email(&account.email)));
 
     // 广播数据变更通知
     modules::websocket::broadcast_data_changed("oauth_login");
@@ -140,7 +140,7 @@ pub async fn complete_oauth_login(app_handle: AppHandle) -> Result<models::Accou
 
     modules::logger::log_info(&format!(
         "用户: {} ({})",
-        user_info.email,
+        crate::utils::mask_email(&user_info.email),
         user_info.name.as_deref().unwrap_or("无名称")
     ));
 
@@ -165,7 +165,7 @@ pub async fn complete_oauth_login(app_handle: AppHandle) -> Result<models::Accou
 
     let account = refresh_account_quota_after_login(account).await;
 
-    modules::logger::log_info(&format!("账号添加成功: {}", account.email));
+    modules::logger::log_info(&format!("账号添加成功: {}", crate::utils::mask_email(&account.email)));
     modules::websocket::broadcast_data_changed("oauth_login");
 
     Ok(account)

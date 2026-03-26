@@ -274,12 +274,12 @@ pub async fn refresh_account_quota(account_id: &str) -> Result<CodexQuota, Strin
 
     // 检查 token 是否过期，如果过期则刷新
     if crate::modules::codex_oauth::is_token_expired(&account.tokens.access_token) {
-        logger::log_info(&format!("账号 {} 的 Token 已过期，尝试刷新", account.email));
+        logger::log_info(&format!("账号 {} 的 Token 已过期，尝试刷新", crate::utils::mask_email(&account.email)));
 
         if let Some(ref refresh_token) = account.tokens.refresh_token {
             match crate::modules::codex_oauth::refresh_access_token(refresh_token).await {
                 Ok(new_tokens) => {
-                    logger::log_info(&format!("账号 {} 的 Token 刷新成功", account.email));
+                    logger::log_info(&format!("账号 {} 的 Token 刷新成功", crate::utils::mask_email(&account.email)));
                     account.tokens = new_tokens;
 
                     // 从新的 id_token 重新解析 plan_type
@@ -292,7 +292,7 @@ pub async fn refresh_account_quota(account_id: &str) -> Result<CodexQuota, Strin
                     codex_account::save_account(&account)?;
                 }
                 Err(e) => {
-                    logger::log_error(&format!("账号 {} Token 刷新失败: {}", account.email, e));
+                    logger::log_error(&format!("账号 {} Token 刷新失败: {}", crate::utils::mask_email(&account.email), e));
                     let message = format!("Token 已过期且刷新失败: {}", e);
                     write_quota_error(&mut account, message.clone());
                     if let Err(save_err) = codex_account::save_account(&account) {
