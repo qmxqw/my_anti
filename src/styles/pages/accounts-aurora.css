@@ -468,6 +468,52 @@
   transform: scale(0.95);
 }
 
+/* 自动管理排序方向模式：橙色边框 + 禁止 hover 缩放（点击无效） */
+.accounts-page .sort-direction-btn.sort-direction-auto {
+  border-color: rgba(234, 88, 12, 0.45);
+  background: rgba(234, 88, 12, 0.06);
+  color: #c2410c;
+  cursor: default;
+  position: relative;
+}
+
+.accounts-page .sort-direction-btn.sort-direction-auto:hover {
+  transform: none;
+  background: rgba(234, 88, 12, 0.1);
+  border-color: rgba(234, 88, 12, 0.55);
+}
+
+.accounts-page .sort-direction-btn.sort-direction-auto:active {
+  transform: none;
+}
+
+.accounts-page .sort-direction-btn .sort-auto-label {
+  position: absolute;
+  top: -5px;
+  right: -5px;
+  width: 13px;
+  height: 13px;
+  border-radius: 50%;
+  background: #ea580c;
+  color: #fff;
+  font-size: 8px;
+  font-weight: 700;
+  line-height: 13px;
+  text-align: center;
+  pointer-events: none;
+}
+
+[data-theme="dark"] .accounts-page .sort-direction-btn.sort-direction-auto {
+  border-color: rgba(251, 146, 60, 0.45);
+  background: rgba(251, 146, 60, 0.1);
+  color: #fb923c;
+}
+
+[data-theme="dark"] .accounts-page .sort-direction-btn.sort-direction-auto:hover {
+  background: rgba(251, 146, 60, 0.18);
+  border-color: rgba(251, 146, 60, 0.6);
+}
+
 
 .accounts-page .filter-tabs:not(.page-tabs) .filter-tab.active {
   background: var(--gradient-primary);
