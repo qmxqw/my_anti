@@ -1295,59 +1295,7 @@ pub async fn hotkey_smart_switch() -> Result<String, String> {
         }
     }
 
-    // 3. 重新加载刷新后的帐号，检查 claude* 模型最低 percentage
-    let refreshed_account = load_account(&current_id)?;
-    if let Some(ref quota) = refreshed_account.quota {
-        let claude_percentages: Vec<i32> = quota
-            .models
-            .iter()
-            .filter(|m| m.name.to_lowercase().starts_with("claude"))
-            .map(|m| m.percentage)
-            .collect();
-
-        if !claude_percentages.is_empty() {
-            let min_percentage = *claude_percentages.iter().min().unwrap();
-            if min_percentage > SKIP_THRESHOLD {
-                modules::logger::log_info(&format!(
-                    "[Hotkey] 当前帐号 {} 配额充足（最低 {}% > {}%），切换到当前帐号以确保程序重启",
-                    current_email, min_percentage, SKIP_THRESHOLD
-                ));
-                return match switch_account_internal(&current_id).await {
-                    Ok(account) => {
-                        modules::logger::log_info(&format!(
-                            "[Hotkey] 当前帐号重启完成: {}",
-                            account.email
-                        ));
-                        modules::websocket::broadcast_account_switched(&account.id, &account.email);
-                        Ok(format!("restarted:{}", account.email))
-                    }
-                    Err(e) => {
-                        modules::logger::log_error(&format!(
-                            "[Hotkey] 当前帐号重启失败: {}",
-                            e
-                        ));
-                        Err(format!("重启失败: {}", e))
-                    }
-                };
-            }
-            modules::logger::log_info(&format!(
-                "[Hotkey] 当前帐号 {} 配额不足（最低 {}% <= {}%），寻找候选",
-                current_email, min_percentage, SKIP_THRESHOLD
-            ));
-        } else {
-            modules::logger::log_info(&format!(
-                "[Hotkey] 当前帐号 {} 无 claude 模型配额数据，继续寻找候选",
-                current_email
-            ));
-        }
-    } else {
-        modules::logger::log_info(&format!(
-            "[Hotkey] 当前帐号 {} 无配额数据，继续寻找候选",
-            current_email
-        ));
-    }
-
-    // 4. 获取所有帐号，筛选有效候选（不再要求必须满额或已过期）
+    // 3. 获取所有帐号，当前帐号也参与筛选排序
     let all_accounts = list_accounts()?;
     let now = chrono::Utc::now().timestamp();
 
@@ -1376,13 +1324,10 @@ pub async fn hotkey_smart_switch() -> Result<String, String> {
             .unwrap_or(-1)
     };
 
+    // 当前帐号也参与筛选，不再单独过滤掉
     let mut candidates: Vec<&Account> = all_accounts
         .iter()
         .filter(|acc| {
-            // 非当前帐号
-            if acc.id == current_id {
-                return false;
-            }
             // 未禁用
             if acc.disabled {
                 return false;
@@ -1538,7 +1483,28 @@ pub async fn hotkey_smart_switch() -> Result<String, String> {
         candidate_email, candidate_id
     ));
 
-    // 6. 执行切换
+    // 6. 执行切换（若选中的就是当前帐号，执行重启而非切换）
+    if candidate_id == current_id {
+        modules::logger::log_info(&format!(
+            "[Hotkey] 选中的最优帐号即为当前帐号 {}，执行重启",
+            current_email
+        ));
+        return match switch_account_internal(&current_id).await {
+            Ok(account) => {
+                modules::logger::log_info(&format!(
+                    "[Hotkey] 当前帐号重启完成: {}",
+                    account.email
+                ));
+                modules::websocket::broadcast_account_switched(&account.id, &account.email);
+                Ok(format!("restarted:{}", account.email))
+            }
+            Err(e) => {
+                modules::logger::log_error(&format!("[Hotkey] 当前帐号重启失败: {}", e));
+                Err(format!("重启失败: {}", e))
+            }
+        };
+    }
+
     match switch_account_internal(&candidate_id).await {
         Ok(account) => {
             modules::logger::log_info(&format!(
