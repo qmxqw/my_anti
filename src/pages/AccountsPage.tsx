@@ -1552,6 +1552,7 @@ export function AccountsPage({ onNavigate }: AccountsPageProps) {
           key={groupKey ? `${groupKey}-${account.id}` : account.id}
           className={`account-card ${isCurrent ? 'current' : ''} ${isDisabled ? 'disabled' : ''} ${isSelected ? 'selected' : ''}`}
           style={isDisabled ? { filter: 'grayscale(1)', opacity: 0.65 } : undefined}
+          onContextMenu={(e) => { e.preventDefault(); toggleSelect(account.id) }}
         >
           <div className="card-top">
             <div className="card-select">

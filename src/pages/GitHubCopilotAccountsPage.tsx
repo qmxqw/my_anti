@@ -313,6 +313,7 @@ export function GitHubCopilotAccountsPage() {
         <div
           key={groupKey ? `${groupKey}-${account.id}` : account.id}
           className={`ghcp-account-card ${isCurrent ? 'current' : ''} ${isSelected ? 'selected' : ''}`}
+          onContextMenu={(e) => { e.preventDefault(); toggleSelect(account.id) }}
         >
           <div className="card-top">
             <div className="card-select">
@@ -470,7 +471,7 @@ export function GitHubCopilotAccountsPage() {
       const chatUsage = presentation.quotaItems.find((item) => item.key === 'chat');
       const premiumUsage = presentation.quotaItems.find((item) => item.key === 'premium');
       return (
-        <tr key={groupKey ? `${groupKey}-${account.id}` : account.id} className={isCurrent ? 'current' : ''}>
+        <tr key={groupKey ? `${groupKey}-${account.id}` : account.id} className={isCurrent ? 'current' : ''} onContextMenu={(e) => { e.preventDefault(); toggleSelect(account.id) }}>
           <td>
             <input
               type="checkbox"

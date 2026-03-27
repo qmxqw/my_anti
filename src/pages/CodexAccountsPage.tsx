@@ -461,7 +461,7 @@ export function CodexAccountsPage() {
       const visibleTags = accountTags.slice(0, 2);
       const moreTagCount = Math.max(0, accountTags.length - visibleTags.length);
       return (
-        <div key={groupKey ? `${groupKey}-${account.id}` : account.id} className={`codex-account-card ${isCurrent ? 'current' : ''} ${isSelected ? 'selected' : ''}`}>
+        <div key={groupKey ? `${groupKey}-${account.id}` : account.id} className={`codex-account-card ${isCurrent ? 'current' : ''} ${isSelected ? 'selected' : ''}`} onContextMenu={(e) => { e.preventDefault(); toggleSelect(account.id) }}>
           <div className="card-top">
             <div className="card-select"><input type="checkbox" checked={isSelected} onChange={() => toggleSelect(account.id)} /></div>
             <span className="account-email" title={maskAccountText(presentation.displayName)}>{maskAccountText(presentation.displayName)}</span>
@@ -514,7 +514,7 @@ export function CodexAccountsPage() {
       const quotaErrorMeta = resolveQuotaErrorMeta(account.quota_error);
       const hasQuotaError = Boolean(quotaErrorMeta.rawMessage);
       return (
-        <tr key={groupKey ? `${groupKey}-${account.id}` : account.id} className={isCurrent ? 'current' : ''}>
+        <tr key={groupKey ? `${groupKey}-${account.id}` : account.id} className={isCurrent ? 'current' : ''} onContextMenu={(e) => { e.preventDefault(); toggleSelect(account.id) }}>
           <td><input type="checkbox" checked={selected.has(account.id)} onChange={() => toggleSelect(account.id)} /></td>
           <td><div className="account-cell"><div className="account-main-line"><span className="account-email-text" title={maskAccountText(presentation.displayName)}>{maskAccountText(presentation.displayName)}</span>
             {isCurrent && <span className="mini-tag current">{t('codex.current', '当前')}</span>}</div>

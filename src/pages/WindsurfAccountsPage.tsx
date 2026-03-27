@@ -353,7 +353,7 @@ export function WindsurfAccountsPage() {
       const isCurrent = currentAccountId === account.id;
 
       return (
-        <div key={groupKey ? `${groupKey}-${account.id}` : account.id} className={`ghcp-account-card ${isCurrent ? 'current' : ''} ${isSelected ? 'selected' : ''}`}>
+        <div key={groupKey ? `${groupKey}-${account.id}` : account.id} className={`ghcp-account-card ${isCurrent ? 'current' : ''} ${isSelected ? 'selected' : ''}`} onContextMenu={(e) => { e.preventDefault(); toggleSelect(account.id) }}>
           <div className="card-top">
             <div className="card-select"><input type="checkbox" checked={isSelected} onChange={() => toggleSelect(account.id)} /></div>
             <span className="account-email" title={maskAccountText(emailText)}>{maskAccountText(emailText)}</span>
@@ -431,7 +431,7 @@ export function WindsurfAccountsPage() {
       const moreTagCount = Math.max(0, accountTags.length - visibleTags.length);
       const isCurrent = currentAccountId === account.id;
       return (
-        <tr key={groupKey ? `${groupKey}-${account.id}` : account.id} className={isCurrent ? 'current' : ''}>
+        <tr key={groupKey ? `${groupKey}-${account.id}` : account.id} className={isCurrent ? 'current' : ''} onContextMenu={(e) => { e.preventDefault(); toggleSelect(account.id) }}>
           <td><input type="checkbox" checked={selected.has(account.id)} onChange={() => toggleSelect(account.id)} /></td>
           <td>
             <div className="account-cell">

@@ -453,6 +453,7 @@ export function KiroAccountsPage() {
         <div
           key={groupKey ? `${groupKey}-${account.id}` : account.id}
           className={`ghcp-account-card ${isCurrent ? 'current' : ''} ${isSelected ? 'selected' : ''} ${isBanned ? 'disabled' : ''}`}
+          onContextMenu={(e) => { e.preventDefault(); toggleSelect(account.id) }}
         >
           <div className="card-top">
             <div className="card-select">
@@ -581,7 +582,7 @@ export function KiroAccountsPage() {
       const bannedTitle = statusReason || t('accounts.status.forbidden_tooltip');
       const errorTitle = statusReason || t('accounts.status.refreshFailed');
       return (
-        <tr key={groupKey ? `${groupKey}-${account.id}` : account.id} className={`${isCurrent ? 'current' : ''} ${isBanned ? 'disabled' : ''}`}>
+        <tr key={groupKey ? `${groupKey}-${account.id}` : account.id} className={`${isCurrent ? 'current' : ''} ${isBanned ? 'disabled' : ''}`} onContextMenu={(e) => { e.preventDefault(); toggleSelect(account.id) }}>
           <td><input type="checkbox" checked={selected.has(account.id)} onChange={() => toggleSelect(account.id)} /></td>
           <td>
             <div className="account-cell">
