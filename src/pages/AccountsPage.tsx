@@ -278,8 +278,6 @@ export function AccountsPage({ onNavigate }: AccountsPageProps) {
   // 记录启用标签分组之前的排序规则，用于取消分组后恢复
   const priorSortByRef = useRef(sortBy)
   const priorSortDirectionRef = useRef(sortDirection)
-  // 标记当前是否处于「自动管理」模式（分组开启 / 配额或重置时间排序）
-  const [sortAutoManaged, setSortAutoManaged] = useState(false)
 
   /**
    * 封装 groupByTag 切换逻辑：
@@ -288,44 +286,32 @@ export function AccountsPage({ onNavigate }: AccountsPageProps) {
    */
   const handleSetGroupByTag = useCallback((enabled: boolean) => {
     if (enabled) {
-      // 保存当前排序（仅在非自动管理状态下更新，避免覆盖原始排序）
-      if (!sortAutoManaged) {
-        priorSortByRef.current = sortBy
-        priorSortDirectionRef.current = sortDirection
-      }
+      priorSortByRef.current = sortBy
+      priorSortDirectionRef.current = sortDirection
       setGroupByTag(true)
       setSortBy('created_at')
       setSortDirection('asc')
-      setSortAutoManaged(true)
     } else {
       setGroupByTag(false)
       setSortBy(priorSortByRef.current)
       setSortDirection(priorSortDirectionRef.current)
-      setSortAutoManaged(false)
     }
-  }, [sortBy, sortDirection, sortAutoManaged])
+  }, [sortBy, sortDirection])
 
   /**
    * 封装 sortBy 切换逻辑：
-   * - 选择配额类（非 overall/created_at/default/reset:前缀）→ 自动降序
-   * - 选择重置时间类（reset: 前缀）→ 自动升序
+   * - 选择配额类（非 overall/created_at/default/reset:前缀）→ 自动降序 + 取消标签分组
+   * - 选择重置时间类（reset: 前缀）→ 自动升序 + 取消标签分组
    * - 其他 → 不强制改变方向
    */
   const handleSetSortBy = useCallback((value: string) => {
     setSortBy(value)
     if (value.startsWith(ANTIGRAVITY_RESET_SORT_PREFIX)) {
-      // 重置时间 → 升序 + 取消标签分组
       setSortDirection('asc')
-      setSortAutoManaged(true)
       setGroupByTag(false)
     } else if (value !== 'overall' && value !== 'created_at' && value !== 'default') {
-      // 配额类（分组配额）→ 降序 + 取消标签分组
       setSortDirection('desc')
-      setSortAutoManaged(true)
       setGroupByTag(false)
-    } else {
-      // overall / created_at 等不强制改变方向，退出自动管理
-      setSortAutoManaged(false)
     }
   }, [])
 
@@ -2500,27 +2486,16 @@ export function AccountsPage({ onNavigate }: AccountsPageProps) {
 
             {/* 排序方向切换按钮 */}
             <button
-              className={`sort-direction-btn${sortAutoManaged ? ' sort-direction-auto' : ''}`}
-              onClick={() => {
-                if (!sortAutoManaged) {
-                  setSortDirection((prev) => (prev === 'desc' ? 'asc' : 'desc'))
-                }
-              }}
+              className="sort-direction-btn"
+              onClick={() => setSortDirection((prev) => (prev === 'desc' ? 'asc' : 'desc'))}
               title={
-                sortAutoManaged
-                  ? t('accounts.sort.autoManagedTooltip', '排序方向由系统自动管理，切换排序字段后可手动调整')
-                  : sortDirection === 'desc'
-                    ? t('accounts.sort.descTooltip', '当前：降序，点击切换为升序')
-                    : t('accounts.sort.ascTooltip', '当前：升序，点击切换为降序')
+                sortDirection === 'desc'
+                  ? t('accounts.sort.descTooltip', '当前：降序，点击切换为升序')
+                  : t('accounts.sort.ascTooltip', '当前：升序，点击切换为降序')
               }
-              aria-label={
-                sortAutoManaged
-                  ? t('accounts.sort.autoManaged', '自动管理排序方向')
-                  : t('accounts.sort.toggleDirection', '切换排序方向')
-              }
+              aria-label={t('accounts.sort.toggleDirection', '切换排序方向')}
             >
               {sortDirection === 'desc' ? '⬇' : '⬆'}
-              {sortAutoManaged && <span className="sort-auto-label">A</span>}
             </button>
           </div>
 
