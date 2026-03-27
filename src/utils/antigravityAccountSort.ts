@@ -155,6 +155,11 @@ export const createAntigravityAccountComparator = ({
   const normalizedSortBy = normalizeAntigravitySortBy(sortBy);
 
   return (a: Account, b: Account) => {
+    if (normalizedSortBy === 'email') {
+      const diff = a.email.localeCompare(b.email)
+      return sortDirection === 'asc' ? diff : -diff;
+    }
+
     if (normalizedSortBy === 'created_at') {
       return compareByCreatedAt(a, b, sortDirection);
     }

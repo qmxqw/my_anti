@@ -309,7 +309,7 @@ export function AccountsPage({ onNavigate }: AccountsPageProps) {
     if (value.startsWith(ANTIGRAVITY_RESET_SORT_PREFIX)) {
       setSortDirection('asc')
       setGroupByTag(false)
-    } else if (value !== 'overall' && value !== 'created_at' && value !== 'default') {
+    } else if (value !== 'overall' && value !== 'created_at' && value !== 'default' && value !== 'email') {
       setSortDirection('desc')
       setGroupByTag(false)
     }
@@ -415,7 +415,8 @@ export function AccountsPage({ onNavigate }: AccountsPageProps) {
     if (
       normalizedSortBy === 'overall' ||
       normalizedSortBy === 'created_at' ||
-      normalizedSortBy === 'default'
+      normalizedSortBy === 'default' ||
+      normalizedSortBy === 'email'
     ) {
       return
     }
@@ -2462,6 +2463,9 @@ export function AccountsPage({ onNavigate }: AccountsPageProps) {
                 onChange={(e) => handleSetSortBy(e.target.value)}
                 aria-label={t('accounts.sortLabel', '排序')}
               >
+                <option value="email">
+                  {t('accounts.sort.email', '按帐号名')}
+                </option>
                 <option value="overall">
                   {t('accounts.sort.overall', '按综合配额')}
                 </option>
