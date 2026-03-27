@@ -808,6 +808,33 @@ export function AccountsPage({ onNavigate }: AccountsPageProps) {
     return () => document.removeEventListener('mousedown', handleClick)
   }, [showTagFilter])
 
+  // ─── 热键处理 ───────────────────────────────────────────────────────────
+  // ESC：取消当前账号选择；Alt+A：显示/隐藏添加账号弹窗
+  // 仅在本页面（AccountsPage）挂载期间生效
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      // ESC：清空选中账号（有选中时才响应，避免干扰弹框自身的 ESC）
+      if (e.key === 'Escape' && !e.altKey && !e.ctrlKey && !e.metaKey) {
+        if (selected.size > 0) {
+          e.preventDefault()
+          setSelected(new Set())
+        }
+        return
+      }
+      // Alt+A：切换"添加账号"弹窗
+      if (e.key === 'a' && e.altKey && !e.ctrlKey && !e.metaKey) {
+        e.preventDefault()
+        if (showAddModal) {
+          closeAddModal()
+        } else {
+          openAddModal('oauth')
+        }
+      }
+    }
+    window.addEventListener('keydown', handleKeyDown)
+    return () => window.removeEventListener('keydown', handleKeyDown)
+  }, [selected, showAddModal])
+
   useEffect(() => {
     let unlistenUrl: UnlistenFn | undefined
     let unlistenCallback: UnlistenFn | undefined
