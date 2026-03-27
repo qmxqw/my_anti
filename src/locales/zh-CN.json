@@ -26,10 +26,10 @@
       "columns": {
         "actions": "操作",
         "plan": "订阅",
-        "addOnPromptCredits": "Add-on prompt credits",
+        "addOnPromptCredits": "注册赠送",
         "credits": "制作人员",
         "email": "邮箱",
-        "promptCredits": "User Prompt credits"
+        "promptCredits": "月度赠送"
       },
       "empty": {
         "title": "暂无账号"
@@ -1427,6 +1427,7 @@
       "bonusCredits": "奖励积分",
       "estimatedUsage": "预计使用量",
       "expiry": "到期日",
+      "credits": "余额信息",
       "estUsage": "预计。用法"
     },
     "plan": {

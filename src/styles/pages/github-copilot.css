@@ -88,14 +88,14 @@
   background: var(--bg-card);
   border: 1px solid var(--border);
   border-radius: var(--radius-lg);
-  padding: 20px;
+  padding: 14px;
   box-shadow: var(--shadow-sm);
   backdrop-filter: blur(10px);
   transition: all 0.25s ease;
   display: flex;
   flex-direction: column;
-  gap: 16px;
-  min-height: 260px;
+  gap: 10px;
+  min-height: 180px;
 }
 
 .ghcp-account-card:hover {
@@ -163,9 +163,17 @@
   min-width: 0;
   display: flex;
   align-items: center;
+  justify-content: space-between;
   gap: 6px;
   font-size: 12px;
   color: var(--text-secondary);
+}
+
+.ghcp-account-card .kiro-card-date {
+  flex-shrink: 0;
+  font-size: 11px;
+  color: var(--text-muted);
+  margin-left: auto;
 }
 
 .ghcp-account-card .kiro-signed-in,
@@ -356,13 +364,13 @@
 .ghcp-quota-section {
   display: flex;
   flex-direction: column;
-  gap: 14px;
+  gap: 10px;
 }
 
 .ghcp-quota-section .quota-item {
   display: flex;
   flex-direction: column;
-  gap: 6px;
+  gap: 4px;
 }
 
 .ghcp-quota-section .quota-header {
@@ -432,6 +440,34 @@
   background: linear-gradient(90deg, #ef4444, #dc2626);
 }
 
+/* 反转进度条样式 - 绿色背景，已使用部分显示灰色，从右向左 */
+.ghcp-quota-section .quota-bar-inverted {
+  height: 100%;
+  border-radius: 3px;
+  background: var(--bg-tertiary);
+  margin-left: auto;
+}
+
+.ghcp-quota-section .quota-bar-track {
+  background: linear-gradient(90deg, #22c55e, #16a34a);
+  display: flex;
+  flex-direction: row-reverse;
+}
+
+/* 表格视图的反转进度条 */
+.quota-progress-bar-inverted {
+  height: 100%;
+  border-radius: 2px;
+  background: var(--bg-tertiary);
+  margin-left: auto;
+}
+
+.quota-progress-track {
+  background: linear-gradient(90deg, #22c55e, #16a34a);
+  display: flex;
+  flex-direction: row-reverse;
+}
+
 .ghcp-quota-section .quota-reset {
   font-size: 11px;
   color: var(--text-secondary);
@@ -447,14 +483,15 @@
 }
 
 .ghcp-accounts-page .windsurf-credit-item {
-  gap: 6px;
+  gap: 2px;
+  padding: 4px 0;
 }
 
 .ghcp-accounts-page .windsurf-credit-meta-row {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 8px;
+  gap: 6px;
 }
 
 .ghcp-accounts-page .windsurf-credit-meta-row.table {
@@ -554,9 +591,8 @@
 .ghcp-account-card .card-footer {
   display: flex;
   align-items: center;
-  justify-content: space-between;
-  padding-top: 12px;
-  border-top: 1px solid var(--border-light);
+  justify-content: flex-end;
+  padding-top: 8px;
   margin-top: auto;
 }
 

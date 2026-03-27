@@ -105,6 +105,7 @@ type AgQuotaDisplayItem = {
 
 export type CreditMetrics = {
   usedPercent: number;
+  leftPercent: number;
   used: number;
   total: number;
   left: number;
@@ -131,16 +132,21 @@ export function buildCreditMetrics(
   const safeLeft = toFiniteNumber(left);
 
   let usedPercent = 0;
+  let leftPercent = 100;
+  
   if (safeTotal != null && safeTotal > 0) {
     if (safeUsed != null) {
       usedPercent = clampPercent((safeUsed / safeTotal) * 100);
+      leftPercent = clampPercent(100 - usedPercent);
     } else if (safeLeft != null) {
       usedPercent = clampPercent(((safeTotal - safeLeft) / safeTotal) * 100);
+      leftPercent = clampPercent(100 - usedPercent);
     }
   }
 
   return {
     usedPercent,
+    leftPercent,
     used: safeUsed ?? 0,
     total: safeTotal ?? 0,
     left: safeLeft ?? 0,
@@ -446,6 +452,11 @@ function shouldShowKiroAddOn(
   addOnMetrics: CreditMetrics,
   bonusExpireDays: number | null | undefined,
 ): boolean {
+  // 如果到期日 <= 0，不显示 Add-on prompt credits
+  if (typeof bonusExpireDays === 'number' && Number.isFinite(bonusExpireDays) && bonusExpireDays <= 0) {
+    return false;
+  }
+  
   return (
     addOnMetrics.left > 0 ||
     addOnMetrics.used > 0 ||
@@ -473,16 +484,19 @@ export function buildKiroAccountPresentation(
     credits.addOnCreditsTotal,
     credits.addOnCredits,
   );
+  
+  // 判断是否显示注册赠送（到期日 > 0）
   const showAddOn = shouldShowKiroAddOn(addOnMetrics, credits.bonusExpireDays);
+  
   const accountStatus = getKiroAccountStatus(account);
   const accountStatusReason = getKiroAccountStatusReason(account);
   const provider = getKiroAccountLoginProvider(account);
+  const userIdText = getKiroAccountDisplayUserId(account);
+  
+  // 使用统一的 userIdText
   const signedInWithText = provider
-    ? t('kiro.account.signedInWithProvider', {
-        provider,
-        defaultValue: 'Signed in with {{provider}}',
-      })
-    : t('kiro.account.signedInWithUnknown', 'Signed in with unknown');
+    ? `${provider} ID: ${userIdText}`
+    : userIdText;
 
   const addOnExpiryText =
     typeof credits.bonusExpireDays === 'number' && Number.isFinite(credits.bonusExpireDays)
@@ -491,30 +505,40 @@ export function buildKiroAccountPresentation(
           defaultValue: '{{days}} days',
         })
       : t('kiro.credits.expiryUnknown', '—');
+  
+  // 周期到期信息
+  const cycleExpiryText = credits.planEndsAt
+    ? formatKiroResetTime(credits.planEndsAt, t)
+    : t('common.shared.credits.planEndsUnknown', '配额周期时间未知');
 
-  const quotaItems: UnifiedQuotaMetric[] = [
-    {
-      key: 'prompt',
-      label: t('common.shared.columns.promptCredits', 'User Prompt credits'),
-      percentage: promptMetrics.usedPercent,
-      quotaClass: getKiroQuotaClass(promptMetrics.usedPercent),
-      valueText: `${promptMetrics.usedPercent}%`,
-      used: promptMetrics.used,
-      total: promptMetrics.total,
-      left: promptMetrics.left,
-    },
-  ];
+  const quotaItems: UnifiedQuotaMetric[] = [];
 
+  // 只显示一个余额项
   if (showAddOn) {
+    // 显示注册赠送，第二行显示到期日
     quotaItems.push({
       key: 'addon',
       label: t('common.shared.columns.addOnPromptCredits', 'Add-on prompt credits'),
       percentage: addOnMetrics.usedPercent,
       quotaClass: getKiroQuotaClass(addOnMetrics.usedPercent),
-      valueText: `${addOnMetrics.usedPercent}%`,
+      valueText: `${addOnMetrics.leftPercent}%`,
+      resetText: `${t('kiro.columns.expiry', '到期日')}: ${addOnExpiryText}`,
       used: addOnMetrics.used,
       total: addOnMetrics.total,
       left: addOnMetrics.left,
+    });
+  } else {
+    // 显示月度赠送，第二行显示周期到期信息
+    quotaItems.push({
+      key: 'prompt',
+      label: t('common.shared.columns.promptCredits', 'User Prompt credits'),
+      percentage: promptMetrics.usedPercent,
+      quotaClass: getKiroQuotaClass(promptMetrics.usedPercent),
+      valueText: `${promptMetrics.leftPercent}%`,
+      resetText: cycleExpiryText,
+      used: promptMetrics.used,
+      total: promptMetrics.total,
+      left: promptMetrics.left,
     });
   }
 

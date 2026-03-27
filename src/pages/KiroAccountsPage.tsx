@@ -177,11 +177,11 @@ export function KiroAccountsPage() {
   const formatCreditsNumber = useCallback(
     (value: number | null | undefined) => {
       const n = typeof value === 'number' && Number.isFinite(value) ? value : 0;
-      const hasDecimal = Math.abs(n - Math.trunc(n)) > 0.0001;
+      // 始终显示整数，不显示小数
       return new Intl.NumberFormat(locale, {
-        minimumFractionDigits: hasDecimal ? 2 : 0,
-        maximumFractionDigits: 2,
-      }).format(n);
+        minimumFractionDigits: 0,
+        maximumFractionDigits: 0,
+      }).format(Math.round(n));
     },
     [locale],
   );
@@ -282,11 +282,9 @@ export function KiroAccountsPage() {
   );
 
   const formatLeftLine = useCallback(
-    (left: number | null | undefined) =>
-      t('common.shared.credits.leftInline', {
-        left: formatCreditsNumber(left), defaultValue: '{{left}} left',
-      }),
-    [formatCreditsNumber, t],
+    (used: number | null | undefined, total: number | null | undefined) =>
+      `${formatCreditsNumber(used)} / ${formatCreditsNumber(total)}`,
+    [formatCreditsNumber],
   );
 
   const resolveBonusExpiryValue = useCallback(
@@ -435,14 +433,10 @@ export function KiroAccountsPage() {
       const displayUserId = resolveDisplayUserId(account);
       const emailText = displayEmail || displayUserId || account.id;
       const signedInWithText = resolveSignedInWithText(account);
-      const userIdText = displayUserId || account.id;
-      const credits = resolveCreditsSummary(account);
-      const cycleDisplay = resolveCycleDisplay(credits);
       const promptMetrics = resolvePromptMetrics(account);
       const addOnMetrics = resolveAddOnMetrics(account);
       const planKey = resolvePlanKey(account);
       const planLabel = resolvePlanLabel(account, planKey);
-      const bonusExpiryValue = resolveBonusExpiryValue(account);
       const showAddOnCredits = shouldShowAddOnCredits(account);
       const accountTags = (account.tags || []).map((tag) => tag.trim()).filter(Boolean);
       const visibleTags = accountTags.slice(0, 2);
@@ -484,9 +478,10 @@ export function KiroAccountsPage() {
           </div>
 
           <div className="account-sub-line">
-            <span className="kiro-table-subline" title={`${signedInWithText} | ${t('kiro.account.userId', 'User ID')}: ${maskAccountText(userIdText)}`}>
-              {signedInWithText} | {t('kiro.account.userId', 'User ID')}: {maskAccountText(userIdText)}
+            <span className="kiro-table-subline" title={signedInWithText}>
+              {signedInWithText}
             </span>
+            <span className="kiro-card-date">{formatDate(account.created_at)}</span>
           </div>
 
           {accountTags.length > 0 && (
@@ -499,47 +494,40 @@ export function KiroAccountsPage() {
           )}
 
           <div className="ghcp-quota-section">
-            <div className="quota-item windsurf-credit-item">
-              <div className="quota-header">
-                <span className="quota-label">{promptMetrics?.label ?? t('common.shared.columns.promptCredits', 'User Prompt credits')}</span>
-                <span className={`quota-pct ${promptMetrics?.quotaClass ?? 'high'}`}>{promptMetrics?.valueText ?? '0%'}</span>
-              </div>
-              <div className="windsurf-credit-meta-row">
-                <span className="windsurf-credit-used">{formatUsedLine(promptMetrics?.used, promptMetrics?.total)}</span>
-                <span className="windsurf-credit-left">{formatLeftLine(promptMetrics?.left)}</span>
-              </div>
-              <div className="quota-bar-track">
-                <div className={`quota-bar ${promptMetrics?.quotaClass ?? 'high'}`} style={{ width: `${promptMetrics?.percentage ?? 0}%` }} />
-              </div>
-            </div>
-
-            {showAddOnCredits && (
+            {showAddOnCredits ? (
+              // 显示注册赠送
               <div className="quota-item windsurf-credit-item">
                 <div className="quota-header">
                   <span className="quota-label">{addOnMetrics?.label ?? t('common.shared.columns.addOnPromptCredits', 'Add-on prompt credits')}</span>
-                  <span className={`quota-pct ${addOnMetrics?.quotaClass ?? 'high'}`}>{addOnMetrics?.valueText ?? '0%'}</span>
+                  <span className={`quota-pct ${addOnMetrics?.quotaClass ?? 'high'}`}>{formatLeftLine(addOnMetrics?.used, addOnMetrics?.total)}</span>
                 </div>
                 <div className="windsurf-credit-meta-row">
-                  <span className="windsurf-credit-used">{formatUsedLine(addOnMetrics?.used, addOnMetrics?.total)}</span>
-                  <span className="windsurf-credit-left">{formatLeftLine(addOnMetrics?.left)}</span>
-                </div>
-                <div className="windsurf-credit-meta-row expiry">
-                  <span className="windsurf-credit-expiry">{t('kiro.columns.expiry', 'Expiry')}: {bonusExpiryValue}</span>
+                  <span className="windsurf-credit-used">{addOnMetrics?.resetText ?? ''}</span>
+                  <span className="windsurf-credit-left">{addOnMetrics?.valueText ?? '0%'}</span>
                 </div>
                 <div className="quota-bar-track">
-                  <div className={`quota-bar ${addOnMetrics?.quotaClass ?? 'high'}`} style={{ width: `${addOnMetrics?.percentage ?? 0}%` }} />
+                  <div className={`quota-bar-inverted ${addOnMetrics?.quotaClass ?? 'high'}`} style={{ width: `${addOnMetrics?.percentage ?? 0}%` }} />
+                </div>
+              </div>
+            ) : (
+              // 显示月度赠送
+              <div className="quota-item windsurf-credit-item">
+                <div className="quota-header">
+                  <span className="quota-label">{promptMetrics?.label ?? t('common.shared.columns.promptCredits', 'User Prompt credits')}</span>
+                  <span className={`quota-pct ${promptMetrics?.quotaClass ?? 'high'}`}>{formatLeftLine(promptMetrics?.used, promptMetrics?.total)}</span>
+                </div>
+                <div className="windsurf-credit-meta-row">
+                  <span className="windsurf-credit-used">{promptMetrics?.resetText ?? ''}</span>
+                  <span className="windsurf-credit-left">{promptMetrics?.valueText ?? '0%'}</span>
+                </div>
+                <div className="quota-bar-track">
+                  <div className={`quota-bar-inverted ${promptMetrics?.quotaClass ?? 'high'}`} style={{ width: `${promptMetrics?.percentage ?? 0}%` }} />
                 </div>
               </div>
             )}
           </div>
 
-          <div className="windsurf-plan-cycle" title={cycleDisplay.title}>
-            <span className="windsurf-plan-cycle-summary">{cycleDisplay.summary}</span>
-            {cycleDisplay.detail ? (<span className="windsurf-plan-cycle-detail">{cycleDisplay.detail}</span>) : null}
-          </div>
-
           <div className="card-footer">
-            <span className="card-date">{formatDate(account.created_at)}</span>
             <div className="card-actions">
               <button className="card-action-btn success" onClick={() => handleInjectToVSCode?.(account.id)} disabled={!!injecting || isBanned}
                 title={isBanned ? t('accounts.status.forbidden_msg') : t('kiro.injectToVSCode', '切换到 Kiro')}>
@@ -579,9 +567,9 @@ export function KiroAccountsPage() {
       const cycleDisplay = resolveCycleDisplay(credits);
       const promptMetrics = resolvePromptMetrics(account);
       const addOnMetrics = resolveAddOnMetrics(account);
+      const bonusExpiryValue = resolveBonusExpiryValue(account);
       const planKey = resolvePlanKey(account);
       const planLabel = resolvePlanLabel(account, planKey);
-      const bonusExpiryValue = resolveBonusExpiryValue(account);
       const showAddOnCredits = shouldShowAddOnCredits(account);
       const accountTags = (account.tags || []).map((tag) => tag.trim()).filter(Boolean);
       const visibleTags = accountTags.slice(0, 3);
@@ -623,42 +611,39 @@ export function KiroAccountsPage() {
           </td>
           <td><span className={`tier-badge ${resolvePlanBadgeClass(account)}`}>{planLabel}</span></td>
           <td>
-            <div className="quota-item windsurf-table-credit-item">
-              <div className="quota-header">
-                <span className="quota-name">{promptMetrics?.label ?? t('common.shared.columns.promptCredits', 'User Prompt credits')}</span>
-                <span className={`quota-value ${promptMetrics?.quotaClass ?? 'high'}`}>{promptMetrics?.valueText ?? '0%'}</span>
-              </div>
-              <div className="windsurf-credit-meta-row table">
-                <span className="windsurf-credit-used">{formatUsedLine(promptMetrics?.used, promptMetrics?.total)}</span>
-                <span className="windsurf-credit-left">{formatLeftLine(promptMetrics?.left)}</span>
-              </div>
-              <div className="quota-progress-track">
-                <div className={`quota-progress-bar ${promptMetrics?.quotaClass ?? 'high'}`} style={{ width: `${promptMetrics?.percentage ?? 0}%` }} />
-              </div>
-            </div>
-          </td>
-          <td>
             {showAddOnCredits ? (
+              // 显示注册赠送
               <div className="quota-item windsurf-table-credit-item">
                 <div className="quota-header">
                   <span className="quota-name">{addOnMetrics?.label ?? t('common.shared.columns.addOnPromptCredits', 'Add-on prompt credits')}</span>
-                  <span className={`quota-value ${addOnMetrics?.quotaClass ?? 'high'}`}>{addOnMetrics?.valueText ?? '0%'}</span>
+                  <span className={`quota-value ${addOnMetrics?.quotaClass ?? 'high'}`}>{formatLeftLine(addOnMetrics?.used, addOnMetrics?.total)}</span>
                 </div>
                 <div className="windsurf-credit-meta-row table">
-                  <span className="windsurf-credit-used">{formatUsedLine(addOnMetrics?.used, addOnMetrics?.total)}</span>
-                  <span className="windsurf-credit-left">{formatLeftLine(addOnMetrics?.left)}</span>
-                </div>
-                <div className="windsurf-credit-meta-row table expiry">
-                  <span className="windsurf-credit-expiry">{t('kiro.columns.expiry', 'Expiry')}: {bonusExpiryValue}</span>
+                  <span className="windsurf-credit-used">{t('kiro.columns.expiry', '到期日')}: {bonusExpiryValue}</span>
+                  <span className="windsurf-credit-left">{addOnMetrics?.valueText ?? '0%'}</span>
                 </div>
                 <div className="quota-progress-track">
-                  <div className={`quota-progress-bar ${addOnMetrics?.quotaClass ?? 'high'}`} style={{ width: `${addOnMetrics?.percentage ?? 0}%` }} />
+                  <div className={`quota-progress-bar-inverted ${addOnMetrics?.quotaClass ?? 'high'}`} style={{ width: `${addOnMetrics?.percentage ?? 0}%` }} />
                 </div>
               </div>
             ) : (
-              <div className="quota-empty">{t('kiro.credits.expiryUnknown', '—')}</div>
+              // 显示月度赠送
+              <div className="quota-item windsurf-table-credit-item">
+                <div className="quota-header">
+                  <span className="quota-name">{promptMetrics?.label ?? t('common.shared.columns.promptCredits', 'User Prompt credits')}</span>
+                  <span className={`quota-value ${promptMetrics?.quotaClass ?? 'high'}`}>{formatLeftLine(promptMetrics?.used, promptMetrics?.total)}</span>
+                </div>
+                <div className="windsurf-credit-meta-row table">
+                  <span className="windsurf-credit-used">{formatUsedLine(promptMetrics?.used, promptMetrics?.total)}</span>
+                  <span className="windsurf-credit-left">{promptMetrics?.valueText ?? '0%'}</span>
+                </div>
+                <div className="quota-progress-track">
+                  <div className={`quota-progress-bar-inverted ${promptMetrics?.quotaClass ?? 'high'}`} style={{ width: `${promptMetrics?.percentage ?? 0}%` }} />
+                </div>
+              </div>
             )}
           </td>
+          <td></td>
           <td className="sticky-action-cell table-action-cell">
             <div className="action-buttons">
               <button className="action-btn success" onClick={() => handleInjectToVSCode?.(account.id)} disabled={!!injecting || isBanned}
@@ -871,8 +856,8 @@ export function KiroAccountsPage() {
                 </th>
                 <th style={{ width: 240 }}>{t('common.shared.columns.email', '邮箱')}</th>
                 <th style={{ width: 120 }}>{t('common.shared.columns.plan', '计划')}</th>
-                <th>{t('common.shared.columns.promptCredits', 'User Prompt credits')}</th>
-                <th>{t('common.shared.columns.addOnPromptCredits', 'Add-on prompt credits')}</th>
+                <th>{t('kiro.columns.credits', '余额信息')}</th>
+                <th style={{ width: 60 }}></th>
                 <th className="sticky-action-header table-action-header">{t('common.shared.columns.actions', '操作')}</th>
               </tr>
             </thead>
@@ -903,8 +888,8 @@ export function KiroAccountsPage() {
                 </th>
                 <th style={{ width: 240 }}>{t('common.shared.columns.email', '邮箱')}</th>
                 <th style={{ width: 120 }}>{t('common.shared.columns.plan', '计划')}</th>
-                <th>{t('common.shared.columns.promptCredits', 'User Prompt credits')}</th>
-                <th>{t('common.shared.columns.addOnPromptCredits', 'Add-on prompt credits')}</th>
+                <th>{t('kiro.columns.credits', '余额信息')}</th>
+                <th style={{ width: 60 }}></th>
                 <th className="sticky-action-header table-action-header">{t('common.shared.columns.actions', '操作')}</th>
               </tr>
             </thead>

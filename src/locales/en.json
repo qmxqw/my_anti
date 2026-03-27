@@ -26,10 +26,10 @@
       "columns": {
         "actions": "Actions",
         "plan": "Plan",
-        "addOnPromptCredits": "Add-on prompt credits",
+        "addOnPromptCredits": "Registration Bonus",
         "credits": "Credits",
         "email": "Email",
-        "promptCredits": "User Prompt credits"
+        "promptCredits": "Monthly Credits"
       },
       "empty": {
         "title": "No Accounts"
@@ -1427,6 +1427,7 @@
       "bonusCredits": "Bonus Credits",
       "estimatedUsage": "Estimated Usage",
       "expiry": "Expiry",
+      "credits": "Credits Info",
       "estUsage": "Est. Usage"
     },
     "plan": {

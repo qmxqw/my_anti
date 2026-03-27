@@ -593,9 +593,13 @@ export function getKiroAccountDisplayEmail(account: KiroAccount): string {
 
 export function getKiroAccountDisplayUserId(account: KiroAccount): string {
   const userId = resolveRawUserId(account);
-  if (userId && !isPlaceholderIdentity(userId)) return userId;
+  if (userId && !isPlaceholderIdentity(userId)) {
+    // 显示最后8位
+    return userId.length > 8 ? userId.slice(-8) : userId;
+  }
   if (isLikelyEmail(account.email)) return account.email.trim();
-  return account.id;
+  // account.id 也显示最后8位
+  return account.id.length > 8 ? account.id.slice(-8) : account.id;
 }
 
 export function getKiroAccountLoginProvider(account: KiroAccount): string | null {
