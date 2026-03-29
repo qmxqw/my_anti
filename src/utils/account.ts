@@ -83,19 +83,17 @@ export function formatResetTime(resetTime: string, t: Translate): string {
       return `${t('common.shared.quota.resetDone')} ${elapsedHours.toFixed(1)}H`;
     }
 
-    const totalMinutes = diffMs / (1000 * 60);
-
-
-
-    const totalMinutesInt = Math.floor(totalMinutes);
+    // +60s 后向上取整到分钟（秒数不足1分钟时进位）
+    const totalMinutesInt = Math.floor((diffMs + 60_000) / (1000 * 60));
     const days = Math.floor(totalMinutesInt / (60 * 24));
     const hours = Math.floor((totalMinutesInt % (60 * 24)) / 60);
     const minutes = totalMinutesInt % 60;
 
-    let parts = [];
+    const parts: string[] = [];
     if (days > 0) parts.push(`${days}d`);
     if (hours > 0) parts.push(`${hours}h`);
-    if (minutes > 0) parts.push(`${minutes}m`);
+    // 时差 >= 24h 时截断，只显示 nD nH
+    if (days === 0 && minutes > 0) parts.push(`${minutes}m`);
 
     if (parts.length === 0) return '<1m';
 
