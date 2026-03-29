@@ -154,6 +154,11 @@
   gap: 4px;
 }
 
+/* 只有1个模型组时，让它占满全部宽度 */
+.quota-compact-item:only-child {
+  grid-column: 1 / -1;
+}
+
 /* Neon Glow Progress Bars */
 .quota-compact-bar-track {
   height: 5px; /* 稍微变细 */

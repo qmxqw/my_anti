@@ -91,7 +91,7 @@ pub fn run() {
                 info!("[Updater] Tauri Updater + Process 插件已初始化");
             }
 
-            // 初始化全局快捷键插件，注册 Alt+F1 智能切号热键 + Alt+` 窗口三态切换热键
+            // 初始化全局快捷键插件，注册 Alt+F1 智能切号热键 + Alt+` 窗口显示/隐藏切换热键
             #[cfg(desktop)]
             {
                 use tauri_plugin_global_shortcut::{
@@ -128,22 +128,16 @@ pub fn run() {
                                 logger::log_info("[Hotkey] Alt+` 触发");
                                 if let Some(window) = app_handle.get_webview_window("main") {
                                     let is_visible = window.is_visible().unwrap_or(false);
-                                    let is_maximized = window.is_maximized().unwrap_or(false);
-                                    if !is_visible {
-                                        // 窗口不可见 → 从托盘唤醒并显示
+                                    if is_visible {
+                                        // 窗口可见 → 隐藏到托盘
+                                        let _ = window.hide();
+                                        logger::log_info("[Hotkey] Alt+` 窗口已隐藏到托盘");
+                                    } else {
+                                        // 窗口不可见 → 显示并聚焦
                                         let _ = window.show();
                                         let _ = window.unminimize();
                                         let _ = window.set_focus();
-                                        logger::log_info("[Hotkey] Alt+` 窗口已从托盘唤醒");
-                                    } else if !is_maximized {
-                                        // 窗口可见但未最大化 → 最大化
-                                        let _ = window.maximize();
-                                        let _ = window.set_focus();
-                                        logger::log_info("[Hotkey] Alt+` 窗口已最大化");
-                                    } else {
-                                        // 窗口可见且已最大化 → 隐藏到托盘
-                                        let _ = window.hide();
-                                        logger::log_info("[Hotkey] Alt+` 窗口已隐藏到托盘");
+                                        logger::log_info("[Hotkey] Alt+` 窗口已显示");
                                     }
                                 }
                             }
