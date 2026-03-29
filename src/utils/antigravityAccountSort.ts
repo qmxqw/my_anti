@@ -86,6 +86,20 @@ const compareByCreatedAt = (
   direction: AntigravitySortDirection,
 ) => toDirectionValue(b.created_at - a.created_at, direction);
 
+/** 按配额刷新时间（quota.last_updated）排序，无刷新记录的排最后 */
+const compareByRefreshedAt = (
+  a: Account,
+  b: Account,
+  direction: AntigravitySortDirection,
+) => {
+  const aTs = a.quota?.last_updated ?? null;
+  const bTs = b.quota?.last_updated ?? null;
+  if (aTs === null && bTs === null) return 0;
+  if (aTs === null) return 1;   // 无刷新时间的排最后
+  if (bTs === null) return -1;
+  return toDirectionValue(bTs - aTs, direction);
+};
+
 const compareByGroupReset = (
   a: Account,
   b: Account,
@@ -162,6 +176,10 @@ export const createAntigravityAccountComparator = ({
 
     if (normalizedSortBy === 'created_at') {
       return compareByCreatedAt(a, b, sortDirection);
+    }
+
+    if (normalizedSortBy === 'refreshed_at') {
+      return compareByRefreshedAt(a, b, sortDirection);
     }
 
     if (normalizedSortBy.startsWith(ANTIGRAVITY_RESET_SORT_PREFIX) && displayGroups.length > 0) {

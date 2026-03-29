@@ -309,7 +309,7 @@ export function AccountsPage({ onNavigate }: AccountsPageProps) {
     if (value.startsWith(ANTIGRAVITY_RESET_SORT_PREFIX)) {
       setSortDirection('asc')
       setGroupByTag(false)
-    } else if (value !== 'overall' && value !== 'created_at' && value !== 'default' && value !== 'email') {
+    } else if (value !== 'overall' && value !== 'created_at' && value !== 'refreshed_at' && value !== 'default' && value !== 'email') {
       setSortDirection('desc')
       setGroupByTag(false)
     }
@@ -415,6 +415,7 @@ export function AccountsPage({ onNavigate }: AccountsPageProps) {
     if (
       normalizedSortBy === 'overall' ||
       normalizedSortBy === 'created_at' ||
+      normalizedSortBy === 'refreshed_at' ||
       normalizedSortBy === 'default' ||
       normalizedSortBy === 'email'
     ) {
@@ -2472,6 +2473,9 @@ export function AccountsPage({ onNavigate }: AccountsPageProps) {
                 </option>
                 <option value="created_at">
                   {t('accounts.sort.createdAt', '按创建时间')}
+                </option>
+                <option value="refreshed_at">
+                  {t('accounts.sort.refreshedAt', '按刷新时间')}
                 </option>
                 {displayGroups.map((group) => (
                   <option key={group.id} value={group.id}>
