@@ -824,7 +824,7 @@ export function QuickSettingsPopover({ type }: QuickSettingsPopoverProps) {
                   </div>
                 )}
 
-                <div className="qs-sort-rules" style={{ marginTop: 6 }}>
+                  <div className="qs-sort-rules" style={{ marginTop: 6 }}>
                   <div className="qs-row-label" style={{ marginBottom: 4 }}>
                     <span>{t('quickSettings.switchQuotaSort.label', '快速切号逻辑')}</span>
                   </div>
@@ -834,11 +834,19 @@ export function QuickSettingsPopover({ type }: QuickSettingsPopoverProps) {
                       { key: 'reset_time', dir: 'asc', on: false },
                       { key: 'created_at', dir: 'desc', on: false },
                       { key: 'usage_count', dir: 'asc', on: false },
+                      { key: 'last_used', dir: 'asc', on: false },
                     ];
                     let rules: { key: string; dir: string; on: boolean }[];
                     try {
                       const parsed = JSON.parse(config.switch_sort_rules || '[]');
-                      rules = Array.isArray(parsed) && parsed.length === 4 ? parsed : defaultRules;
+                      if (Array.isArray(parsed) && parsed.length === 5) {
+                        rules = parsed;
+                      } else if (Array.isArray(parsed) && parsed.length === 4) {
+                        // 兼容旧4条规则，追加last_used
+                        rules = [...parsed, { key: 'last_used', dir: 'asc', on: false }];
+                      } else {
+                        rules = defaultRules;
+                      }
                     } catch {
                       rules = defaultRules;
                     }
@@ -848,6 +856,7 @@ export function QuickSettingsPopover({ type }: QuickSettingsPopoverProps) {
                       reset_time: t('quickSettings.switchQuotaSort.resetTime', '重置时间'),
                       created_at: t('quickSettings.switchQuotaSort.createdAt', '创建时间'),
                       usage_count: t('quickSettings.switchQuotaSort.usageCount', '使用次数'),
+                      last_used: t('quickSettings.switchQuotaSort.lastUsed', '上次使用'),
                     };
                     const dirLabelMap: Record<string, Record<string, string>> = {
                       quota: {
@@ -865,6 +874,10 @@ export function QuickSettingsPopover({ type }: QuickSettingsPopoverProps) {
                       usage_count: {
                         asc: t('quickSettings.switchQuotaSort.leastUsed', '最少'),
                         desc: t('quickSettings.switchQuotaSort.mostUsed', '最多'),
+                      },
+                      last_used: {
+                        asc: t('quickSettings.switchQuotaSort.lastUsedFarthest', '最远'),
+                        desc: t('quickSettings.switchQuotaSort.lastUsedRecent', '最近'),
                       },
                     };
 

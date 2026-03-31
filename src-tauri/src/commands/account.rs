@@ -192,14 +192,9 @@ pub async fn switch_account(app: AppHandle, account_id: String) -> Result<models
         }
     }
 
-    // 5. 记录当前账号使用消耗（切换前判断当前账号配额是否低于阈值）
-    if let Ok(Some(mut current_account)) = modules::get_current_account() {
-        if let Err(e) = modules::account::record_account_usage_if_needed(&mut current_account) {
-            modules::logger::log_warn(&format!("[UsageCount] 记录使用消耗失败: {}", e));
-        }
-    }
-
-    // 4. 更新工具内部状态
+    // 5. 更新 A/B 两个帐号的 last_used_at（公共逻辑）
+    let prev_id = modules::get_current_account_id().ok().flatten();
+    modules::account::update_switch_timestamps(&mut account, prev_id.as_deref());
     modules::set_current_account_id(&account_id)?;
     modules::save_account(&account)?;
 

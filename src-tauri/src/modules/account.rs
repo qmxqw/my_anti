@@ -317,6 +317,54 @@ pub fn record_account_usage_if_needed(account: &mut Account) -> Result<(), Strin
     Ok(())
 }
 
+/// 切换账号时更新 A（原当前帐号）和 B（目标帐号）的 last_used_at，并持久化到 JSON 文件。
+/// 同时对 A 执行 usage_count 记录逻辑。
+/// `prev_account_id` 为 None 时表示无原帐号，跳过 A 的更新。
+pub fn update_switch_timestamps(
+    target_account: &mut Account,
+    prev_account_id: Option<&str>,
+) {
+    let now_ts = chrono::Utc::now().timestamp();
+
+    // 更新 A（原当前帐号）的 last_used_at，并记录使用消耗
+    if let Some(prev_id) = prev_account_id {
+        // 只在 A != B 时处理
+        if prev_id != target_account.id {
+            match load_account(prev_id) {
+                Ok(mut prev_account) => {
+                    // 记录配额消耗计数
+                    if let Err(e) = record_account_usage_if_needed(&mut prev_account) {
+                        modules::logger::log_warn(&format!(
+                            "[Switch] 记录 A 帐号使用消耗失败: {}", e
+                        ));
+                    }
+                    // 更新 A 的 last_used_at 并保存
+                    prev_account.last_used_at = now_ts;
+                    if let Err(e) = save_account(&prev_account) {
+                        modules::logger::log_warn(&format!(
+                            "[Switch] 更新 A 帐号 last_used_at 失败: {}", e
+                        ));
+                    } else {
+                        modules::logger::log_info(&format!(
+                            "[Switch] A 帐号 {} last_used_at 已更新为 {}",
+                            prev_account.email, now_ts
+                        ));
+                    }
+                }
+                Err(e) => {
+                    modules::logger::log_warn(&format!(
+                        "[Switch] 加载 A 帐号 {} 失败，跳过 last_used_at 更新: {}",
+                        prev_id, e
+                    ));
+                }
+            }
+        }
+    }
+
+    // 更新 B（目标帐号）的 last_used_at（由调用方负责保存）
+    target_account.last_used_at = now_ts;
+}
+
 fn normalize_tags(tags: Vec<String>) -> Result<Vec<String>, String> {
     let mut result: Vec<String> = Vec::new();
     let mut seen: HashSet<String> = HashSet::new();
@@ -1197,14 +1245,9 @@ pub async fn switch_account_internal(account_id: &str) -> Result<Account, String
         }
     }
 
-    // 5. 记录当前账号使用消耗（切换前判断当前账号配额是否低于阈值）
-    if let Ok(Some(mut current_account)) = get_current_account() {
-        if let Err(e) = record_account_usage_if_needed(&mut current_account) {
-            modules::logger::log_warn(&format!("[Switch] 记录使用消耗失败: {}", e));
-        }
-    }
-
-    // 5. 更新工具内部状态
+    // 5. 更新 A/B 两个帐号的 last_used_at（公共逻辑）
+    let prev_id = get_current_account_id().ok().flatten();
+    update_switch_timestamps(&mut account, prev_id.as_deref());
     set_current_account_id(account_id)?;
     save_account(&account)?;
 
@@ -1456,6 +1499,16 @@ pub async fn hotkey_smart_switch() -> Result<String, String> {
                         a.usage_count.cmp(&b.usage_count)
                     } else {
                         b.usage_count.cmp(&a.usage_count)
+                    }
+                }
+                "last_used" => {
+                    let ta = a.last_used_at;
+                    let tb = b.last_used_at;
+                    // last_used_at 已确保始终有值，直接比较
+                    if rule.dir == "asc" {
+                        ta.cmp(&tb)
+                    } else {
+                        tb.cmp(&ta)
                     }
                 }
                 _ => std::cmp::Ordering::Equal,

@@ -1168,11 +1168,18 @@ export function SettingsPage() {
                             { key: 'reset_time', dir: 'asc', on: false },
                             { key: 'created_at', dir: 'desc', on: false },
                             { key: 'usage_count', dir: 'asc', on: false },
+                            { key: 'last_used', dir: 'asc', on: false },
                           ];
                           let rules: { key: string; dir: string; on: boolean }[];
                           try {
                             const parsed = JSON.parse(switchSortRules || '[]');
-                            rules = Array.isArray(parsed) && parsed.length === 4 ? parsed : defaultRules;
+                            if (Array.isArray(parsed) && parsed.length === 5) {
+                              rules = parsed;
+                            } else if (Array.isArray(parsed) && parsed.length === 4) {
+                              rules = [...parsed, { key: 'last_used', dir: 'asc', on: false }];
+                            } else {
+                              rules = defaultRules;
+                            }
                           } catch {
                             rules = defaultRules;
                           }
@@ -1182,6 +1189,7 @@ export function SettingsPage() {
                             reset_time: t('quickSettings.switchQuotaSort.resetTime', '重置时间'),
                             created_at: t('quickSettings.switchQuotaSort.createdAt', '创建时间'),
                             usage_count: t('quickSettings.switchQuotaSort.usageCount', '使用次数'),
+                            last_used: t('quickSettings.switchQuotaSort.lastUsed', '上次使用'),
                           };
                           const dirLabelMap: Record<string, Record<string, string>> = {
                             quota: {
@@ -1199,6 +1207,10 @@ export function SettingsPage() {
                             usage_count: {
                               asc: t('quickSettings.switchQuotaSort.leastUsed', '最少'),
                               desc: t('quickSettings.switchQuotaSort.mostUsed', '最多'),
+                            },
+                            last_used: {
+                              asc: t('quickSettings.switchQuotaSort.lastUsedFarthest', '最远'),
+                              desc: t('quickSettings.switchQuotaSort.lastUsedRecent', '最近'),
                             },
                           };
 

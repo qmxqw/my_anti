@@ -309,7 +309,7 @@ export function AccountsPage({ onNavigate }: AccountsPageProps) {
     if (value.startsWith(ANTIGRAVITY_RESET_SORT_PREFIX)) {
       setSortDirection('asc')
       setGroupByTag(false)
-    } else if (value !== 'overall' && value !== 'created_at' && value !== 'refreshed_at' && value !== 'default' && value !== 'email') {
+    } else if (value !== 'overall' && value !== 'created_at' && value !== 'refreshed_at' && value !== 'last_used_at' && value !== 'default' && value !== 'email') {
       setSortDirection('desc')
       setGroupByTag(false)
     }
@@ -416,6 +416,7 @@ export function AccountsPage({ onNavigate }: AccountsPageProps) {
       normalizedSortBy === 'overall' ||
       normalizedSortBy === 'created_at' ||
       normalizedSortBy === 'refreshed_at' ||
+      normalizedSortBy === 'last_used_at' ||
       normalizedSortBy === 'default' ||
       normalizedSortBy === 'email'
     ) {
@@ -451,7 +452,7 @@ export function AccountsPage({ onNavigate }: AccountsPageProps) {
   const availableTags = useMemo(() => {
     const set = new Set<string>()
     accounts.forEach((account) => {
-      ;(account.tags || []).forEach((tag) => {
+      ; (account.tags || []).forEach((tag) => {
         const groupName = normalizeTagGroup(tag)
         if (groupName) set.add(groupName)
       })
@@ -716,7 +717,7 @@ export function AccountsPage({ onNavigate }: AccountsPageProps) {
           setSecondarySortOldestFirst(createdRule?.dir === 'asc');
         } catch { setSecondarySortOldestFirst(false); }
       })
-      .catch(() => {})
+      .catch(() => { })
 
     let unlisten: UnlistenFn | undefined
     let unlistenGroups: UnlistenFn | undefined
@@ -755,7 +756,7 @@ export function AccountsPage({ onNavigate }: AccountsPageProps) {
             setSecondarySortOldestFirst(createdRule?.dir === 'asc');
           } catch { setSecondarySortOldestFirst(false); }
         })
-        .catch(() => {})
+        .catch(() => { })
     }
     window.addEventListener('config-updated', handleConfigUpdated)
 
@@ -1594,7 +1595,7 @@ export function AccountsPage({ onNavigate }: AccountsPageProps) {
             </span>
           </div>
 
-          {(accountTags.length > 0 || (account.usage_count ?? 0) > 0) && (
+          {(accountTags.length > 0 || true) && (
             <div className="card-tags">
               {visibleTags.map((tag, idx) => (
                 <span key={`${account.id}-${tag}-${idx}`} className="tag-pill">
@@ -1602,14 +1603,33 @@ export function AccountsPage({ onNavigate }: AccountsPageProps) {
                 </span>
               ))}
               {moreTagCount > 0 && <span className="tag-pill more">+{moreTagCount}</span>}
-              {(account.usage_count ?? 0) > 0 && (
-                <span
-                  className="tag-pill usage-count-tag"
-                  title={`使用消耗次数：${account.usage_count}`}
-                >
-                  {account.usage_count}
-                </span>
-              )}
+              {(() => {
+                const count = account.usage_count
+                const lastUsedAt = account.last_used_at
+                // 格式化时间差：4舍5入取整数小时，超过99H显示nD
+                const ageStr = (() => {
+                  const nowSec = Math.floor(Date.now() / 1000)
+                  const diffSec = nowSec - lastUsedAt
+                  if (diffSec < 0) return null
+                  const hours = diffSec / 3600
+                  const rounded = Math.round(hours)
+                  if (rounded > 99) {
+                    const days = Math.round(hours / 24)
+                    return `${days}D`
+                  }
+                  return `${rounded}H`
+                })()
+                const usageTitle = `使用消耗次数：${count}${ageStr ? `，距上次使用：${ageStr}` : ''}`
+                const displayText = ageStr ? `${count}_${ageStr}` : `${count}`
+                return (
+                  <span
+                    className="usage-count-tag"
+                    title={usageTitle}
+                  >
+                    {displayText}
+                  </span>
+                )
+              })()}
             </div>
           )}
 
@@ -1712,8 +1732,8 @@ export function AccountsPage({ onNavigate }: AccountsPageProps) {
                   isDisabled
                     ? t('accounts.status.disabled', '已禁用')
                     : isCurrent
-                    ? t('accounts.actions.switch')
-                    : t('accounts.actions.switchTo')
+                      ? t('accounts.actions.switch')
+                      : t('accounts.actions.switchTo')
                 }
               >
                 {switching === account.id ? (
@@ -1933,15 +1953,15 @@ export function AccountsPage({ onNavigate }: AccountsPageProps) {
                 isDisabled
                   ? t('accounts.status.disabled', '已禁用')
                   : isCurrent
-                  ? t('accounts.actions.switch')
-                  : t('accounts.actions.switchTo')
+                    ? t('accounts.actions.switch')
+                    : t('accounts.actions.switchTo')
               }
               aria-label={
                 isDisabled
                   ? t('accounts.status.disabled', '已禁用')
                   : isCurrent
-                  ? t('accounts.actions.switch')
-                  : t('accounts.actions.switchTo')
+                    ? t('accounts.actions.switch')
+                    : t('accounts.actions.switchTo')
               }
             >
               <Play size={12} />
@@ -2234,8 +2254,8 @@ export function AccountsPage({ onNavigate }: AccountsPageProps) {
                   account.disabled
                     ? t('accounts.status.disabled', '已禁用')
                     : isCurrent
-                    ? t('accounts.actions.switch')
-                    : t('accounts.actions.switchTo')
+                      ? t('accounts.actions.switch')
+                      : t('accounts.actions.switchTo')
                 }
               >
                 {switching === account.id ? (
@@ -2476,6 +2496,9 @@ export function AccountsPage({ onNavigate }: AccountsPageProps) {
                 </option>
                 <option value="refreshed_at">
                   {t('accounts.sort.refreshedAt', '按刷新时间')}
+                </option>
+                <option value="last_used_at">
+                  {t('accounts.sort.lastUsedAt', '按使用时间')}
                 </option>
                 {displayGroups.map((group) => (
                   <option key={group.id} value={group.id}>

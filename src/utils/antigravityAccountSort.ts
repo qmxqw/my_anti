@@ -100,6 +100,13 @@ const compareByRefreshedAt = (
   return toDirectionValue(bTs - aTs, direction);
 };
 
+/** 按最近使用时间（last_used_at）排序 */
+const compareByLastUsedAt = (
+  a: Account,
+  b: Account,
+  direction: AntigravitySortDirection,
+) => toDirectionValue(b.last_used_at - a.last_used_at, direction);
+
 const compareByGroupReset = (
   a: Account,
   b: Account,
@@ -180,6 +187,10 @@ export const createAntigravityAccountComparator = ({
 
     if (normalizedSortBy === 'refreshed_at') {
       return compareByRefreshedAt(a, b, sortDirection);
+    }
+
+    if (normalizedSortBy === 'last_used_at') {
+      return compareByLastUsedAt(a, b, sortDirection);
     }
 
     if (normalizedSortBy.startsWith(ANTIGRAVITY_RESET_SORT_PREFIX) && displayGroups.length > 0) {
