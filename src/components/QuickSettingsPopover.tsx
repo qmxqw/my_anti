@@ -3,7 +3,7 @@ import { useTranslation } from 'react-i18next';
 import { createPortal } from 'react-dom';
 import { open } from '@tauri-apps/plugin-dialog';
 import { invoke } from '@tauri-apps/api/core';
-import { Settings, RefreshCw, FolderOpen, Zap, X, ChevronUp, ChevronDown } from 'lucide-react';
+import { Settings, RefreshCw, FolderOpen, Zap, X } from 'lucide-react';
 import './QuickSettingsPopover.css';
 
 /** GeneralConfig from backend */
@@ -43,6 +43,7 @@ interface GeneralConfig {
   ui_auto_refresh?: boolean;
   switch_quota_sort_mode: string;
   switch_sort_rules: string;
+  switch_created_at_desc: boolean;
 }
 
 export type QuickSettingsType = 'antigravity' | 'codex' | 'github_copilot' | 'windsurf' | 'kiro';
@@ -202,6 +203,7 @@ export function QuickSettingsPopover({ type }: QuickSettingsPopoverProps) {
           uiAutoRefresh: merged.ui_auto_refresh ?? false,
           switchQuotaSortMode: merged.switch_quota_sort_mode ?? 'max_first',
           switchSortRules: merged.switch_sort_rules ?? '',
+          switchCreatedAtDesc: merged.switch_created_at_desc ?? false,
         });
         window.dispatchEvent(new Event('config-updated'));
       } catch (err) {
@@ -845,126 +847,25 @@ export function QuickSettingsPopover({ type }: QuickSettingsPopoverProps) {
                   </div>
                 )}
 
-                  <div className="qs-sort-rules" style={{ marginTop: 6 }}>
-                  <div className="qs-row-label" style={{ marginBottom: 4 }}>
-                    <span>{t('quickSettings.switchQuotaSort.label', '快速切号逻辑')}</span>
+                <div className="qs-row" style={{ marginTop: 6 }}>
+                  <div className="qs-row-label">
+                    <span>{t('quickSettings.switchQuotaSort.createdAtDesc', '创建时间排序')}</span>
                   </div>
-                  {(() => {
-                    const defaultRules = [
-                      { key: 'quota', dir: 'desc', on: true },
-                      { key: 'reset_time', dir: 'asc', on: false },
-                      { key: 'created_at', dir: 'desc', on: false },
-                      { key: 'usage_count', dir: 'asc', on: false },
-                      { key: 'last_used', dir: 'asc', on: false },
-                    ];
-                    let rules: { key: string; dir: string; on: boolean }[];
-                    try {
-                      const parsed = JSON.parse(config.switch_sort_rules || '[]');
-                      if (Array.isArray(parsed) && parsed.length === 5) {
-                        rules = parsed;
-                      } else if (Array.isArray(parsed) && parsed.length === 4) {
-                        // 兼容旧4条规则，追加last_used
-                        rules = [...parsed, { key: 'last_used', dir: 'asc', on: false }];
-                      } else {
-                        rules = defaultRules;
-                      }
-                    } catch {
-                      rules = defaultRules;
-                    }
-
-                    const labelMap: Record<string, string> = {
-                      quota: t('quickSettings.switchQuotaSort.quota', 'Claude额度'),
-                      reset_time: t('quickSettings.switchQuotaSort.resetTime', '重置时间'),
-                      created_at: t('quickSettings.switchQuotaSort.createdAt', '创建时间'),
-                      usage_count: t('quickSettings.switchQuotaSort.usageCount', '使用次数'),
-                      last_used: t('quickSettings.switchQuotaSort.lastUsed', '上次使用'),
-                    };
-                    const dirLabelMap: Record<string, Record<string, string>> = {
-                      quota: {
-                        desc: t('quickSettings.switchQuotaSort.maxFirst', '最多'),
-                        asc: t('quickSettings.switchQuotaSort.minFirst', '最少'),
-                      },
-                      reset_time: {
-                        asc: t('quickSettings.switchQuotaSort.resetSoonest', '最快'),
-                        desc: t('quickSettings.switchQuotaSort.resetLatest', '最慢'),
-                      },
-                      created_at: {
-                        asc: t('quickSettings.switchQuotaSort.oldestFirst', '最早'),
-                        desc: t('quickSettings.switchQuotaSort.newestFirst', '最晚'),
-                      },
-                      usage_count: {
-                        asc: t('quickSettings.switchQuotaSort.leastUsed', '最少'),
-                        desc: t('quickSettings.switchQuotaSort.mostUsed', '最多'),
-                      },
-                      last_used: {
-                        asc: t('quickSettings.switchQuotaSort.lastUsedFarthest', '最远'),
-                        desc: t('quickSettings.switchQuotaSort.lastUsedRecent', '最近'),
-                      },
-                    };
-
-                    const updateRules = (newRules: typeof rules) => {
-                      saveConfig({ switch_sort_rules: JSON.stringify(newRules) });
-                    };
-
-                    const moveUp = (idx: number) => {
-                      if (idx <= 0) return;
-                      const next = [...rules];
-                      [next[idx - 1], next[idx]] = [next[idx], next[idx - 1]];
-                      updateRules(next);
-                    };
-
-                    const moveDown = (idx: number) => {
-                      if (idx >= rules.length - 1) return;
-                      const next = [...rules];
-                      [next[idx], next[idx + 1]] = [next[idx + 1], next[idx]];
-                      updateRules(next);
-                    };
-
-                    const toggleEnabled = (idx: number) => {
-                      const next = [...rules];
-                      next[idx] = { ...next[idx], on: !next[idx].on };
-                      updateRules(next);
-                    };
-
-                    const toggleDir = (idx: number) => {
-                      const next = [...rules];
-                      next[idx] = { ...next[idx], dir: next[idx].dir === 'asc' ? 'desc' : 'asc' };
-                      updateRules(next);
-                    };
-
-                    return rules.map((rule, idx) => (
-                      <div key={rule.key} className={`qs-sort-rule-item${rule.on ? '' : ' qs-sort-rule-item--disabled'}`}>
-                        <div className="qs-sort-rule-arrows">
-                          <button
-                            className="qs-sort-rule-arrow"
-                            disabled={idx === 0}
-                            onClick={() => moveUp(idx)}
-                            title={t('common.moveUp', '上移')}
-                          ><ChevronUp size={14} /></button>
-                          <button
-                            className="qs-sort-rule-arrow"
-                            disabled={idx === rules.length - 1}
-                            onClick={() => moveDown(idx)}
-                            title={t('common.moveDown', '下移')}
-                          ><ChevronDown size={14} /></button>
-                        </div>
-                        <span className="qs-sort-rule-label">{labelMap[rule.key] || rule.key}</span>
-                        <button
-                          className="qs-sort-rule-dir"
-                          onClick={() => toggleDir(idx)}
-                          title={t('quickSettings.switchQuotaSort.toggleDir', '切换方向')}
-                        >{dirLabelMap[rule.key]?.[rule.dir] || rule.dir}</button>
-                        <label className="qs-switch qs-switch--small">
-                          <input
-                            type="checkbox"
-                            checked={rule.on}
-                            onChange={() => toggleEnabled(idx)}
-                          />
-                          <span className="qs-switch-slider"></span>
-                        </label>
-                      </div>
-                    ));
-                  })()}
+                  <div className="qs-row-control" style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                    <span style={{ fontSize: 12, opacity: 0.6 }}>
+                      {config.switch_created_at_desc
+                        ? t('quickSettings.switchQuotaSort.newestFirst', '新→旧')
+                        : t('quickSettings.switchQuotaSort.oldestFirst', '旧→新')}
+                    </span>
+                    <label className="qs-switch qs-switch--small">
+                      <input
+                        type="checkbox"
+                        checked={config.switch_created_at_desc}
+                        onChange={(e) => saveConfig({ switch_created_at_desc: e.target.checked })}
+                      />
+                      <span className="qs-switch-slider"></span>
+                    </label>
+                  </div>
                 </div>
 
                 {renderQuotaAlertControls()}

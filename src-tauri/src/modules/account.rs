@@ -1297,15 +1297,233 @@ pub async fn prepare_account_for_injection(account_id: &str) -> Result<Account, 
     Ok(account)
 }
 
-/// Alt+F1 热键触发的智能切号
+/// Alt+F1 热键 / 小火箭触发的智能切号（v2）
+/// 新逻辑：
 /// 1. 刷新当前帐号配额
-/// 2. 若当前帐号所有 claude* 模型最低 percentage > 20%，跳过
-/// 3. 否则按 findSmartRefreshCandidates 逻辑选取 1 个候选帐号
-/// 4. 调用 switch_account_internal 执行切换
+/// 2. 所有帐号按 created_at 排序（方向取决于配置中"创建时间"toggle）
+/// 3. 从当前帐号在排序列表中的位置向后查找，按梯度依次降级：
+///    =100% → ≥80% → ≥60% → ≥40%（到末尾后从头继续）
+/// 4. 四级梯度都找不到才返回"无可用帐号"
+/// 注：已过期（reset_time ≤ now）但尚未刷新的模型视为额度已重置（100%）
 pub async fn hotkey_smart_switch() -> Result<String, String> {
+    modules::logger::log_info("[Hotkey] Alt+F1 智能切号开始 (v2)");
+
+    // ── 1. 获取当前帐号 ──
+    let current_account = match get_current_account()? {
+        Some(acc) => acc,
+        None => {
+            modules::logger::log_warn("[Hotkey] 无当前帐号，跳过");
+            return Ok("no_current_account".to_string());
+        }
+    };
+    let current_id = current_account.id.clone();
+    let current_email = current_account.email.clone();
+
+    // ── 2. 刷新当前帐号配额 ──
+    {
+        let mut acc = load_account(&current_id)?;
+        match fetch_quota_with_retry(&mut acc, true).await {
+            Ok(quota) => {
+                update_account_quota(&current_id, quota)?;
+                modules::logger::log_info(&format!(
+                    "[Hotkey] 当前帐号 {} 配额已刷新",
+                    current_email
+                ));
+            }
+            Err(e) => {
+                modules::logger::log_warn(&format!(
+                    "[Hotkey] 当前帐号 {} 配额刷新失败: {}，继续执行切号逻辑",
+                    current_email, e
+                ));
+            }
+        }
+    }
+
+    // ── 3. 获取所有帐号并过滤 ──
+    let all_accounts = list_accounts()?;
+    let now = chrono::Utc::now().timestamp();
+
+    // 计算帐号的 claude* 模型有效最低 percentage（已过期视为 100%）
+    let effective_min_percentage = |acc: &Account| -> i32 {
+        let quota = match acc.quota.as_ref() {
+            Some(q) => q,
+            None => return -1,
+        };
+        quota
+            .models
+            .iter()
+            .filter(|m| m.name.to_lowercase().starts_with("claude"))
+            .map(|m| {
+                if !m.reset_time.is_empty() {
+                    if let Ok(reset) = chrono::DateTime::parse_from_rfc3339(&m.reset_time) {
+                        if reset.timestamp() <= now {
+                            return 100;
+                        }
+                    }
+                }
+                m.percentage
+            })
+            .min()
+            .unwrap_or(-1)
+    };
+
+    // 筛选有效帐号（未禁用、有配额、有 claude 模型、非 UNKNOWN 等级）
+    let mut candidates: Vec<&Account> = all_accounts
+        .iter()
+        .filter(|acc| {
+            if acc.disabled {
+                return false;
+            }
+            let quota = match acc.quota.as_ref() {
+                Some(q) => q,
+                None => return false,
+            };
+            if quota.models.is_empty() {
+                return false;
+            }
+            let tier = quota.subscription_tier.as_deref().unwrap_or("").trim().to_string();
+            if tier.is_empty() {
+                return false;
+            }
+            quota.models.iter().any(|m| m.name.to_lowercase().starts_with("claude"))
+        })
+        .collect();
+
+    // ── 4. 按 created_at 排序（方向取决于配置中"创建时间"toggle） ──
+    let user_cfg = crate::modules::config::get_user_config();
+
+    // 默认 false = 升序(旧→新)；true = 降序(新→旧)
+    let created_at_desc = user_cfg.switch_created_at_desc;
+
+    candidates.sort_by(|a, b| {
+        if created_at_desc {
+            b.created_at.cmp(&a.created_at)
+        } else {
+            a.created_at.cmp(&b.created_at)
+        }
+    });
+
+    modules::logger::log_info(&format!(
+        "[Hotkey] 候选帐号 {} 个，按 created_at {} 排序",
+        candidates.len(),
+        if created_at_desc { "降序(新→旧)" } else { "升序(旧→新)" }
+    ));
+
+    if candidates.is_empty() {
+        modules::logger::log_warn("[Hotkey] 无有效候选帐号");
+        return Ok("no_candidate".to_string());
+    }
+
+    // ── 5. 找到当前帐号在排序列表中的位置 ──
+    let current_idx = candidates
+        .iter()
+        .position(|acc| acc.id == current_id)
+        .unwrap_or(0); // 若当前帐号不在列表中（被过滤掉），从索引 0 开始搜索
+
+    let n = candidates.len();
+
+    // ── 6. 从当前帐号的下一个位置开始循环查找 ──
+    // 按梯度依次降级：=100% → ≥80% → ≥60% → ≥40%
+    let find_next = |threshold: i32| -> Option<usize> {
+        for offset in 1..n {
+            let idx = (current_idx + offset) % n;
+            let pct = effective_min_percentage(candidates[idx]);
+            if pct >= threshold {
+                return Some(idx);
+            }
+        }
+        None
+    };
+
+    // 梯度阈值列表：(阈值, 日志标签)
+    let thresholds: &[(i32, &str)] = &[
+        (100, "=100%"),
+        (80, "≥80%"),
+        (60, "≥60%"),
+        (40, "≥40%"),
+    ];
+
+    let chosen_idx = {
+        let mut found: Option<usize> = None;
+        for (threshold, label) in thresholds {
+            if let Some(idx) = find_next(*threshold) {
+                modules::logger::log_info(&format!(
+                    "[Hotkey] 找到余额{}的帐号: {} (percentage={}%)",
+                    label,
+                    candidates[idx].email,
+                    effective_min_percentage(candidates[idx])
+                ));
+                found = Some(idx);
+                break;
+            }
+        }
+        match found {
+            Some(idx) => idx,
+            None => {
+                modules::logger::log_warn("[Hotkey] 无可用帐号（所有帐号余额均<40%）");
+                return Ok("no_available_account".to_string());
+            }
+        }
+    };
+
+    let candidate = candidates[chosen_idx];
+    let candidate_id = candidate.id.clone();
+    let candidate_email = candidate.email.clone();
+
+    modules::logger::log_info(&format!(
+        "[Hotkey] 选中候选帐号: {} (ID: {})",
+        candidate_email, candidate_id
+    ));
+
+    // ── 7. 执行切换 ──
+    if candidate_id == current_id {
+        modules::logger::log_info(&format!(
+            "[Hotkey] 选中的帐号即为当前帐号 {}，执行重启",
+            current_email
+        ));
+        return match switch_account_internal(&current_id).await {
+            Ok(account) => {
+                modules::logger::log_info(&format!(
+                    "[Hotkey] 当前帐号重启完成: {}",
+                    account.email
+                ));
+                modules::websocket::broadcast_account_switched(&account.id, &account.email);
+                Ok(format!("restarted:{}", account.email))
+            }
+            Err(e) => {
+                modules::logger::log_error(&format!("[Hotkey] 当前帐号重启失败: {}", e));
+                Err(format!("重启失败: {}", e))
+            }
+        };
+    }
+
+    match switch_account_internal(&candidate_id).await {
+        Ok(account) => {
+            modules::logger::log_info(&format!(
+                "[Hotkey] 智能切号完成: {} -> {}",
+                current_email, account.email
+            ));
+            modules::websocket::broadcast_account_switched(&account.id, &account.email);
+            Ok(format!("switched:{}:{}", current_email, account.email))
+        }
+        Err(e) => {
+            modules::logger::log_error(&format!(
+                "[Hotkey] 智能切号失败: {} -> {}, error={}",
+                current_email, candidate_email, e
+            ));
+            Err(format!("切换失败: {}", e))
+        }
+    }
+}
+
+/// ⚠️ [暂时弃用] 旧版智能切号逻辑 —— 基于多键排序规则选取排序后的第 1 个候选帐号
+/// 已被 hotkey_smart_switch (v2) 替代。保留此函数以便需要时快速切回。
+/// 调用方式：将 hotkey_smart_switch 改为调用此函数即可恢复旧逻辑。
+#[allow(dead_code)]
+pub async fn hotkey_smart_switch_legacy() -> Result<String, String> {
     const SKIP_THRESHOLD: i32 = 20;
 
-    modules::logger::log_info("[Hotkey] Alt+F1 智能切号开始");
+    modules::logger::log_info("[Hotkey] Alt+F1 智能切号开始 (legacy)");
 
     // 1. 获取当前帐号
     let current_account = match get_current_account()? {
@@ -1431,8 +1649,8 @@ pub async fn hotkey_smart_switch() -> Result<String, String> {
         .unwrap_or_default();
 
     // 检查是否有任何启用了 quota 或 reset_time 规则（需要 >20% 过滤）
-    let has_active_quota_rule = sort_rules.iter().any(|r| r.on && r.key == "quota");
-    let has_active_reset_rule = sort_rules.iter().any(|r| r.on && r.key == "reset_time");
+    let _has_active_quota_rule = sort_rules.iter().any(|r| r.on && r.key == "quota");
+    let _has_active_reset_rule = sort_rules.iter().any(|r| r.on && r.key == "reset_time");
 
     // 如果有 quota（非 desc，即 min_first）或 reset_time 规则启用，对候选帐号额度 > 20% 过滤
     // 保持向后兼容：只有主排序为额度最大时不限制，其他模式都要求 > 20%

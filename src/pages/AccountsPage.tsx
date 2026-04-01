@@ -708,14 +708,10 @@ export function AccountsPage({ onNavigate }: AccountsPageProps) {
     fetchCurrentAccount()
     loadFingerprints()
     loadDisplayGroups()
-    // 从 switch_sort_rules 中读取 created_at 方向
-    invoke<{ switch_sort_rules?: string }>('get_general_config')
+    // 从配置中读取 created_at 排序方向
+    invoke<{ switch_created_at_desc?: boolean }>('get_general_config')
       .then((cfg) => {
-        try {
-          const rules = JSON.parse(cfg.switch_sort_rules || '[]');
-          const createdRule = Array.isArray(rules) && rules.find((r: { key: string }) => r.key === 'created_at');
-          setSecondarySortOldestFirst(createdRule?.dir === 'asc');
-        } catch { setSecondarySortOldestFirst(false); }
+        setSecondarySortOldestFirst(!cfg.switch_created_at_desc);
       })
       .catch(() => { })
 
@@ -748,13 +744,9 @@ export function AccountsPage({ onNavigate }: AccountsPageProps) {
 
     // 监听配置变更，同步次排序设置
     const handleConfigUpdated = () => {
-      invoke<{ switch_sort_rules?: string }>('get_general_config')
+      invoke<{ switch_created_at_desc?: boolean }>('get_general_config')
         .then((cfg) => {
-          try {
-            const rules = JSON.parse(cfg.switch_sort_rules || '[]');
-            const createdRule = Array.isArray(rules) && rules.find((r: { key: string }) => r.key === 'created_at');
-            setSecondarySortOldestFirst(createdRule?.dir === 'asc');
-          } catch { setSecondarySortOldestFirst(false); }
+          setSecondarySortOldestFirst(!cfg.switch_created_at_desc);
         })
         .catch(() => { })
     }

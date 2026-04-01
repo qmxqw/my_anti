@@ -96,10 +96,12 @@ pub struct GeneralConfig {
     pub refresh_when_tray: bool,
     /// 是否在每个定时周期无条件刷新前端 UI 数据
     pub ui_auto_refresh: bool,
-    /// 快速切号额度排序模式："max_first" | "min_first"
+    /// 快速切号额度排序模式："max_first" | "min_first" [legacy]
     pub switch_quota_sort_mode: String,
-    /// 切号排序规则列表（JSON 字符串）
+    /// 切号排序规则列表（JSON 字符串） [legacy]
     pub switch_sort_rules: String,
+    /// 快速切号排序方向：false=升序（旧帐号优先），true=降序（新帐号优先）
+    pub switch_created_at_desc: bool,
 }
 
 #[tauri::command]
@@ -214,6 +216,7 @@ pub fn save_network_config(ws_enabled: bool, ws_port: u16) -> Result<bool, Strin
         ui_auto_refresh: current.ui_auto_refresh,
         switch_quota_sort_mode: current.switch_quota_sort_mode.clone(),
         switch_sort_rules: current.switch_sort_rules.clone(),
+        switch_created_at_desc: current.switch_created_at_desc,
     };
 
     config::save_user_config(&new_config)?;
@@ -276,6 +279,7 @@ pub fn get_general_config() -> Result<GeneralConfig, String> {
         ui_auto_refresh: user_config.ui_auto_refresh,
         switch_quota_sort_mode: user_config.switch_quota_sort_mode.clone(),
         switch_sort_rules: user_config.switch_sort_rules.clone(),
+        switch_created_at_desc: user_config.switch_created_at_desc,
     })
 }
 
@@ -322,6 +326,7 @@ pub fn save_general_config(
     ui_auto_refresh: Option<bool>,
     switch_quota_sort_mode: Option<String>,
     switch_sort_rules: Option<String>,
+    switch_created_at_desc: Option<bool>,
 ) -> Result<(), String> {
     let current = config::get_user_config();
     let normalized_opencode_path = opencode_app_path.trim().to_string();
@@ -411,6 +416,8 @@ pub fn save_general_config(
             .unwrap_or(current.switch_quota_sort_mode),
         switch_sort_rules: switch_sort_rules
             .unwrap_or(current.switch_sort_rules),
+        switch_created_at_desc: switch_created_at_desc
+            .unwrap_or(current.switch_created_at_desc),
     };
 
     config::save_user_config(&new_config)?;

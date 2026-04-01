@@ -799,6 +799,7 @@ fn handle_set_language(language: &str, source: Option<&str>) -> Result<String, S
         ui_auto_refresh: current.ui_auto_refresh,
         switch_quota_sort_mode: current.switch_quota_sort_mode,
         switch_sort_rules: current.switch_sort_rules,
+        switch_created_at_desc: current.switch_created_at_desc,
     };
 
     config::save_user_config(&new_config)?;

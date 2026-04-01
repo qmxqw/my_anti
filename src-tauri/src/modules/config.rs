@@ -154,13 +154,16 @@ pub struct UserConfig {
     #[serde(default = "default_ui_auto_refresh")]
     pub ui_auto_refresh: bool,
     /// 快速切号额度排序模式："max_first"=最大优先（默认），"min_first"=最小优先（额度>20%）
+    /// ⚠️ [legacy] 已被 switch_created_at_desc 替代，保留字段用于旧配置反序列化兼容
     #[serde(default = "default_switch_quota_sort_mode")]
     pub switch_quota_sort_mode: String,
-    /// 切号排序规则列表（JSON 字符串），格式: [{"key":"quota","dir":"desc","on":true}, ...]
-    /// 数组顺序即排序优先级，key: quota/reset_time/created_at/usage_count
-    /// dir: asc/desc, on: true/false
+    /// 切号排序规则列表（JSON 字符串）
+    /// ⚠️ [legacy] 已被 switch_created_at_desc 替代，保留字段用于旧配置反序列化兼容
     #[serde(default = "default_switch_sort_rules")]
     pub switch_sort_rules: String,
+    /// 快速切号排序方向：false=按 created_at 升序（旧帐号优先，默认），true=降序（新帐号优先）
+    #[serde(default = "default_switch_created_at_desc")]
+    pub switch_created_at_desc: bool,
 }
 
 /// 窗口关闭行为
@@ -323,6 +326,10 @@ fn default_switch_sort_rules() -> String {
     String::new()
 }
 
+fn default_switch_created_at_desc() -> bool {
+    false
+}
+
 impl Default for UserConfig {
     fn default() -> Self {
         Self {
@@ -367,6 +374,7 @@ impl Default for UserConfig {
             ui_auto_refresh: default_ui_auto_refresh(),
             switch_quota_sort_mode: default_switch_quota_sort_mode(),
             switch_sort_rules: default_switch_sort_rules(),
+            switch_created_at_desc: default_switch_created_at_desc(),
         }
     }
 }

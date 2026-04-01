@@ -69,6 +69,7 @@ interface GeneralConfig {
   refresh_when_tray?: boolean;
   ui_auto_refresh?: boolean;
   switch_sort_rules?: string;
+  switch_created_at_desc?: boolean;
 }
 
 export function useAutoRefresh() {
@@ -289,13 +290,8 @@ export function useAutoRefresh() {
                   // 静默获取帐号列表用于筛选，不触发 store 更新（避免 UI 闪动）
                   const allAccounts = await invoke<Account[]>('list_accounts');
                   const currentAccount = useAccountStore.getState().currentAccount;
-                  // 从 switch_sort_rules 中读取 created_at 方向（即使被禁用也可读取值）
-                  let sortOldestFirst = false;
-                  try {
-                    const rules = JSON.parse(config.switch_sort_rules || '[]');
-                    const createdRule = Array.isArray(rules) && rules.find((r: { key: string }) => r.key === 'created_at');
-                    sortOldestFirst = createdRule?.dir === 'asc';
-                  } catch { /* fallback to false */ }
+                  // 从配置中直接读取 created_at 排序方向
+                  const sortOldestFirst = !config.switch_created_at_desc;
                   const candidates = findSmartRefreshCandidates(allAccounts, currentAccount?.id, sortOldestFirst);
                   const toRefresh = candidates.slice(0, extraCount);
 
