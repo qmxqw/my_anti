@@ -276,11 +276,12 @@ fn merge_tags(target: &mut Option<Vec<String>>, source: Option<&Vec<String>>) {
 
     if let Some(source_tags) = source {
         for tag in source_tags {
-            let normalized = tag.trim().to_lowercase();
-            if normalized.is_empty() || !seen.insert(normalized.clone()) {
+            let trimmed = tag.trim();
+            let key = trimmed.to_lowercase();
+            if key.is_empty() || !seen.insert(key) {
                 continue;
             }
-            merged.push(normalized);
+            merged.push(trimmed.to_string());
         }
     }
 

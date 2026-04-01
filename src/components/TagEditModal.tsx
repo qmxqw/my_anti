@@ -14,17 +14,18 @@ interface TagEditModalProps {
 const MAX_TAGS = 10;
 const MAX_TAG_LENGTH = 20;
 
-const normalizeTag = (value: string) => value.trim().toLowerCase();
+const normalizeTag = (value: string) => value.trim();
 
 const normalizeTagList = (tags: string[]) => {
   const seen = new Set<string>();
   const result: string[] = [];
   tags.forEach((tag) => {
-    const normalized = normalizeTag(tag);
-    if (!normalized) return;
-    if (seen.has(normalized)) return;
-    seen.add(normalized);
-    result.push(normalized);
+    const trimmed = normalizeTag(tag);
+    if (!trimmed) return;
+    const key = trimmed.toLowerCase();
+    if (seen.has(key)) return;
+    seen.add(key);
+    result.push(trimmed);
   });
   return result;
 };
@@ -46,19 +47,20 @@ export const TagEditModal = ({ isOpen, initialTags, availableTags = [], onClose,
   const remaining = useMemo(() => MAX_TAGS - tags.length, [tags.length]);
   const normalizedAvailableTags = useMemo(() => normalizeTagList(availableTags), [availableTags]);
   const suggestedTags = useMemo(() => {
-    const base = normalizedAvailableTags.filter((tag) => !tags.includes(tag));
-    const query = normalizeTag(inputValue);
+    const tagKeys = new Set(tags.map((t) => t.toLowerCase()));
+    const base = normalizedAvailableTags.filter((tag) => !tagKeys.has(tag.toLowerCase()));
+    const query = normalizeTag(inputValue).toLowerCase();
     if (!query) return base;
-    return base.filter((tag) => tag.includes(query));
+    return base.filter((tag) => tag.toLowerCase().includes(query));
   }, [normalizedAvailableTags, tags, inputValue]);
 
   const addTag = (rawValue: string) => {
-    const normalized = normalizeTag(rawValue);
-    if (!normalized) {
+    const trimmed = normalizeTag(rawValue);
+    if (!trimmed) {
       setError(t('accounts.tagModal.error.empty', '标签不能为空'));
       return;
     }
-    if (normalized.length > MAX_TAG_LENGTH) {
+    if (trimmed.length > MAX_TAG_LENGTH) {
       setError(
         t('accounts.tagModal.error.tooLong', {
           max: MAX_TAG_LENGTH,
@@ -67,7 +69,8 @@ export const TagEditModal = ({ isOpen, initialTags, availableTags = [], onClose,
       );
       return;
     }
-    if (tags.includes(normalized)) {
+    const key = trimmed.toLowerCase();
+    if (tags.some((t) => t.toLowerCase() === key)) {
       setError(t('accounts.tagModal.error.duplicate', '标签已存在'));
       return;
     }
@@ -80,7 +83,7 @@ export const TagEditModal = ({ isOpen, initialTags, availableTags = [], onClose,
       );
       return;
     }
-    setTags((prev) => [...prev, normalized]);
+    setTags((prev) => [...prev, trimmed]);
     setInputValue('');
     setError('');
   };
@@ -104,7 +107,8 @@ export const TagEditModal = ({ isOpen, initialTags, availableTags = [], onClose,
         }),
       };
     }
-    const exists = tags.includes(rawInput);
+    const inputKey = rawInput.toLowerCase();
+    const exists = tags.some((t) => t.toLowerCase() === inputKey);
     if (!exists && tags.length >= MAX_TAGS) {
       return {
         nextTags: tags,

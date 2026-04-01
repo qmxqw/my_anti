@@ -281,6 +281,9 @@ export function useAutoRefresh() {
               agRefreshingRef.current = true;
 
               try {
+                // 每次定时刷新时更新当前帐号的 last_used_at
+                await invoke('touch_current_last_used').catch(() => {});
+
                 // 统一筛选所有帐号，只刷新配额已重置的
                 if (extraCount > 0) {
                   // 静默获取帐号列表用于筛选，不触发 store 更新（避免 UI 闪动）

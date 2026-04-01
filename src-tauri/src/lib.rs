@@ -232,6 +232,7 @@ pub fn run() {
             commands::account::update_account_tags,
             commands::account::sync_current_from_client,
             commands::account::sync_from_extension,
+            commands::account::touch_current_last_used,
             // Device Commands
             commands::device::get_device_profiles,
             commands::device::bind_device_profile,

@@ -192,7 +192,7 @@ export function GitHubCopilotAccountsPage() {
     return counts;
   }, [accounts, resolvePlanKey]);
 
-  const normalizeTag = (tag: string) => tag.trim().toLowerCase();
+  const normalizeTag = (tag: string) => tag.trim();
   const normalizeTagGroup = (tag: string) => normalizeTag(tag).replace(/\d+$/, '');
 
   const compareAccountsBySort = useCallback((a: GitHubCopilotAccount, b: GitHubCopilotAccount) => {

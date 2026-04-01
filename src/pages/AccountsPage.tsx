@@ -389,7 +389,7 @@ export function AccountsPage({ onNavigate }: AccountsPageProps) {
   const getQuotaDisplayItems = (account: Account) =>
     getAntigravityQuotaDisplayItems(account, displayGroups)
 
-  const normalizeTag = (tag: string) => tag.trim().toLowerCase()
+  const normalizeTag = (tag: string) => tag.trim()
   const normalizeTagGroup = (tag: string) => {
     const norm = normalizeTag(tag);
     const replaced = norm.replace(/\d+$/, '');
@@ -1606,18 +1606,21 @@ export function AccountsPage({ onNavigate }: AccountsPageProps) {
               {(() => {
                 const count = account.usage_count
                 const lastUsedAt = account.last_used_at
-                // 格式化时间差：4舍5入取整数小时，超过99H显示nD
+                // 格式化时间差：<100分钟显示 xm，<100小时显示 xh，>=100小时显示 xd
                 const ageStr = (() => {
                   const nowSec = Math.floor(Date.now() / 1000)
                   const diffSec = nowSec - lastUsedAt
                   if (diffSec < 0) return null
-                  const hours = diffSec / 3600
-                  const rounded = Math.round(hours)
-                  if (rounded > 99) {
-                    const days = Math.round(hours / 24)
-                    return `${days}D`
+                  const minutes = diffSec / 60
+                  if (minutes < 100) {
+                    return `${Math.round(minutes)}m`
                   }
-                  return `${rounded}H`
+                  const hours = diffSec / 3600
+                  if (hours < 100) {
+                    return `${Math.round(hours)}h`
+                  }
+                  const days = Math.round(hours / 24)
+                  return `${days}d`
                 })()
                 const usageTitle = `使用消耗次数：${count}${ageStr ? `，距上次使用：${ageStr}` : ''}`
                 const displayText = ageStr ? `${count}　${ageStr}` : `${count}`

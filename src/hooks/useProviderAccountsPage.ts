@@ -387,7 +387,7 @@ export function useProviderAccountsPage<TAccount extends ProviderAccountBase>(
   const [deletingTag, setDeletingTag] = useState(false);
   const tagFilterRef = useRef<HTMLDivElement | null>(null);
 
-  const normalizeTag = useCallback((tag: string) => tag.trim().toLowerCase(), []);
+  const normalizeTag = useCallback((tag: string) => tag.trim(), []);
 
   /** 去掉末尾连续数字以获得标签族名，如 xx1/xx2/x3 → xx */
   const normalizeTagGroup = useCallback(

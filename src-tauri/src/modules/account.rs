@@ -377,9 +377,9 @@ fn normalize_tags(tags: Vec<String>) -> Result<Vec<String>, String> {
         if trimmed.chars().count() > 20 {
             return Err("标签长度不能超过 20 个字符".to_string());
         }
-        let normalized = trimmed.to_lowercase();
-        if seen.insert(normalized.clone()) {
-            result.push(normalized);
+        let key = trimmed.to_lowercase();
+        if seen.insert(key) {
+            result.push(trimmed.to_string());
         }
     }
 

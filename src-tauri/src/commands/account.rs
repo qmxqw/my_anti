@@ -382,3 +382,14 @@ pub async fn trigger_smart_switch(app: AppHandle) -> Result<String, String> {
     let _ = crate::modules::tray::update_tray_menu(&app);
     Ok(result)
 }
+
+/// 更新当前帐号的 last_used_at 为当前时间（供定时刷新时调用）
+#[tauri::command]
+pub async fn touch_current_last_used() -> Result<(), String> {
+    let Some(id) = modules::get_current_account_id()? else {
+        return Ok(());
+    };
+    let mut account = modules::load_account(&id)?;
+    account.last_used_at = chrono::Utc::now().timestamp();
+    modules::save_account(&account)
+}
