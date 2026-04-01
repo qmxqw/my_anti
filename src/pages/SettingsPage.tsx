@@ -62,13 +62,14 @@ interface GeneralConfig {
   batch_refresh_skip_reset: boolean;
   refresh_sort_oldest_first: boolean;
   refresh_when_tray?: boolean;
+  ui_auto_refresh?: boolean;
   switch_quota_sort_mode: string;
   switch_sort_rules: string;
 
 }
 
 type AppPathTarget = 'antigravity' | 'codex' | 'vscode' | 'opencode' | 'windsurf' | 'kiro';
-const REFRESH_PRESET_VALUES = ['-1', '2', '5', '10', '15'];
+const REFRESH_PRESET_VALUES = ['-1', '1', '2', '5', '10', '15'];
 const THRESHOLD_PRESET_VALUES = ['0', '20', '40', '60'];
 const FALLBACK_PLATFORM_SETTINGS_ORDER: Record<PlatformId, number> = {
   antigravity: 0,
@@ -141,6 +142,7 @@ export function SettingsPage() {
   const [kiroQuotaAlertThreshold, setKiroQuotaAlertThreshold] = useState('20');
 
   const [refreshWhenTray, setRefreshWhenTray] = useState(false);
+  const [uiAutoRefresh, setUiAutoRefresh] = useState(false);
   const [switchQuotaSortMode, setSwitchQuotaSortMode] = useState('max_first');
   const [switchSortRules, setSwitchSortRules] = useState('');
 
@@ -342,6 +344,7 @@ export function SettingsPage() {
             : parsedKiroQuotaAlertThreshold,
 
           refreshWhenTray,
+          uiAutoRefresh,
           switchQuotaSortMode,
           switchSortRules,
 
@@ -392,6 +395,7 @@ export function SettingsPage() {
     kiroQuotaAlertThreshold,
 
     refreshWhenTray,
+    uiAutoRefresh,
     switchQuotaSortMode,
     switchSortRules,
 
@@ -573,6 +577,7 @@ export function SettingsPage() {
       setKiroQuotaAlertThreshold(String(config.kiro_quota_alert_threshold ?? 20));
 
       setRefreshWhenTray(Boolean(config.refresh_when_tray));
+      setUiAutoRefresh(Boolean(config.ui_auto_refresh));
       setSwitchQuotaSortMode(config.switch_quota_sort_mode || 'max_first');
       setSwitchSortRules(config.switch_sort_rules || '');
 
@@ -969,6 +974,7 @@ export function SettingsPage() {
                                 </option>
                               )}
                               <option value="-1" disabled={hasActiveResetTasks}>{t('settings.general.autoRefreshDisabled')}</option>
+                              <option value="1">1 {t('settings.general.minutes')}</option>
                               <option value="2">2 {t('settings.general.minutes')}</option>
                               <option value="5" disabled={hasActiveResetTasks}>5 {t('settings.general.minutes')}</option>
                               <option value="10" disabled={hasActiveResetTasks}>10 {t('settings.general.minutes')}</option>
@@ -1002,8 +1008,8 @@ export function SettingsPage() {
                     {autoRefresh !== '-1' && (
                       <div className="settings-row" style={{ animation: 'fadeUp 0.3s ease both' }}>
                         <div className="row-label">
-                          <div className="row-title">{t('settings.general.extraRefreshCount', '额外刷新帐号数')}</div>
-                          <div className="row-desc">{t('settings.general.extraRefreshCountDesc', '每次定时刷新时，除当前帐号外额外刷新的帐号数量')}</div>
+                          <div className="row-title">{t('settings.general.extraRefreshCount', '刷新数量')}</div>
+                          <div className="row-desc">{t('settings.general.extraRefreshCountDesc', '每次定时刷新时，筛选配额已重置的帐号进行刷新的数量')}</div>
                         </div>
                         <div className="row-control">
                           <select
@@ -1037,6 +1043,23 @@ export function SettingsPage() {
                             type="checkbox"
                             checked={refreshWhenTray}
                             onChange={(e) => setRefreshWhenTray(e.target.checked)}
+                          />
+                          <span className="slider"></span>
+                        </label>
+                      </div>
+                    </div>
+
+                    <div className="settings-row">
+                      <div className="row-label">
+                        <div className="row-title">{t('settings.general.uiAutoRefresh', 'UI定时刷新')}</div>
+                        <div className="row-desc">{t('settings.general.uiAutoRefreshDesc', '启用后每个刷新周期都会更新页面数据（如倒计时），不启用则页面保持稳定')}</div>
+                      </div>
+                      <div className="row-control">
+                        <label className="switch">
+                          <input
+                            type="checkbox"
+                            checked={uiAutoRefresh}
+                            onChange={(e) => setUiAutoRefresh(e.target.checked)}
                           />
                           <span className="slider"></span>
                         </label>

@@ -1620,7 +1620,7 @@ export function AccountsPage({ onNavigate }: AccountsPageProps) {
                   return `${rounded}H`
                 })()
                 const usageTitle = `使用消耗次数：${count}${ageStr ? `，距上次使用：${ageStr}` : ''}`
-                const displayText = ageStr ? `${count}_${ageStr}` : `${count}`
+                const displayText = ageStr ? `${count}　${ageStr}` : `${count}`
                 return (
                   <span
                     className="usage-count-tag"

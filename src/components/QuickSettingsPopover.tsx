@@ -40,6 +40,7 @@ interface GeneralConfig {
   extra_refresh_count: number;
   refresh_sort_oldest_first: boolean;
   refresh_when_tray?: boolean;
+  ui_auto_refresh?: boolean;
   switch_quota_sort_mode: string;
   switch_sort_rules: string;
 }
@@ -76,7 +77,7 @@ export function QuickSettingsPopover({ type }: QuickSettingsPopoverProps) {
   const [customThreshold, setCustomThreshold] = useState('');
   const [quotaAlertCustomThreshold, setQuotaAlertCustomThreshold] = useState('');
   const modalRef = useRef<HTMLDivElement>(null);
-  const refreshPresets = ['-1', '2', '5', '10', '15'];
+  const refreshPresets = ['-1', '1', '2', '5', '10', '15'];
   const thresholdPresets = ['0', '20', '40', '60'];
 
   // Load config when modal opens
@@ -198,6 +199,7 @@ export function QuickSettingsPopover({ type }: QuickSettingsPopoverProps) {
           extraRefreshCount: merged.extra_refresh_count,
           refreshSortOldestFirst: merged.refresh_sort_oldest_first,
           refreshWhenTray: merged.refresh_when_tray ?? false,
+          uiAutoRefresh: merged.ui_auto_refresh ?? false,
           switchQuotaSortMode: merged.switch_quota_sort_mode ?? 'max_first',
           switchSortRules: merged.switch_sort_rules ?? '',
         });
@@ -585,6 +587,7 @@ export function QuickSettingsPopover({ type }: QuickSettingsPopoverProps) {
                           </option>
                         )}
                         <option value="-1">{t('settings.general.autoRefreshDisabled')}</option>
+                        <option value="1">1 {t('settings.general.minutes')}</option>
                         <option value="2">2 {t('settings.general.minutes')}</option>
                         <option value="5">5 {t('settings.general.minutes')}</option>
                         <option value="10">10 {t('settings.general.minutes')}</option>
@@ -597,7 +600,7 @@ export function QuickSettingsPopover({ type }: QuickSettingsPopoverProps) {
                 {/* ─── Extra Refresh Count (global) ─── */}
                 <div className="qs-row" style={{ marginTop: 8 }}>
                   <div className="qs-row-label">
-                    <span>{t('settings.general.extraRefreshCount', '额外刷新帐号数')}</span>
+                    <span>{t('settings.general.extraRefreshCount', '刷新数量')}</span>
                   </div>
                   <div className="qs-row-control">
                     <select
@@ -628,6 +631,24 @@ export function QuickSettingsPopover({ type }: QuickSettingsPopoverProps) {
                           type="checkbox"
                           checked={Boolean(config.refresh_when_tray)}
                           onChange={(e) => saveConfig({ refresh_when_tray: e.target.checked })}
+                        />
+                        <span className="qs-switch-slider"></span>
+                      </label>
+                    </div>
+                  </div>
+                )}
+
+                {type === 'antigravity' && (
+                  <div className="qs-row" style={{ marginTop: 8 }}>
+                    <div className="qs-row-label">
+                      <span>{t('settings.general.uiAutoRefresh', 'UI定时刷新')}</span>
+                    </div>
+                    <div className="qs-row-control">
+                      <label className="qs-switch">
+                        <input
+                          type="checkbox"
+                          checked={Boolean(config.ui_auto_refresh)}
+                          onChange={(e) => saveConfig({ ui_auto_refresh: e.target.checked })}
                         />
                         <span className="qs-switch-slider"></span>
                       </label>

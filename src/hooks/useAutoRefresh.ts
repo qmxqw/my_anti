@@ -11,14 +11,13 @@ import type { Account } from '../types/account';
 
 /**
  * 从账号列表中筛选智能刷新候选账号。
- * 条件：非当前账号、未禁用、任意 claude* 模型额度 100% 或已重置。
- * 返回按 quota.last_updated 升序排序（最久没刷新的优先）。
+ * 条件：未禁用、任意 claude* 模型 reset_time 已过期（配额已重置）。
+ * 返回按 created_at 排序（方向取决于 sortOldestFirst 配置）。
  */
-function findSmartRefreshCandidates(accounts: Account[], currentAccountId: string | undefined, sortOldestFirst: boolean, skipLastUpdatedSort = false): Account[] {
+function findSmartRefreshCandidates(accounts: Account[], _currentAccountId: string | undefined, sortOldestFirst: boolean): Account[] {
   const now = Date.now();
   return accounts
     .filter((acc) => {
-      if (acc.id === currentAccountId) return false;
       if (acc.disabled) return false;
       if (!acc.quota?.models?.length) return false;
 
@@ -28,11 +27,10 @@ function findSmartRefreshCandidates(accounts: Account[], currentAccountId: strin
       if (!rawTier) return false; // UNKNOWN
       // ULTRA/PRO/FREE 都是有效等级，不过滤
 
+      // 只刷新配额已重置的帐号（reset_time 已过期）
       return acc.quota.models.some((m) => {
         const name = (m.name || '').toLowerCase();
         if (!name.startsWith('claude')) return false;
-        // 额度 100% 或 reset_time 已过期（已重置）
-        if (m.percentage === 100) return true;
         if (m.reset_time) {
           const resetDate = new Date(m.reset_time).getTime();
           if (!Number.isNaN(resetDate) && resetDate <= now) return true;
@@ -41,28 +39,7 @@ function findSmartRefreshCandidates(accounts: Account[], currentAccountId: strin
       });
     })
     .sort((a, b) => {
-      // 第一优先级：已重置账号（reset_time 已过期）优先于纯额度 100% 账号
-      const isReset = (acc: Account) =>
-        acc.quota?.models?.some((m) => {
-          if (!(m.name || '').toLowerCase().startsWith('claude')) return false;
-          if (!m.reset_time) return false;
-          const ts = new Date(m.reset_time).getTime();
-          return !Number.isNaN(ts) && ts <= now;
-        }) ?? false;
-      const aIsReset = isReset(a);
-      const bIsReset = isReset(b);
-      if (aIsReset !== bIsReset) return aIsReset ? -1 : 1;
-
-      // 第二优先级：按 last_updated 升序（60秒容差外）
-      if (!skipLastUpdatedSort) {
-        const aUpdated = a.quota?.last_updated ?? 0;
-        const bUpdated = b.quota?.last_updated ?? 0;
-        const diff = aUpdated - bUpdated;
-        if (Math.abs(diff) > 60) {
-          return diff;
-        }
-      }
-      // fallback：按 created_at 排序（方向取决于配置）
+      // 按 created_at 排序（方向取决于配置）
       if (sortOldestFirst) {
         return (a.created_at ?? 0) - (b.created_at ?? 0);
       }
@@ -90,6 +67,7 @@ interface GeneralConfig {
   extra_refresh_count?: number;
   refresh_sort_oldest_first?: boolean;
   refresh_when_tray?: boolean;
+  ui_auto_refresh?: boolean;
   switch_sort_rules?: string;
 }
 
@@ -293,7 +271,7 @@ export function useAutoRefresh() {
           if (config.auto_refresh_minutes > 0) {
             const extraCount = config.extra_refresh_count ?? 0;
             const traySkip = config.refresh_when_tray ?? false;
-            console.log(`[AutoRefresh] Antigravity 已启用: 每 ${config.auto_refresh_minutes} 分钟（额外刷新: ${extraCount} 个帐号，托盘跳过: ${traySkip}）`);
+            console.log(`[AutoRefresh] Antigravity 已启用: 每 ${config.auto_refresh_minutes} 分钟（刷新数量: ${extraCount}，托盘跳过: ${traySkip}）`);
             const agMs = config.auto_refresh_minutes * 60 * 1000;
 
             scheduleAligned(agMs, async () => {
@@ -303,19 +281,11 @@ export function useAutoRefresh() {
               agRefreshingRef.current = true;
 
               try {
-                // Step A: 始终刷新当前账号
-                try {
-                  await invoke('refresh_current_quota');
-                  console.log('[AutoRefresh] 当前账号配额已刷新');
-                } catch (e) {
-                  console.error('[AutoRefresh] 当前账号刷新失败:', e);
-                }
-
-                // Step B: 额外刷新候选账号
+                // 统一筛选所有帐号，只刷新配额已重置的
                 if (extraCount > 0) {
-                  await fetchAccounts();
+                  // 静默获取帐号列表用于筛选，不触发 store 更新（避免 UI 闪动）
+                  const allAccounts = await invoke<Account[]>('list_accounts');
                   const currentAccount = useAccountStore.getState().currentAccount;
-                  const allAccounts = useAccountStore.getState().accounts;
                   // 从 switch_sort_rules 中读取 created_at 方向（即使被禁用也可读取值）
                   let sortOldestFirst = false;
                   try {
@@ -327,23 +297,31 @@ export function useAutoRefresh() {
                   const toRefresh = candidates.slice(0, extraCount);
 
                   if (toRefresh.length > 0) {
-                    console.log(`[AutoRefresh] 额外刷新 ${toRefresh.length} 个候选账号`);
+                    console.log(`[AutoRefresh] 刷新 ${toRefresh.length} 个已重置账号`);
                     for (const candidate of toRefresh) {
                       try {
                         await invoke('fetch_account_quota', { accountId: candidate.id });
-                        console.log(`[AutoRefresh] 候选账号 ${candidate.email} 配额已刷新`);
+                        console.log(`[AutoRefresh] 账号 ${candidate.email} 配额已刷新`);
                       } catch (e) {
-                        console.error(`[AutoRefresh] 候选账号 ${candidate.email} 刷新失败:`, e);
+                        console.error(`[AutoRefresh] 账号 ${candidate.email} 刷新失败:`, e);
                       }
                     }
+                    // 有帐号被刷新时更新前端 UI
+                    await fetchAccounts();
+                    await fetchCurrentAccount();
                   } else {
-                    console.log('[AutoRefresh] 无符合条件的候选账号');
+                    console.log('[AutoRefresh] 无配额已重置的候选账号');
+                    // 启用 UI 定时刷新时，即使无帐号被刷新也更新 UI 数据（如倒计时）
+                    if (config.ui_auto_refresh) {
+                      await fetchAccounts();
+                      await fetchCurrentAccount();
+                    }
                   }
+                } else if (config.ui_auto_refresh) {
+                  // 刷新数量为 0 但启用了 UI 定时刷新
+                  await fetchAccounts();
+                  await fetchCurrentAccount();
                 }
-
-                // Step C: 更新前端 UI
-                await fetchAccounts();
-                await fetchCurrentAccount();
               } catch (e) {
                 console.error('[AutoRefresh] 刷新失败:', e);
               } finally {

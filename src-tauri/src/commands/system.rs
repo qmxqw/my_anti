@@ -94,6 +94,8 @@ pub struct GeneralConfig {
     pub refresh_sort_oldest_first: bool,
     /// 托盘区（窗口隐藏时）是否仍然执行刷新
     pub refresh_when_tray: bool,
+    /// 是否在每个定时周期无条件刷新前端 UI 数据
+    pub ui_auto_refresh: bool,
     /// 快速切号额度排序模式："max_first" | "min_first"
     pub switch_quota_sort_mode: String,
     /// 切号排序规则列表（JSON 字符串）
@@ -209,6 +211,7 @@ pub fn save_network_config(ws_enabled: bool, ws_port: u16) -> Result<bool, Strin
 
         refresh_sort_oldest_first: current.refresh_sort_oldest_first,
         refresh_when_tray: current.refresh_when_tray,
+        ui_auto_refresh: current.ui_auto_refresh,
         switch_quota_sort_mode: current.switch_quota_sort_mode.clone(),
         switch_sort_rules: current.switch_sort_rules.clone(),
     };
@@ -270,6 +273,7 @@ pub fn get_general_config() -> Result<GeneralConfig, String> {
 
         refresh_sort_oldest_first: user_config.refresh_sort_oldest_first,
         refresh_when_tray: user_config.refresh_when_tray,
+        ui_auto_refresh: user_config.ui_auto_refresh,
         switch_quota_sort_mode: user_config.switch_quota_sort_mode.clone(),
         switch_sort_rules: user_config.switch_sort_rules.clone(),
     })
@@ -315,6 +319,7 @@ pub fn save_general_config(
 
     refresh_sort_oldest_first: Option<bool>,
     refresh_when_tray: Option<bool>,
+    ui_auto_refresh: Option<bool>,
     switch_quota_sort_mode: Option<String>,
     switch_sort_rules: Option<String>,
 ) -> Result<(), String> {
@@ -401,6 +406,7 @@ pub fn save_general_config(
         refresh_sort_oldest_first: refresh_sort_oldest_first
             .unwrap_or(current.refresh_sort_oldest_first),
         refresh_when_tray: refresh_when_tray.unwrap_or(current.refresh_when_tray),
+        ui_auto_refresh: ui_auto_refresh.unwrap_or(current.ui_auto_refresh),
         switch_quota_sort_mode: switch_quota_sort_mode
             .unwrap_or(current.switch_quota_sort_mode),
         switch_sort_rules: switch_sort_rules
