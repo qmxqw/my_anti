@@ -1389,24 +1389,25 @@ pub async fn hotkey_smart_switch() -> Result<String, String> {
         })
         .collect();
 
-    // ── 4. 按 created_at 排序（方向取决于配置中"创建时间"toggle） ──
+    // ── 4. 按配置的排序字段和方向排序 ──
     let user_cfg = crate::modules::config::get_user_config();
 
-    // 默认 false = 升序(旧→新)；true = 降序(新→旧)
-    let created_at_desc = user_cfg.switch_created_at_desc;
+    let sort_field = user_cfg.switch_sort_field.as_str();
+    let sort_desc = user_cfg.switch_sort_desc;
 
     candidates.sort_by(|a, b| {
-        if created_at_desc {
-            b.created_at.cmp(&a.created_at)
-        } else {
-            a.created_at.cmp(&b.created_at)
-        }
+        let cmp = match sort_field {
+            "last_used_at" => a.last_used_at.cmp(&b.last_used_at),
+            _ => a.created_at.cmp(&b.created_at), // 默认 created_at
+        };
+        if sort_desc { cmp.reverse() } else { cmp }
     });
 
     modules::logger::log_info(&format!(
-        "[Hotkey] 候选帐号 {} 个，按 created_at {} 排序",
+        "[Hotkey] 候选帐号 {} 个，按 {} {} 排序",
         candidates.len(),
-        if created_at_desc { "降序(新→旧)" } else { "升序(旧→新)" }
+        sort_field,
+        if sort_desc { "降序" } else { "升序" }
     ));
 
     if candidates.is_empty() {

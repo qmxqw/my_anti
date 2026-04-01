@@ -14,37 +14,67 @@ import type { Account } from '../types/account';
  * 条件：未禁用、任意 claude* 模型 reset_time 已过期（配额已重置）。
  * 返回按 created_at 排序（方向取决于 sortOldestFirst 配置）。
  */
-function findSmartRefreshCandidates(accounts: Account[], _currentAccountId: string | undefined, sortOldestFirst: boolean): Account[] {
+/**
+ * 判断账号是否有任意 claude* 模型额度 < 100%（即已被使用过）。
+ */
+function hasPartialQuota(acc: Account): boolean {
+  return (acc.quota?.models ?? []).some((m) => {
+    const name = (m.name || '').toLowerCase();
+    return name.startsWith('claude') && m.percentage < 100;
+  });
+}
+
+/**
+ * 从账号列表中筛选智能刷新候选账号。
+ * 条件：未禁用、任意 claude* 模型 reset_time 已过期（配额已重置）。
+ *
+ * 返回列表按两段优先级排列：
+ *   1. 有任意 claude* 额度 < 100%（已使用过）的账号 —— 按 sortField/sortDesc 排序
+ *   2. 所有 claude* 额度均 >= 100%（全满未使用）的账号 —— 按 sortField/sortDesc 排序（补充）
+ * 排序字段：sortField = 'created_at'（创建时间）| 'last_used_at'（最近使用时间）
+ * 排序方向：sortDesc = false 升序，true 降序
+ */
+function findSmartRefreshCandidates(
+  accounts: Account[],
+  _currentAccountId: string | undefined,
+  sortField: 'created_at' | 'last_used_at',
+  sortDesc: boolean,
+): Account[] {
   const now = Date.now();
-  return accounts
-    .filter((acc) => {
-      if (acc.disabled) return false;
-      if (!acc.quota?.models?.length) return false;
 
-      // 排除 UNKNOWN 等级帐号，逻辑与 getSubscriptionTier 保持一致：
-      // subscription_tier 为空 → UNKNOWN；含 ultra → ULTRA；含 pro → PRO；其他 → FREE
-      const rawTier = (acc.quota.subscription_tier ?? '').trim().toLowerCase();
-      if (!rawTier) return false; // UNKNOWN
-      // ULTRA/PRO/FREE 都是有效等级，不过滤
+  const sortFn = (a: Account, b: Account) => {
+    const va = sortField === 'last_used_at' ? (a.last_used_at ?? 0) : (a.created_at ?? 0);
+    const vb = sortField === 'last_used_at' ? (b.last_used_at ?? 0) : (b.created_at ?? 0);
+    return sortDesc ? vb - va : va - vb;
+  };
 
-      // 只刷新配额已重置的帐号（reset_time 已过期）
-      return acc.quota.models.some((m) => {
-        const name = (m.name || '').toLowerCase();
-        if (!name.startsWith('claude')) return false;
-        if (m.reset_time) {
-          const resetDate = new Date(m.reset_time).getTime();
-          if (!Number.isNaN(resetDate) && resetDate <= now) return true;
-        }
-        return false;
-      });
-    })
-    .sort((a, b) => {
-      // 按 created_at 排序（方向取决于配置）
-      if (sortOldestFirst) {
-        return (a.created_at ?? 0) - (b.created_at ?? 0);
+  const candidates = accounts.filter((acc) => {
+    if (acc.disabled) return false;
+    if (!acc.quota?.models?.length) return false;
+
+    // 排除 UNKNOWN 等级帐号，逻辑与 getSubscriptionTier 保持一致：
+    // subscription_tier 为空 → UNKNOWN；含 ultra → ULTRA；含 pro → PRO；其他 → FREE
+    const rawTier = (acc.quota.subscription_tier ?? '').trim().toLowerCase();
+    if (!rawTier) return false; // UNKNOWN
+    // ULTRA/PRO/FREE 都是有效等级，不过滤
+
+    // 只刷新配额已重置的帐号（reset_time 已过期）
+    return acc.quota.models.some((m) => {
+      const name = (m.name || '').toLowerCase();
+      if (!name.startsWith('claude')) return false;
+      if (m.reset_time) {
+        const resetDate = new Date(m.reset_time).getTime();
+        if (!Number.isNaN(resetDate) && resetDate <= now) return true;
       }
-      return (b.created_at ?? 0) - (a.created_at ?? 0);
+      return false;
     });
+  });
+
+  // 分组：已使用（claude* 额度 < 100%）优先，全满（claude* 额度 >= 100%）补充
+  const partial = candidates.filter(hasPartialQuota).sort(sortFn);
+  const full    = candidates.filter((a) => !hasPartialQuota(a)).sort(sortFn);
+
+  return [...partial, ...full];
 }
 
 interface GeneralConfig {
@@ -70,6 +100,8 @@ interface GeneralConfig {
   ui_auto_refresh?: boolean;
   switch_sort_rules?: string;
   switch_created_at_desc?: boolean;
+  switch_sort_field?: string;
+  switch_sort_desc?: boolean;
 }
 
 export function useAutoRefresh() {
@@ -290,9 +322,10 @@ export function useAutoRefresh() {
                   // 静默获取帐号列表用于筛选，不触发 store 更新（避免 UI 闪动）
                   const allAccounts = await invoke<Account[]>('list_accounts');
                   const currentAccount = useAccountStore.getState().currentAccount;
-                  // 从配置中直接读取 created_at 排序方向
-                  const sortOldestFirst = !config.switch_created_at_desc;
-                  const candidates = findSmartRefreshCandidates(allAccounts, currentAccount?.id, sortOldestFirst);
+                  // 读取快速切号的排序配置（field + desc 两维）
+                  const sortField = (config.switch_sort_field === 'last_used_at' ? 'last_used_at' : 'created_at') as 'created_at' | 'last_used_at';
+                  const sortDesc  = config.switch_sort_desc ?? false;
+                  const candidates = findSmartRefreshCandidates(allAccounts, currentAccount?.id, sortField, sortDesc);
                   const toRefresh = candidates.slice(0, extraCount);
 
                   if (toRefresh.length > 0) {

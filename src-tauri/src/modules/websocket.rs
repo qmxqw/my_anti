@@ -800,6 +800,8 @@ fn handle_set_language(language: &str, source: Option<&str>) -> Result<String, S
         switch_quota_sort_mode: current.switch_quota_sort_mode,
         switch_sort_rules: current.switch_sort_rules,
         switch_created_at_desc: current.switch_created_at_desc,
+        switch_sort_field: current.switch_sort_field,
+        switch_sort_desc: current.switch_sort_desc,
     };
 
     config::save_user_config(&new_config)?;

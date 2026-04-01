@@ -162,8 +162,15 @@ pub struct UserConfig {
     #[serde(default = "default_switch_sort_rules")]
     pub switch_sort_rules: String,
     /// 快速切号排序方向：false=按 created_at 升序（旧帐号优先，默认），true=降序（新帐号优先）
+    /// ⚠️ [legacy] 已被 switch_sort_desc 替代，保留字段用于旧配置反序列化兼容
     #[serde(default = "default_switch_created_at_desc")]
     pub switch_created_at_desc: bool,
+    /// 快速切号排序依据："created_at"=按创建时间（默认），"last_used_at"=按使用时间
+    #[serde(default = "default_switch_sort_field")]
+    pub switch_sort_field: String,
+    /// 快速切号排序方向：false=升序（默认），true=降序
+    #[serde(default = "default_switch_sort_desc")]
+    pub switch_sort_desc: bool,
 }
 
 /// 窗口关闭行为
@@ -311,7 +318,7 @@ fn default_refresh_sort_oldest_first() -> bool {
 }
 
 fn default_refresh_when_tray() -> bool {
-    false
+    true
 }
 
 fn default_ui_auto_refresh() -> bool {
@@ -327,6 +334,14 @@ fn default_switch_sort_rules() -> String {
 }
 
 fn default_switch_created_at_desc() -> bool {
+    false
+}
+
+fn default_switch_sort_field() -> String {
+    "created_at".to_string()
+}
+
+fn default_switch_sort_desc() -> bool {
     false
 }
 
@@ -375,6 +390,8 @@ impl Default for UserConfig {
             switch_quota_sort_mode: default_switch_quota_sort_mode(),
             switch_sort_rules: default_switch_sort_rules(),
             switch_created_at_desc: default_switch_created_at_desc(),
+            switch_sort_field: default_switch_sort_field(),
+            switch_sort_desc: default_switch_sort_desc(),
         }
     }
 }
@@ -554,6 +571,15 @@ pub fn load_user_config() -> Result<UserConfig, String> {
                 ),
             };
             obj.insert("switch_sort_rules".to_string(), json!(migrated));
+        }
+
+        // 旧配置迁移：switch_created_at_desc → switch_sort_desc
+        if !obj.contains_key("switch_sort_desc") {
+            let legacy_desc = obj.get("switch_created_at_desc").and_then(|v| v.as_bool()).unwrap_or(false);
+            obj.insert("switch_sort_desc".to_string(), json!(legacy_desc));
+        }
+        if !obj.contains_key("switch_sort_field") {
+            obj.insert("switch_sort_field".to_string(), json!("created_at"));
         }
     }
 

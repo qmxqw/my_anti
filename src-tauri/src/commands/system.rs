@@ -100,8 +100,12 @@ pub struct GeneralConfig {
     pub switch_quota_sort_mode: String,
     /// 切号排序规则列表（JSON 字符串） [legacy]
     pub switch_sort_rules: String,
-    /// 快速切号排序方向：false=升序（旧帐号优先），true=降序（新帐号优先）
+    /// 快速切号排序方向：false=升序（旧帐号优先），true=降序（新帐号优先） [legacy]
     pub switch_created_at_desc: bool,
+    /// 快速切号排序依据："created_at" | "last_used_at"
+    pub switch_sort_field: String,
+    /// 快速切号排序方向：false=升序，true=降序
+    pub switch_sort_desc: bool,
 }
 
 #[tauri::command]
@@ -217,6 +221,8 @@ pub fn save_network_config(ws_enabled: bool, ws_port: u16) -> Result<bool, Strin
         switch_quota_sort_mode: current.switch_quota_sort_mode.clone(),
         switch_sort_rules: current.switch_sort_rules.clone(),
         switch_created_at_desc: current.switch_created_at_desc,
+        switch_sort_field: current.switch_sort_field.clone(),
+        switch_sort_desc: current.switch_sort_desc,
     };
 
     config::save_user_config(&new_config)?;
@@ -280,6 +286,8 @@ pub fn get_general_config() -> Result<GeneralConfig, String> {
         switch_quota_sort_mode: user_config.switch_quota_sort_mode.clone(),
         switch_sort_rules: user_config.switch_sort_rules.clone(),
         switch_created_at_desc: user_config.switch_created_at_desc,
+        switch_sort_field: user_config.switch_sort_field.clone(),
+        switch_sort_desc: user_config.switch_sort_desc,
     })
 }
 
@@ -327,6 +335,8 @@ pub fn save_general_config(
     switch_quota_sort_mode: Option<String>,
     switch_sort_rules: Option<String>,
     switch_created_at_desc: Option<bool>,
+    switch_sort_field: Option<String>,
+    switch_sort_desc: Option<bool>,
 ) -> Result<(), String> {
     let current = config::get_user_config();
     let normalized_opencode_path = opencode_app_path.trim().to_string();
@@ -418,6 +428,10 @@ pub fn save_general_config(
             .unwrap_or(current.switch_sort_rules),
         switch_created_at_desc: switch_created_at_desc
             .unwrap_or(current.switch_created_at_desc),
+        switch_sort_field: switch_sort_field
+            .unwrap_or(current.switch_sort_field),
+        switch_sort_desc: switch_sort_desc
+            .unwrap_or(current.switch_sort_desc),
     };
 
     config::save_user_config(&new_config)?;

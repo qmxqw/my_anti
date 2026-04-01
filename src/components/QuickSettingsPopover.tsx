@@ -44,6 +44,8 @@ interface GeneralConfig {
   switch_quota_sort_mode: string;
   switch_sort_rules: string;
   switch_created_at_desc: boolean;
+  switch_sort_field: string;
+  switch_sort_desc: boolean;
 }
 
 export type QuickSettingsType = 'antigravity' | 'codex' | 'github_copilot' | 'windsurf' | 'kiro';
@@ -78,7 +80,7 @@ export function QuickSettingsPopover({ type }: QuickSettingsPopoverProps) {
   const [customThreshold, setCustomThreshold] = useState('');
   const [quotaAlertCustomThreshold, setQuotaAlertCustomThreshold] = useState('');
   const modalRef = useRef<HTMLDivElement>(null);
-  const refreshPresets = ['-1', '1', '2', '5', '10', '15'];
+  const refreshPresets = ['1', '2', '5', '10', '15'];
   const thresholdPresets = ['0', '20', '40', '60'];
 
   // Load config when modal opens
@@ -199,11 +201,13 @@ export function QuickSettingsPopover({ type }: QuickSettingsPopoverProps) {
           kiroQuotaAlertThreshold: merged.kiro_quota_alert_threshold,
           extraRefreshCount: merged.extra_refresh_count,
           refreshSortOldestFirst: merged.refresh_sort_oldest_first,
-          refreshWhenTray: merged.refresh_when_tray ?? false,
+          refreshWhenTray: merged.refresh_when_tray ?? true,
           uiAutoRefresh: merged.ui_auto_refresh ?? false,
           switchQuotaSortMode: merged.switch_quota_sort_mode ?? 'max_first',
           switchSortRules: merged.switch_sort_rules ?? '',
           switchCreatedAtDesc: merged.switch_created_at_desc ?? false,
+          switchSortField: merged.switch_sort_field ?? 'created_at',
+          switchSortDesc: merged.switch_sort_desc ?? false,
         });
         window.dispatchEvent(new Event('config-updated'));
       } catch (err) {
@@ -554,9 +558,24 @@ export function QuickSettingsPopover({ type }: QuickSettingsPopoverProps) {
               <div className="qs-field-group">
                 <div className="qs-row">
                   <div className="qs-row-label">
-                    <span>{t('quickSettings.refreshIntervalLabel', '刷新间隔')}</span>
+                    <span>{t('quickSettings.refreshCountAndInterval', '刷新数量/间隔')}</span>
                   </div>
-                  <div className="qs-row-control">
+                  <div className="qs-row-control" style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                    <select
+                      className="qs-select"
+                      style={{ minWidth: 56 }}
+                      value={String(config.extra_refresh_count ?? 0)}
+                      onChange={(e) => saveConfig({ extra_refresh_count: parseInt(e.target.value, 10) })}
+                    >
+                      <option value="0">0</option>
+                      <option value="1">1</option>
+                      <option value="2">2</option>
+                      <option value="3">3</option>
+                      <option value="4">4</option>
+                      <option value="5">5</option>
+                      <option value="10">10</option>
+                      <option value="20">20</option>
+                    </select>
                     {showRefreshInput ? (
                       <div className="qs-inline-input">
                         <input
@@ -588,7 +607,6 @@ export function QuickSettingsPopover({ type }: QuickSettingsPopoverProps) {
                             {refreshValue} {t('settings.general.minutes')}
                           </option>
                         )}
-                        <option value="-1">{t('settings.general.autoRefreshDisabled')}</option>
                         <option value="1">1 {t('settings.general.minutes')}</option>
                         <option value="2">2 {t('settings.general.minutes')}</option>
                         <option value="5">5 {t('settings.general.minutes')}</option>
@@ -599,46 +617,6 @@ export function QuickSettingsPopover({ type }: QuickSettingsPopoverProps) {
                     )}
                   </div>
                 </div>
-                {/* ─── Extra Refresh Count (global) ─── */}
-                <div className="qs-row" style={{ marginTop: 8 }}>
-                  <div className="qs-row-label">
-                    <span>{t('settings.general.extraRefreshCount', '刷新数量')}</span>
-                  </div>
-                  <div className="qs-row-control">
-                    <select
-                      className="qs-select"
-                      value={String(config.extra_refresh_count ?? 0)}
-                      onChange={(e) => saveConfig({ extra_refresh_count: parseInt(e.target.value, 10) })}
-                    >
-                      <option value="0">0</option>
-                      <option value="1">1</option>
-                      <option value="2">2</option>
-                      <option value="3">3</option>
-                      <option value="4">4</option>
-                      <option value="5">5</option>
-                      <option value="10">10</option>
-                      <option value="20">20</option>
-                    </select>
-                  </div>
-                </div>
-
-                {type === 'antigravity' && (
-                  <div className="qs-row" style={{ marginTop: 8 }}>
-                    <div className="qs-row-label">
-                      <span>{t('settings.general.refreshWhenTray', '保持后台刷新')}</span>
-                    </div>
-                    <div className="qs-row-control">
-                      <label className="qs-switch">
-                        <input
-                          type="checkbox"
-                          checked={Boolean(config.refresh_when_tray)}
-                          onChange={(e) => saveConfig({ refresh_when_tray: e.target.checked })}
-                        />
-                        <span className="qs-switch-slider"></span>
-                      </label>
-                    </div>
-                  </div>
-                )}
 
                 {type === 'antigravity' && (
                   <div className="qs-row" style={{ marginTop: 8 }}>
@@ -765,6 +743,32 @@ export function QuickSettingsPopover({ type }: QuickSettingsPopoverProps) {
 
                 <div className="qs-row">
                   <div className="qs-row-label">
+                    <span>{t('quickSettings.switchSortField.label', '快速切号依据')}</span>
+                  </div>
+                  <div className="qs-row-control" style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                    <select
+                      className="qs-select"
+                      style={{ minWidth: 90 }}
+                      value={config.switch_sort_field ?? 'created_at'}
+                      onChange={(e) => saveConfig({ switch_sort_field: e.target.value })}
+                    >
+                      <option value="created_at">{t('quickSettings.switchSortField.createdAt', '创建时间')}</option>
+                      <option value="last_used_at">{t('quickSettings.switchSortField.lastUsedAt', '使用时间')}</option>
+                    </select>
+                    <select
+                      className="qs-select"
+                      style={{ minWidth: 70 }}
+                      value={config.switch_sort_desc ? 'desc' : 'asc'}
+                      onChange={(e) => saveConfig({ switch_sort_desc: e.target.value === 'desc' })}
+                    >
+                      <option value="asc">{t('quickSettings.switchSortField.asc', '升序')}</option>
+                      <option value="desc">{t('quickSettings.switchSortField.desc', '降序')}</option>
+                    </select>
+                  </div>
+                </div>
+
+                <div className="qs-row">
+                  <div className="qs-row-label">
                     <span>{t('quickSettings.autoSwitch.enable', '启用自动切号')}</span>
                   </div>
                   <div className="qs-row-control">
@@ -846,27 +850,6 @@ export function QuickSettingsPopover({ type }: QuickSettingsPopoverProps) {
                     </div>
                   </div>
                 )}
-
-                <div className="qs-row" style={{ marginTop: 6 }}>
-                  <div className="qs-row-label">
-                    <span>{t('quickSettings.switchQuotaSort.createdAtDesc', '创建时间排序')}</span>
-                  </div>
-                  <div className="qs-row-control" style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                    <span style={{ fontSize: 12, opacity: 0.6 }}>
-                      {config.switch_created_at_desc
-                        ? t('quickSettings.switchQuotaSort.newestFirst', '新→旧')
-                        : t('quickSettings.switchQuotaSort.oldestFirst', '旧→新')}
-                    </span>
-                    <label className="qs-switch qs-switch--small">
-                      <input
-                        type="checkbox"
-                        checked={config.switch_created_at_desc}
-                        onChange={(e) => saveConfig({ switch_created_at_desc: e.target.checked })}
-                      />
-                      <span className="qs-switch-slider"></span>
-                    </label>
-                  </div>
-                </div>
 
                 {renderQuotaAlertControls()}
               </div>

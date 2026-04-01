@@ -65,11 +65,13 @@ interface GeneralConfig {
   switch_quota_sort_mode: string;
   switch_sort_rules: string;
   switch_created_at_desc: boolean;
+  switch_sort_field: string;
+  switch_sort_desc: boolean;
 
 }
 
 type AppPathTarget = 'antigravity' | 'codex' | 'vscode' | 'opencode' | 'windsurf' | 'kiro';
-const REFRESH_PRESET_VALUES = ['-1', '1', '2', '5', '10', '15'];
+const REFRESH_PRESET_VALUES = ['1', '2', '5', '10', '15'];
 const THRESHOLD_PRESET_VALUES = ['0', '20', '40', '60'];
 const FALLBACK_PLATFORM_SETTINGS_ORDER: Record<PlatformId, number> = {
   antigravity: 0,
@@ -141,9 +143,9 @@ export function SettingsPage() {
   const [kiroQuotaAlertEnabled, setKiroQuotaAlertEnabled] = useState(false);
   const [kiroQuotaAlertThreshold, setKiroQuotaAlertThreshold] = useState('20');
 
-  const [refreshWhenTray, setRefreshWhenTray] = useState(false);
   const [uiAutoRefresh, setUiAutoRefresh] = useState(false);
-  const [switchCreatedAtDesc, setSwitchCreatedAtDesc] = useState(false);
+  const [switchSortField, setSwitchSortField] = useState('created_at');
+  const [switchSortDesc, setSwitchSortDesc] = useState(false);
 
 
   const [autoRefreshCustomMode, setAutoRefreshCustomMode] = useState(false);
@@ -281,7 +283,7 @@ export function SettingsPage() {
       return;
     }
 
-    const autoRefreshNum = parseInt(autoRefresh, 10) || -1;
+    const autoRefreshNum = parseInt(autoRefresh, 10) || 10;
     const codexAutoRefreshNum = parseInt(codexAutoRefresh, 10) || -1;
     const ghcpAutoRefreshNum = parseInt(ghcpAutoRefresh, 10) || -1;
     const windsurfAutoRefreshNum = parseInt(windsurfAutoRefresh, 10) || -1;
@@ -342,9 +344,10 @@ export function SettingsPage() {
             ? 20
             : parsedKiroQuotaAlertThreshold,
 
-          refreshWhenTray,
+          refreshWhenTray: true,
           uiAutoRefresh,
-          switchCreatedAtDesc,
+          switchSortField,
+          switchSortDesc,
 
         });
         window.dispatchEvent(new Event('config-updated'));
@@ -392,9 +395,9 @@ export function SettingsPage() {
     kiroQuotaAlertEnabled,
     kiroQuotaAlertThreshold,
 
-    refreshWhenTray,
     uiAutoRefresh,
-    switchCreatedAtDesc,
+    switchSortField,
+    switchSortDesc,
 
     t,
   ]);
@@ -573,9 +576,9 @@ export function SettingsPage() {
       setKiroQuotaAlertEnabled(config.kiro_quota_alert_enabled ?? false);
       setKiroQuotaAlertThreshold(String(config.kiro_quota_alert_threshold ?? 20));
 
-      setRefreshWhenTray(Boolean(config.refresh_when_tray));
       setUiAutoRefresh(Boolean(config.ui_auto_refresh));
-      setSwitchCreatedAtDesc(Boolean(config.switch_created_at_desc));
+      setSwitchSortField(config.switch_sort_field || 'created_at');
+      setSwitchSortDesc(Boolean(config.switch_sort_desc));
 
 
       setAutoRefreshCustomMode(false);
@@ -917,11 +920,26 @@ export function SettingsPage() {
                   <div className="settings-group">
                     <div className="settings-row">
                       <div className="row-label">
-                        <div className="row-title">{t('settings.general.autoRefresh')}</div>
-                        <div className="row-desc">{t('settings.general.autoRefreshDesc')}</div>
+                        <div className="row-title">{t('settings.general.refreshCountAndInterval', '刷新数量/间隔')}</div>
+                        <div className="row-desc">{t('settings.general.refreshCountAndIntervalDesc', '每次定时刷新时，筛选配额已重置的帐号进行刷新的数量和时间间隔')}</div>
                       </div>
                       <div className="row-control">
                         <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+                          <select
+                            className="settings-select"
+                            style={{ minWidth: '70px', width: 'auto' }}
+                            value={extraRefreshCount}
+                            onChange={(e) => setExtraRefreshCount(e.target.value)}
+                          >
+                            <option value="0">0</option>
+                            <option value="1">1</option>
+                            <option value="2">2</option>
+                            <option value="3">3</option>
+                            <option value="4">4</option>
+                            <option value="5">5</option>
+                            <option value="10">10</option>
+                            <option value="20">20</option>
+                          </select>
                           {autoRefreshCustomMode ? (
                             <div className="settings-inline-input" style={{ minWidth: '120px', width: 'auto' }}>
                               <input
@@ -957,7 +975,7 @@ export function SettingsPage() {
                                 const val = e.target.value;
                                 if (val === 'custom') {
                                   setAutoRefreshCustomMode(true);
-                                  setAutoRefresh(autoRefresh !== '-1' ? autoRefresh : '1');
+                                  setAutoRefresh(autoRefresh);
                                   return;
                                 }
                                 setAutoRefreshCustomMode(false);
@@ -969,7 +987,6 @@ export function SettingsPage() {
                                   {autoRefresh} {t('settings.general.minutes')}
                                 </option>
                               )}
-                              <option value="-1" disabled={hasActiveResetTasks}>{t('settings.general.autoRefreshDisabled')}</option>
                               <option value="1">1 {t('settings.general.minutes')}</option>
                               <option value="2">2 {t('settings.general.minutes')}</option>
                               <option value="5" disabled={hasActiveResetTasks}>5 {t('settings.general.minutes')}</option>
@@ -978,7 +995,6 @@ export function SettingsPage() {
                               <option value="custom" disabled={hasActiveResetTasks}>{t('settings.general.autoRefreshCustom')}</option>
                             </select>
                           )}
-
                         </div>
 
                         {hasActiveResetTasks && (
@@ -998,50 +1014,6 @@ export function SettingsPage() {
                             <span>{t('settings.general.refreshIntervalLimited')}</span>
                           </div>
                         )}
-                      </div>
-                    </div>
-
-                    {autoRefresh !== '-1' && (
-                      <div className="settings-row" style={{ animation: 'fadeUp 0.3s ease both' }}>
-                        <div className="row-label">
-                          <div className="row-title">{t('settings.general.extraRefreshCount', '刷新数量')}</div>
-                          <div className="row-desc">{t('settings.general.extraRefreshCountDesc', '每次定时刷新时，筛选配额已重置的帐号进行刷新的数量')}</div>
-                        </div>
-                        <div className="row-control">
-                          <select
-                            className="settings-select"
-                            value={extraRefreshCount}
-                            onChange={(e) => setExtraRefreshCount(e.target.value)}
-                          >
-                            <option value="0">0</option>
-                            <option value="1">1</option>
-                            <option value="2">2</option>
-                            <option value="3">3</option>
-                            <option value="4">4</option>
-                            <option value="5">5</option>
-                            <option value="10">10</option>
-                            <option value="20">20</option>
-                          </select>
-                        </div>
-                      </div>
-                    )}
-
-
-
-                    <div className="settings-row">
-                      <div className="row-label">
-                        <div className="row-title">{t('settings.general.refreshWhenTray', '保持后台刷新')}</div>
-                        <div className="row-desc">{t('settings.general.refreshWhenTrayDesc', '程序隐藏到托盘区时是否继续定时刷新额度')}</div>
-                      </div>
-                      <div className="row-control">
-                        <label className="switch">
-                          <input
-                            type="checkbox"
-                            checked={refreshWhenTray}
-                            onChange={(e) => setRefreshWhenTray(e.target.checked)}
-                          />
-                          <span className="slider"></span>
-                        </label>
                       </div>
                     </div>
 
@@ -1094,6 +1066,33 @@ export function SettingsPage() {
                               : getResetLabelByTarget('antigravity')}
                           </button>
                         </div>
+                      </div>
+                    </div>
+
+                    <div className="settings-row">
+                      <div className="row-label">
+                        <div className="row-title">{t('quickSettings.switchSortField.label', '快速切号依据')}</div>
+                        <div className="row-desc">{t('quickSettings.switchSortField.hint', '小火箭 或 Alt+F1 热键智能切号时，按此字段排序选择候选帐号')}</div>
+                      </div>
+                      <div className="row-control" style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                        <select
+                          className="settings-select"
+                          style={{ minWidth: 100 }}
+                          value={switchSortField}
+                          onChange={(e) => setSwitchSortField(e.target.value)}
+                        >
+                          <option value="created_at">{t('quickSettings.switchSortField.createdAt', '创建时间')}</option>
+                          <option value="last_used_at">{t('quickSettings.switchSortField.lastUsedAt', '使用时间')}</option>
+                        </select>
+                        <select
+                          className="settings-select"
+                          style={{ minWidth: 80 }}
+                          value={switchSortDesc ? 'desc' : 'asc'}
+                          onChange={(e) => setSwitchSortDesc(e.target.value === 'desc')}
+                        >
+                          <option value="asc">{t('quickSettings.switchSortField.asc', '升序')}</option>
+                          <option value="desc">{t('quickSettings.switchSortField.desc', '降序')}</option>
+                        </select>
                       </div>
                     </div>
 
@@ -1174,28 +1173,6 @@ export function SettingsPage() {
                         </div>
                       </div>
                     )}
-
-                    <div className="settings-row">
-                      <div className="row-label">
-                        <div className="row-title">{t('quickSettings.switchQuotaSort.createdAtDesc', '创建时间排序')}</div>
-                        <div className="row-desc">{t('quickSettings.switchQuotaSort.desc', '小火箭 或 Alt+F1 热键智能切号时，按创建时间排序选择候选帐号')}</div>
-                      </div>
-                      <div className="row-control" style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                        <span style={{ fontSize: 12, opacity: 0.6, whiteSpace: 'nowrap' }}>
-                          {switchCreatedAtDesc
-                            ? t('quickSettings.switchQuotaSort.newestFirst', '新→旧')
-                            : t('quickSettings.switchQuotaSort.oldestFirst', '旧→新')}
-                        </span>
-                        <label className="switch">
-                          <input
-                            type="checkbox"
-                            checked={switchCreatedAtDesc}
-                            onChange={(e) => setSwitchCreatedAtDesc(e.target.checked)}
-                          />
-                          <span className="slider"></span>
-                        </label>
-                      </div>
-                    </div>
 
                     <div className="settings-row">
                       <div className="row-label">
