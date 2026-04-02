@@ -307,9 +307,19 @@ export function AccountsPage({ onNavigate }: AccountsPageProps) {
   const handleSetSortBy = useCallback((value: string) => {
     setSortBy(value)
     if (value.startsWith(ANTIGRAVITY_RESET_SORT_PREFIX)) {
+      // 按重置时间 → 自动升序 + 取消标签分组
       setSortDirection('asc')
       setGroupByTag(false)
-    } else if (value !== 'overall' && value !== 'created_at' && value !== 'refreshed_at' && value !== 'last_used_at' && value !== 'default' && value !== 'email') {
+    } else if (value === 'created_at') {
+      // 按创建时间 → 默认升序 + 取消标签分组
+      setSortDirection('asc')
+      setGroupByTag(false)
+    } else if (value === 'refreshed_at' || value === 'last_used_at') {
+      // 按刷新/使用时间 → 默认降序 + 取消标签分组
+      setSortDirection('desc')
+      setGroupByTag(false)
+    } else if (value !== 'default' && value !== 'email') {
+      // 按模型配额类排序 → 自动降序 + 取消标签分组
       setSortDirection('desc')
       setGroupByTag(false)
     }
@@ -413,7 +423,6 @@ export function AccountsPage({ onNavigate }: AccountsPageProps) {
     }
     const normalizedSortBy = normalizeAntigravitySortBy(sortBy)
     if (
-      normalizedSortBy === 'overall' ||
       normalizedSortBy === 'created_at' ||
       normalizedSortBy === 'refreshed_at' ||
       normalizedSortBy === 'last_used_at' ||
@@ -2482,9 +2491,6 @@ export function AccountsPage({ onNavigate }: AccountsPageProps) {
               >
                 <option value="email">
                   {t('accounts.sort.email', '按帐号名')}
-                </option>
-                <option value="overall">
-                  {t('accounts.sort.overall', '按综合配额')}
                 </option>
                 <option value="created_at">
                   {t('accounts.sort.createdAt', '按创建时间')}

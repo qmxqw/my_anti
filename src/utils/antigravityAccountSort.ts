@@ -11,8 +11,8 @@ export type AntigravitySortDirection = 'asc' | 'desc';
 export const ANTIGRAVITY_ACCOUNTS_SORT_BY_STORAGE_KEY = 'accountsSortBy';
 export const ANTIGRAVITY_ACCOUNTS_SORT_DIRECTION_STORAGE_KEY = 'accountsSortDirection';
 export const ANTIGRAVITY_RESET_SORT_PREFIX = 'reset:';
-export const DEFAULT_ANTIGRAVITY_SORT_BY = 'overall';
-export const DEFAULT_ANTIGRAVITY_SORT_DIRECTION: AntigravitySortDirection = 'desc';
+export const DEFAULT_ANTIGRAVITY_SORT_BY = 'created_at';
+export const DEFAULT_ANTIGRAVITY_SORT_DIRECTION: AntigravitySortDirection = 'asc';
 
 const getAccountQuotas = (account: Account, isCurrentAccount = false): Record<string, number> => {
   const quotas: Record<string, number> = {};

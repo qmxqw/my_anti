@@ -326,10 +326,16 @@ export function useAutoRefresh() {
                   const sortField = (config.switch_sort_field === 'last_used_at' ? 'last_used_at' : 'created_at') as 'created_at' | 'last_used_at';
                   const sortDesc  = config.switch_sort_desc ?? false;
                   const candidates = findSmartRefreshCandidates(allAccounts, currentAccount?.id, sortField, sortDesc);
-                  const toRefresh = candidates.slice(0, extraCount);
+                  // 候选列表为空时，以当前账号作为保底（确保至少刷新一次）
+                  const toRefresh = candidates.length > 0
+                    ? candidates.slice(0, extraCount)
+                    : (currentAccount ? [currentAccount] : []);
 
                   if (toRefresh.length > 0) {
-                    console.log(`[AutoRefresh] 刷新 ${toRefresh.length} 个已重置账号`);
+                    const isFallback = candidates.length === 0;
+                    console.log(isFallback
+                      ? `[AutoRefresh] 无候选账号，使用当前账号保底刷新: ${currentAccount?.email}`
+                      : `[AutoRefresh] 刷新 ${toRefresh.length} 个已重置账号`);
                     for (const candidate of toRefresh) {
                       try {
                         await invoke('fetch_account_quota', { accountId: candidate.id });
