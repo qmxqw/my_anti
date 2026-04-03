@@ -802,6 +802,8 @@ fn handle_set_language(language: &str, source: Option<&str>) -> Result<String, S
         switch_created_at_desc: current.switch_created_at_desc,
         switch_sort_field: current.switch_sort_field,
         switch_sort_desc: current.switch_sort_desc,
+        refresh_include_full: current.refresh_include_full,
+        refresh_fallback_current: current.refresh_fallback_current,
     };
 
     config::save_user_config(&new_config)?;

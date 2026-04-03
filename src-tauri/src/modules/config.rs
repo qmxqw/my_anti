@@ -171,6 +171,12 @@ pub struct UserConfig {
     /// 快速切号排序方向：false=升序（默认），true=降序
     #[serde(default = "default_switch_sort_desc")]
     pub switch_sort_desc: bool,
+    /// 配额刷新：是否刷新额度 >= 100%（全满）的帐号（默认 false = 不刷新）
+    #[serde(default = "default_refresh_include_full")]
+    pub refresh_include_full: bool,
+    /// 候选列表为空时，是否用当前帐号保底刷新（默认 false = 不保底）
+    #[serde(default = "default_refresh_fallback_current")]
+    pub refresh_fallback_current: bool,
 }
 
 /// 窗口关闭行为
@@ -345,6 +351,14 @@ fn default_switch_sort_desc() -> bool {
     false
 }
 
+fn default_refresh_include_full() -> bool {
+    false
+}
+
+fn default_refresh_fallback_current() -> bool {
+    false
+}
+
 impl Default for UserConfig {
     fn default() -> Self {
         Self {
@@ -392,6 +406,8 @@ impl Default for UserConfig {
             switch_created_at_desc: default_switch_created_at_desc(),
             switch_sort_field: default_switch_sort_field(),
             switch_sort_desc: default_switch_sort_desc(),
+            refresh_include_full: default_refresh_include_full(),
+            refresh_fallback_current: default_refresh_fallback_current(),
         }
     }
 }

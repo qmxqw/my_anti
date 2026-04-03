@@ -39,6 +39,7 @@ function findSmartRefreshCandidates(
   _currentAccountId: string | undefined,
   sortField: 'created_at' | 'last_used_at',
   sortDesc: boolean,
+  includeFullQuota: boolean,
 ): Account[] {
   const now = Date.now();
 
@@ -70,11 +71,11 @@ function findSmartRefreshCandidates(
     });
   });
 
-  // 分组：已使用（claude* 额度 < 100%）优先，全满（claude* 额度 >= 100%）补充
+  // 分组：已使用（claude* 额度 < 100%）优先，全满（claude* 额度 >= 100%）按配置决定是否纳入
   const partial = candidates.filter(hasPartialQuota).sort(sortFn);
   const full    = candidates.filter((a) => !hasPartialQuota(a)).sort(sortFn);
 
-  return [...partial, ...full];
+  return includeFullQuota ? [...partial, ...full] : [...partial];
 }
 
 interface GeneralConfig {
@@ -102,6 +103,8 @@ interface GeneralConfig {
   switch_created_at_desc?: boolean;
   switch_sort_field?: string;
   switch_sort_desc?: boolean;
+  refresh_include_full?: boolean;
+  refresh_fallback_current?: boolean;
 }
 
 export function useAutoRefresh() {
@@ -325,17 +328,19 @@ export function useAutoRefresh() {
                   // 读取快速切号的排序配置（field + desc 两维）
                   const sortField = (config.switch_sort_field === 'last_used_at' ? 'last_used_at' : 'created_at') as 'created_at' | 'last_used_at';
                   const sortDesc  = config.switch_sort_desc ?? false;
-                  const candidates = findSmartRefreshCandidates(allAccounts, currentAccount?.id, sortField, sortDesc);
-                  // 候选列表为空时，以当前账号作为保底（确保至少刷新一次）
+                  const includeFullQuota = config.refresh_include_full ?? false;
+                  const fallbackCurrent  = config.refresh_fallback_current ?? false;
+                  const candidates = findSmartRefreshCandidates(allAccounts, currentAccount?.id, sortField, sortDesc, includeFullQuota);
+                  // 候选列表为空时，按配置决定是否用当前账号保底
                   const toRefresh = candidates.length > 0
                     ? candidates.slice(0, extraCount)
-                    : (currentAccount ? [currentAccount] : []);
+                    : (fallbackCurrent && currentAccount ? [currentAccount] : []);
 
                   if (toRefresh.length > 0) {
                     const isFallback = candidates.length === 0;
                     console.log(isFallback
-                      ? `[AutoRefresh] 无候选账号，使用当前账号保底刷新: ${currentAccount?.email}`
-                      : `[AutoRefresh] 刷新 ${toRefresh.length} 个已重置账号`);
+                      ? `[AutoRefresh] 无候选账号，当前号保底刷新: ${currentAccount?.email}`
+                      : `[AutoRefresh] 刷新 ${toRefresh.length} 个已重置账号（满额也刷新: ${config.refresh_include_full ?? false}）`);
                     for (const candidate of toRefresh) {
                       try {
                         await invoke('fetch_account_quota', { accountId: candidate.id });

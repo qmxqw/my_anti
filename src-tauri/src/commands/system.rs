@@ -106,6 +106,10 @@ pub struct GeneralConfig {
     pub switch_sort_field: String,
     /// 快速切号排序方向：false=升序，true=降序
     pub switch_sort_desc: bool,
+    /// 配额刷新：是否刷新额度 >= 100%（全满）的帐号
+    pub refresh_include_full: bool,
+    /// 候选列表为空时，是否用当前帐号保底刷新
+    pub refresh_fallback_current: bool,
 }
 
 #[tauri::command]
@@ -223,6 +227,8 @@ pub fn save_network_config(ws_enabled: bool, ws_port: u16) -> Result<bool, Strin
         switch_created_at_desc: current.switch_created_at_desc,
         switch_sort_field: current.switch_sort_field.clone(),
         switch_sort_desc: current.switch_sort_desc,
+        refresh_include_full: current.refresh_include_full,
+        refresh_fallback_current: current.refresh_fallback_current,
     };
 
     config::save_user_config(&new_config)?;
@@ -288,6 +294,8 @@ pub fn get_general_config() -> Result<GeneralConfig, String> {
         switch_created_at_desc: user_config.switch_created_at_desc,
         switch_sort_field: user_config.switch_sort_field.clone(),
         switch_sort_desc: user_config.switch_sort_desc,
+        refresh_include_full: user_config.refresh_include_full,
+        refresh_fallback_current: user_config.refresh_fallback_current,
     })
 }
 
@@ -337,6 +345,8 @@ pub fn save_general_config(
     switch_created_at_desc: Option<bool>,
     switch_sort_field: Option<String>,
     switch_sort_desc: Option<bool>,
+    refresh_include_full: Option<bool>,
+    refresh_fallback_current: Option<bool>,
 ) -> Result<(), String> {
     let current = config::get_user_config();
     let normalized_opencode_path = opencode_app_path.trim().to_string();
@@ -432,6 +442,10 @@ pub fn save_general_config(
             .unwrap_or(current.switch_sort_field),
         switch_sort_desc: switch_sort_desc
             .unwrap_or(current.switch_sort_desc),
+        refresh_include_full: refresh_include_full
+            .unwrap_or(current.refresh_include_full),
+        refresh_fallback_current: refresh_fallback_current
+            .unwrap_or(current.refresh_fallback_current),
     };
 
     config::save_user_config(&new_config)?;

@@ -67,7 +67,8 @@ interface GeneralConfig {
   switch_created_at_desc: boolean;
   switch_sort_field: string;
   switch_sort_desc: boolean;
-
+  refresh_include_full?: boolean;
+  refresh_fallback_current?: boolean;
 }
 
 type AppPathTarget = 'antigravity' | 'codex' | 'vscode' | 'opencode' | 'windsurf' | 'kiro';
@@ -146,7 +147,8 @@ export function SettingsPage() {
   const [uiAutoRefresh, setUiAutoRefresh] = useState(false);
   const [switchSortField, setSwitchSortField] = useState('created_at');
   const [switchSortDesc, setSwitchSortDesc] = useState(false);
-
+  const [refreshIncludeFull, setRefreshIncludeFull] = useState(false);
+  const [refreshFallbackCurrent, setRefreshFallbackCurrent] = useState(false);
 
   const [autoRefreshCustomMode, setAutoRefreshCustomMode] = useState(false);
   const [codexAutoRefreshCustomMode, setCodexAutoRefreshCustomMode] = useState(false);
@@ -348,6 +350,8 @@ export function SettingsPage() {
           uiAutoRefresh,
           switchSortField,
           switchSortDesc,
+          refreshIncludeFull,
+          refreshFallbackCurrent,
 
         });
         window.dispatchEvent(new Event('config-updated'));
@@ -398,6 +402,8 @@ export function SettingsPage() {
     uiAutoRefresh,
     switchSortField,
     switchSortDesc,
+    refreshIncludeFull,
+    refreshFallbackCurrent,
 
     t,
   ]);
@@ -579,7 +585,8 @@ export function SettingsPage() {
       setUiAutoRefresh(Boolean(config.ui_auto_refresh));
       setSwitchSortField(config.switch_sort_field || 'created_at');
       setSwitchSortDesc(Boolean(config.switch_sort_desc));
-
+      setRefreshIncludeFull(Boolean(config.refresh_include_full));
+      setRefreshFallbackCurrent(Boolean(config.refresh_fallback_current));
 
       setAutoRefreshCustomMode(false);
       setCodexAutoRefreshCustomMode(false);
@@ -1030,6 +1037,37 @@ export function SettingsPage() {
                             onChange={(e) => setUiAutoRefresh(e.target.checked)}
                           />
                           <span className="slider"></span>
+                        </label>
+                      </div>
+                    </div>
+
+                    <div className="settings-row">
+                      <div className="row-label">
+                        <div className="row-title">{t('settings.general.refreshOptions', '配额刷新选项')}</div>
+                        <div className="row-desc">{t('settings.general.refreshOptionsDesc', '满额也刷新：同时刷新额度已满（≥100%）的帐号；当前号保底：候选列表为空时用当前帐号刷新')}</div>
+                      </div>
+                      <div className="row-control" style={{ display: 'flex', gap: '16px', alignItems: 'center', flexWrap: 'wrap' }}>
+                        <label style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer', fontSize: '13px' }}>
+                          <label className="switch">
+                            <input
+                              type="checkbox"
+                              checked={refreshIncludeFull}
+                              onChange={(e) => setRefreshIncludeFull(e.target.checked)}
+                            />
+                            <span className="slider"></span>
+                          </label>
+                          {t('settings.general.refreshIncludeFull', '满额也刷新')}
+                        </label>
+                        <label style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer', fontSize: '13px' }}>
+                          <label className="switch">
+                            <input
+                              type="checkbox"
+                              checked={refreshFallbackCurrent}
+                              onChange={(e) => setRefreshFallbackCurrent(e.target.checked)}
+                            />
+                            <span className="slider"></span>
+                          </label>
+                          {t('settings.general.refreshFallbackCurrent', '当前号保底')}
                         </label>
                       </div>
                     </div>
