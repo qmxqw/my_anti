@@ -717,8 +717,20 @@ export function formatKiroResetTime(resetAt: number | null | undefined, t: Trans
   const now = Math.floor(Date.now() / 1000);
   const diff = ts - now;
   if (diff <= 0) {
-    const elapsedHours = (now - ts) / 3600;
-    return `${t('common.shared.quota.resetDone', { defaultValue: '已重置' })} ${elapsedHours.toFixed(1)}H`;
+    const elapsedSecs = now - ts;
+    const totalElapsedMinutes = Math.floor(elapsedSecs / 60);
+    const elapsedH = Math.floor(totalElapsedMinutes / 60);
+    const elapsedM = totalElapsedMinutes % 60;
+    const resetDoneLabel = t('common.shared.quota.resetDone', { defaultValue: '已重置' });
+    if (elapsedH > 99) {
+      const elapsedD = Math.floor(elapsedH / 24);
+      const remainH = elapsedH % 24;
+      return `${resetDoneLabel} ${elapsedD}D ${remainH}H`;
+    }
+    if (elapsedH === 0) {
+      return `${resetDoneLabel} ${elapsedM}M`;
+    }
+    return `${resetDoneLabel} ${elapsedH}H ${elapsedM}M`;
   }
 
   const totalMinutes = Math.floor(diff / 60);

@@ -46,6 +46,8 @@ interface GeneralConfig {
   switch_created_at_desc: boolean;
   switch_sort_field: string;
   switch_sort_desc: boolean;
+  refresh_include_full?: boolean;
+  refresh_fallback_current?: boolean;
 }
 
 export type QuickSettingsType = 'antigravity' | 'codex' | 'github_copilot' | 'windsurf' | 'kiro';
@@ -208,6 +210,8 @@ export function QuickSettingsPopover({ type }: QuickSettingsPopoverProps) {
           switchCreatedAtDesc: merged.switch_created_at_desc ?? false,
           switchSortField: merged.switch_sort_field ?? 'created_at',
           switchSortDesc: merged.switch_sort_desc ?? false,
+          refreshIncludeFull: merged.refresh_include_full ?? false,
+          refreshFallbackCurrent: merged.refresh_fallback_current ?? false,
         });
         window.dispatchEvent(new Event('config-updated'));
       } catch (err) {
@@ -619,21 +623,52 @@ export function QuickSettingsPopover({ type }: QuickSettingsPopoverProps) {
                 </div>
 
                 {type === 'antigravity' && (
-                  <div className="qs-row" style={{ marginTop: 8 }}>
-                    <div className="qs-row-label">
-                      <span>{t('settings.general.uiAutoRefresh', 'UI定时刷新')}</span>
+                  <>
+                    <div className="qs-row" style={{ marginTop: 8 }}>
+                      <div className="qs-row-label">
+                        <span>{t('settings.general.uiAutoRefresh', 'UI定时刷新')}</span>
+                      </div>
+                      <div className="qs-row-control">
+                        <label className="qs-switch">
+                          <input
+                            type="checkbox"
+                            checked={Boolean(config.ui_auto_refresh)}
+                            onChange={(e) => saveConfig({ ui_auto_refresh: e.target.checked })}
+                          />
+                          <span className="qs-switch-slider"></span>
+                        </label>
+                      </div>
                     </div>
-                    <div className="qs-row-control">
-                      <label className="qs-switch">
-                        <input
-                          type="checkbox"
-                          checked={Boolean(config.ui_auto_refresh)}
-                          onChange={(e) => saveConfig({ ui_auto_refresh: e.target.checked })}
-                        />
-                        <span className="qs-switch-slider"></span>
-                      </label>
+                    <div className="qs-row" style={{ marginTop: 8 }}>
+                      <div className="qs-row-label">
+                        <span>{t('settings.general.refreshOptions', '配额刷新选项')}</span>
+                      </div>
+                      <div className="qs-row-control" style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                        <label style={{ display: 'flex', alignItems: 'center', gap: 5, cursor: 'pointer', fontSize: '12px' }}>
+                          <label className="qs-switch">
+                            <input
+                              type="checkbox"
+                              checked={Boolean(config.refresh_include_full)}
+                              onChange={(e) => saveConfig({ refresh_include_full: e.target.checked })}
+                            />
+                            <span className="qs-switch-slider"></span>
+                          </label>
+                          {t('settings.general.refreshIncludeFull', '满额也刷新')}
+                        </label>
+                        <label style={{ display: 'flex', alignItems: 'center', gap: 5, cursor: 'pointer', fontSize: '12px' }}>
+                          <label className="qs-switch">
+                            <input
+                              type="checkbox"
+                              checked={Boolean(config.refresh_fallback_current)}
+                              onChange={(e) => saveConfig({ refresh_fallback_current: e.target.checked })}
+                            />
+                            <span className="qs-switch-slider"></span>
+                          </label>
+                          {t('settings.general.refreshFallbackCurrent', '当前号保底')}
+                        </label>
+                      </div>
                     </div>
-                  </div>
+                  </>
                 )}
               </div>
             </div>

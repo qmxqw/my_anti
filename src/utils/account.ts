@@ -79,8 +79,20 @@ export function formatResetTime(resetTime: string, t: Translate): string {
     const now = new Date();
     const diffMs = reset.getTime() - now.getTime();
     if (diffMs <= 0) {
-      const elapsedHours = (now.getTime() - reset.getTime()) / (1000 * 3600);
-      return `${t('common.shared.quota.resetDone')} ${elapsedHours.toFixed(1)}H`;
+      const elapsedSecs = (now.getTime() - reset.getTime()) / 1000;
+      const totalElapsedMinutes = Math.floor(elapsedSecs / 60);
+      const elapsedH = Math.floor(totalElapsedMinutes / 60);
+      const elapsedM = totalElapsedMinutes % 60;
+      const resetDoneLabel = t('common.shared.quota.resetDone');
+      if (elapsedH > 99) {
+        const elapsedD = Math.floor(elapsedH / 24);
+        const remainH = elapsedH % 24;
+        return `${resetDoneLabel} ${elapsedD}d ${remainH}h`;
+      }
+      if (elapsedH === 0) {
+        return `${resetDoneLabel} ${elapsedM}m`;
+      }
+      return `${resetDoneLabel} ${elapsedH}h`;
     }
 
     // +60s 后向上取整到分钟（秒数不足1分钟时进位）
