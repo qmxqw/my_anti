@@ -338,8 +338,8 @@ pub fn update_switch_timestamps(
                             "[Switch] 记录 A 帐号使用消耗失败: {}", e
                         ));
                     }
-                    // 更新 A 的 last_used_at 并保存
-                    prev_account.last_used_at = now_ts;
+                    // 更新 A 的 last_used_at 并保存（-60s 避免误判为"刚刚使用"）
+                    prev_account.last_used_at = now_ts - 60;
                     if let Err(e) = save_account(&prev_account) {
                         modules::logger::log_warn(&format!(
                             "[Switch] 更新 A 帐号 last_used_at 失败: {}", e

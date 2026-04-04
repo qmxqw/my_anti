@@ -511,7 +511,10 @@ export function WakeupTasksPage({ onNavigate }: WakeupPageProps) {
 
   const tasksRef = useRef(tasks);
   const wakeupEnabledRef = useRef(wakeupEnabled);
-  const accountEmails = useMemo(() => accounts.map((account) => account.email), [accounts]);
+  const accountEmails = useMemo(
+    () => [...accounts].sort((a, b) => (a.created_at ?? 0) - (b.created_at ?? 0)).map((account) => account.email),
+    [accounts],
+  );
   const accountByEmail = useMemo(() => {
     const map = new Map<string, (typeof accounts)[number]>();
     accounts.forEach((account) => {
