@@ -14,7 +14,6 @@ import {
 import {
   formatCodexResetTime,
   getCodexPlanDisplayName,
-  getCodexQuotaClass,
   getCodexQuotaWindows,
 } from '../types/codex';
 import {
@@ -285,7 +284,7 @@ export function buildCodexAccountPresentation(
     key: window.id,
     label: window.label,
     percentage: window.percentage,
-    quotaClass: getCodexQuotaClass(window.percentage),
+    quotaClass: 'high',
     valueText: `${window.percentage}%`,
     resetText: window.resetTime ? formatCodexResetTime(window.resetTime, t) : '',
     resetAt: window.resetTime,
