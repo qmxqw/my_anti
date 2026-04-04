@@ -975,7 +975,7 @@ fn sanitize_macos_gui_launch_env(cmd: &mut Command) {
     cmd.env_remove("XPC_SERVICE_NAME");
 }
 
-#[cfg(not(target_os = "macos"))]
+#[cfg(target_os = "linux")]
 fn sanitize_macos_gui_launch_env(_cmd: &mut Command) {}
 
 #[cfg(any(target_os = "macos", target_os = "linux"))]
@@ -2091,6 +2091,7 @@ fn is_antigravity_main_process(
     }
 }
 
+#[cfg(not(target_os = "windows"))]
 fn collect_running_process_exe_by_pid() -> HashMap<u32, String> {
     let mut map = HashMap::new();
 
@@ -2142,6 +2143,7 @@ fn collect_running_process_exe_by_pid() -> HashMap<u32, String> {
     map
 }
 
+#[cfg(not(target_os = "windows"))]
 fn filter_entries_by_expected_launch_path(
     app_label: &str,
     entries: Vec<(u32, Option<String>)>,
@@ -2166,11 +2168,11 @@ fn filter_entries_by_expected_launch_path(
     for (pid, dir) in entries {
         match exe_by_pid.get(&pid) {
             Some(actual) if actual == &expected => result.push((pid, dir)),
-            Some(actual) => {
+            Some(_actual) => {
                 #[cfg(target_os = "macos")]
                 {
                     if let Some(expected_root) = expected_app_root.as_ref() {
-                        let actual_root = normalize_macos_app_root(std::path::Path::new(actual))
+                        let actual_root = normalize_macos_app_root(std::path::Path::new(_actual))
                             .map(|root| normalize_path_for_compare(&root))
                             .filter(|root| !root.is_empty());
                         if actual_root.as_ref() == Some(expected_root) {
@@ -2568,7 +2570,7 @@ pub fn collect_antigravity_process_entries() -> Vec<(u32, Option<String>)> {
         }
     }
 
-    #[cfg(not(target_os = "macos"))]
+    #[cfg(target_os = "linux")]
     {
         let mut result = Vec::new();
         let mut system = System::new();
@@ -3111,154 +3113,152 @@ pub fn collect_vscode_process_entries() -> Vec<(u32, Option<String>)> {
         return collect_vscode_process_entries_from_sysinfo_fallback(expected);
     }
 
-    let mut entries = Vec::new();
-
-    // On macOS, only use ps to avoid sysinfo TCC dialogs
-    #[cfg(not(target_os = "macos"))]
+    #[cfg(not(target_os = "windows"))]
     {
-        let mut system = System::new();
-        system.refresh_processes_specifics(sysinfo::ProcessesToUpdate::All, true, ProcessRefreshKind::nothing().with_exe(UpdateKind::OnlyIfNotSet).with_cmd(UpdateKind::OnlyIfNotSet));
+        let mut entries = Vec::new();
 
-        let current_pid = std::process::id();
+        // On macOS, only use ps to avoid sysinfo TCC dialogs
+        #[cfg(target_os = "linux")]
+        {
+            let mut system = System::new();
+            system.refresh_processes_specifics(sysinfo::ProcessesToUpdate::All, true, ProcessRefreshKind::nothing().with_exe(UpdateKind::OnlyIfNotSet).with_cmd(UpdateKind::OnlyIfNotSet));
 
-        for (pid, process) in system.processes() {
-            let pid_u32 = pid.as_u32();
-            if pid_u32 == current_pid {
-                continue;
-            }
+            let current_pid = std::process::id();
 
-            #[cfg(any(target_os = "windows", target_os = "linux"))]
-            let name = process.name().to_string_lossy().to_lowercase();
-            let exe_path = process
-                .exe()
-                .and_then(|p| p.to_str())
-                .unwrap_or("")
-                .to_lowercase();
-
-            let args_str = process
-                .cmd()
-                .iter()
-                .map(|arg| arg.to_string_lossy().to_lowercase())
-                .collect::<Vec<String>>()
-                .join(" ");
-            let is_helper = is_helper_command_line(&args_str) || args_str.contains("crashpad");
-
-            #[cfg(target_os = "windows")]
-            let is_vscode = name == "code.exe" || exe_path.ends_with("\\code.exe");
-            #[cfg(target_os = "linux")]
-            let is_vscode = name == "code" || exe_path.ends_with("/code");
-
-            if !is_vscode || is_helper {
-                continue;
-            }
-
-            let dir = extract_user_data_dir(process.cmd());
-            entries.push((pid_u32, dir));
-        }
-    }
-
-    #[cfg(target_os = "macos")]
-    {
-        let output = Command::new("ps").args(["-axo", "pid,command"]).output();
-        if let Ok(output) = output {
-            let stdout = String::from_utf8_lossy(&output.stdout);
-            for line in stdout.lines().skip(1) {
-                let line = line.trim();
-                if line.is_empty() {
+            for (pid, process) in system.processes() {
+                let pid_u32 = pid.as_u32();
+                if pid_u32 == current_pid {
                     continue;
                 }
-                let mut parts = line.splitn(2, |ch: char| ch.is_whitespace());
-                let pid_str = parts.next().unwrap_or("").trim();
-                let cmdline = parts.next().unwrap_or("").trim();
-                let pid = match pid_str.parse::<u32>() {
-                    Ok(value) => value,
-                    Err(_) => continue,
-                };
-                let lower = cmdline.to_lowercase();
-                if !lower.contains("visual studio code.app/contents/macos/") {
+
+                let name = process.name().to_string_lossy().to_lowercase();
+                let exe_path = process
+                    .exe()
+                    .and_then(|p| p.to_str())
+                    .unwrap_or("")
+                    .to_lowercase();
+
+                let args_str = process
+                    .cmd()
+                    .iter()
+                    .map(|arg| arg.to_string_lossy().to_lowercase())
+                    .collect::<Vec<String>>()
+                    .join(" ");
+                let is_helper = is_helper_command_line(&args_str) || args_str.contains("crashpad");
+                let is_vscode = name == "code" || exe_path.ends_with("/code");
+
+                if !is_vscode || is_helper {
                     continue;
                 }
-                if lower.contains("crashpad_handler") || is_helper_command_line(&lower) {
-                    continue;
-                }
-                let dir = extract_user_data_dir_from_command_line(cmdline);
-                entries.push((pid, dir));
+
+                let dir = extract_user_data_dir(process.cmd());
+                entries.push((pid_u32, dir));
             }
         }
-    }
 
-    #[cfg(target_os = "linux")]
-    {
-        if let Ok(proc_entries) = std::fs::read_dir("/proc") {
-            for entry in proc_entries.flatten() {
-                let file_name = entry.file_name();
-                let pid_str = file_name.to_string_lossy();
-                if !pid_str.chars().all(|ch| ch.is_ascii_digit()) {
-                    continue;
+        #[cfg(target_os = "macos")]
+        {
+            let output = Command::new("ps").args(["-axo", "pid,command"]).output();
+            if let Ok(output) = output {
+                let stdout = String::from_utf8_lossy(&output.stdout);
+                for line in stdout.lines().skip(1) {
+                    let line = line.trim();
+                    if line.is_empty() {
+                        continue;
+                    }
+                    let mut parts = line.splitn(2, |ch: char| ch.is_whitespace());
+                    let pid_str = parts.next().unwrap_or("").trim();
+                    let cmdline = parts.next().unwrap_or("").trim();
+                    let pid = match pid_str.parse::<u32>() {
+                        Ok(value) => value,
+                        Err(_) => continue,
+                    };
+                    let lower = cmdline.to_lowercase();
+                    if !lower.contains("visual studio code.app/contents/macos/") {
+                        continue;
+                    }
+                    if lower.contains("crashpad_handler") || is_helper_command_line(&lower) {
+                        continue;
+                    }
+                    let dir = extract_user_data_dir_from_command_line(cmdline);
+                    entries.push((pid, dir));
                 }
-                let pid = match pid_str.parse::<u32>() {
-                    Ok(value) => value,
-                    Err(_) => continue,
-                };
-                let cmdline_path = format!("/proc/{}/cmdline", pid);
-                let cmdline = match std::fs::read(&cmdline_path) {
-                    Ok(value) => value,
-                    Err(_) => continue,
-                };
-                if cmdline.is_empty() {
-                    continue;
-                }
-                let cmdline_str = String::from_utf8_lossy(&cmdline).replace('\0', " ");
-                let cmd_lower = cmdline_str.to_lowercase();
-                let exe_path = std::fs::read_link(format!("/proc/{}/exe", pid))
-                    .ok()
-                    .and_then(|p| p.to_str().map(|s| s.to_lowercase()))
-                    .unwrap_or_default();
-                if !cmd_lower.contains("code") && !exe_path.contains("/code") {
-                    continue;
-                }
-                if is_helper_command_line(&cmd_lower) {
-                    continue;
-                }
-                let dir = extract_user_data_dir_from_command_line(&cmdline_str);
-                entries.push((pid, dir));
             }
         }
-    }
 
-    let mut map: HashMap<u32, Option<String>> = HashMap::new();
-    for (pid, dir) in entries {
-        let normalized = dir.and_then(|value| {
-            let value = value.trim().to_string();
-            if value.is_empty() {
-                return None;
+        #[cfg(target_os = "linux")]
+        {
+            if let Ok(proc_entries) = std::fs::read_dir("/proc") {
+                for entry in proc_entries.flatten() {
+                    let file_name = entry.file_name();
+                    let pid_str = file_name.to_string_lossy();
+                    if !pid_str.chars().all(|ch| ch.is_ascii_digit()) {
+                        continue;
+                    }
+                    let pid = match pid_str.parse::<u32>() {
+                        Ok(value) => value,
+                        Err(_) => continue,
+                    };
+                    let cmdline_path = format!("/proc/{}/cmdline", pid);
+                    let cmdline = match std::fs::read(&cmdline_path) {
+                        Ok(value) => value,
+                        Err(_) => continue,
+                    };
+                    if cmdline.is_empty() {
+                        continue;
+                    }
+                    let cmdline_str = String::from_utf8_lossy(&cmdline).replace('\0', " ");
+                    let cmd_lower = cmdline_str.to_lowercase();
+                    let exe_path = std::fs::read_link(format!("/proc/{}/exe", pid))
+                        .ok()
+                        .and_then(|p| p.to_str().map(|s| s.to_lowercase()))
+                        .unwrap_or_default();
+                    if !cmd_lower.contains("code") && !exe_path.contains("/code") {
+                        continue;
+                    }
+                    if is_helper_command_line(&cmd_lower) {
+                        continue;
+                    }
+                    let dir = extract_user_data_dir_from_command_line(&cmdline_str);
+                    entries.push((pid, dir));
+                }
             }
-            let normalized = normalize_path_for_compare(&value);
-            if normalized.is_empty() {
-                None
-            } else {
-                Some(normalized)
-            }
-        });
-        match map.get(&pid) {
-            None => {
-                map.insert(pid, normalized);
-            }
-            Some(existing) => {
-                if existing.is_none() && normalized.is_some() {
+        }
+
+        let mut map: HashMap<u32, Option<String>> = HashMap::new();
+        for (pid, dir) in entries {
+            let normalized = dir.and_then(|value| {
+                let value = value.trim().to_string();
+                if value.is_empty() {
+                    return None;
+                }
+                let normalized = normalize_path_for_compare(&value);
+                if normalized.is_empty() {
+                    None
+                } else {
+                    Some(normalized)
+                }
+            });
+            match map.get(&pid) {
+                None => {
                     map.insert(pid, normalized);
                 }
+                Some(existing) => {
+                    if existing.is_none() && normalized.is_some() {
+                        map.insert(pid, normalized);
+                    }
+                }
             }
         }
-    }
 
-    let mut result: Vec<(u32, Option<String>)> = map.into_iter().collect();
-    result.sort_by_key(|(pid, _)| *pid);
-    filter_entries_by_expected_launch_path(
-        "VSCode",
-        result,
-        expected_launch,
-    )
+        let mut result: Vec<(u32, Option<String>)> = map.into_iter().collect();
+        result.sort_by_key(|(pid, _)| *pid);
+        return filter_entries_by_expected_launch_path(
+            "VSCode",
+            result,
+            expected_launch,
+        );
+    }
 }
 
 pub fn resolve_vscode_pid_from_entries(

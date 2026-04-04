@@ -12,7 +12,7 @@ use aes_gcm::aead::generic_array::GenericArray;
 #[cfg(target_os = "windows")]
 use aes_gcm::aead::{Aead, AeadCore, OsRng};
 #[cfg(target_os = "windows")]
-use aes_gcm::{Aes256Gcm, KeyInit, Nonce};
+use aes_gcm::{Aes256Gcm, KeyInit};
 #[cfg(target_os = "windows")]
 use base64::{engine::general_purpose, Engine as _};
 #[cfg(not(target_os = "windows"))]
@@ -924,6 +924,7 @@ fn extract_user_data_dir(args: &[OsString]) -> Option<String> {
     None
 }
 
+#[cfg(target_os = "macos")]
 fn split_command_tokens(command_line: &str) -> Vec<String> {
     let mut tokens = Vec::new();
     let mut current = String::new();
@@ -960,6 +961,7 @@ fn split_command_tokens(command_line: &str) -> Vec<String> {
     tokens
 }
 
+#[cfg(target_os = "macos")]
 fn extract_user_data_dir_from_command_line(command_line: &str) -> Option<String> {
     let tokens = split_command_tokens(command_line);
     let mut index = 0;
@@ -1606,7 +1608,7 @@ fn sanitize_macos_gui_launch_env(cmd: &mut Command) {
     cmd.env_remove("XPC_SERVICE_NAME");
 }
 
-#[cfg(not(target_os = "macos"))]
+#[cfg(target_os = "linux")]
 fn sanitize_macos_gui_launch_env(_cmd: &mut Command) {}
 
 #[cfg(target_os = "windows")]

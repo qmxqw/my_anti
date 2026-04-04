@@ -455,10 +455,10 @@ fn get_linux_v11_key() -> Option<[u8; 16]> {
 fn decrypt_secret_payload_with_mode(
     encrypted: &[u8],
     data_root: Option<&Path>,
-    mode: SafeStorageReadMode,
+    _mode: SafeStorageReadMode,
 ) -> Result<Vec<u8>, String> {
     #[cfg(not(target_os = "windows"))]
-    let _ = (data_root, mode);
+    let _ = data_root;
 
     #[cfg(target_os = "windows")]
     {

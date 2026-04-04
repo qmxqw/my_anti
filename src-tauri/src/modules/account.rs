@@ -959,6 +959,7 @@ fn build_quota_alert_notification_text(payload: &QuotaAlertPayload) -> (String, 
     (title, body)
 }
 
+#[cfg(target_os = "macos")]
 fn focus_main_window_and_emit_quota_alert(
     app_handle: &tauri::AppHandle,
     payload: &QuotaAlertPayload,
