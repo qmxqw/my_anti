@@ -958,6 +958,125 @@ function App() {
     };
   }, [closeModal, openQuickSettingsForPlatform, showModal, t]);
 
+  // ── 额度恢复自动切号提示 ──────────────────────────────────────────
+  useEffect(() => {
+    type QuotaRestoredPayload = {
+      account_id: string;
+      email: string;
+      previous_min_percentage: number;
+      current_min_percentage: number;
+    };
+
+    let unlisten: UnlistenFn | undefined;
+    let disposed = false;
+    // 追踪当前"待切号"的触发源账号，防止同账号重复弹出
+    let pendingAccountId: string | null = null;
+    let laterTimerId: ReturnType<typeof setTimeout> | null = null;
+
+    const clearLaterTimer = () => {
+      if (laterTimerId !== null) {
+        clearTimeout(laterTimerId);
+        laterTimerId = null;
+      }
+    };
+
+    const focusWindow = async () => {
+      try {
+        const win = getCurrentWindow();
+        await win.show();
+        await win.unminimize();
+        await win.setFocus();
+      } catch {
+        // ignore
+      }
+    };
+
+    const showSwitchPrompt = (payload: QuotaRestoredPayload) => {
+      // 若账号已切换，停止循环
+      if (pendingAccountId !== payload.account_id) {
+        return;
+      }
+      showModal({
+        title: t('quotaRestored.modal.title', '额度已恢复 — 建议切换账号'),
+        description: t(
+          'quotaRestored.modal.desc',
+          '账号 {{email}} 的 Claude 额度已从 {{prev}}% 恢复至 100%，当前账号正在被使用中，建议切换到该账号继续工作。',
+          {
+            email: payload.email,
+            prev: payload.previous_min_percentage,
+          },
+        ),
+        width: 'sm',
+        closeOnOverlay: false,
+        showCloseButton: false,
+        actions: [
+          {
+            id: 'quota-restored-later',
+            label: t('quotaRestored.modal.later', '稍后（1 分钟后再提醒）'),
+            variant: 'secondary',
+            autoClose: true,
+            onClick: () => {
+              // 验证账号还没换，再排 1 分钟后重弹
+              clearLaterTimer();
+              laterTimerId = setTimeout(async () => {
+                if (disposed || pendingAccountId !== payload.account_id) return;
+                // 再次确认当前使用账号还是触发账号
+                try {
+                  const current = await invoke<{ id: string } | null>('get_current_account');
+                  if (!current || current.id !== payload.account_id) {
+                    pendingAccountId = null;
+                    return;
+                  }
+                } catch {
+                  return;
+                }
+                await focusWindow();
+                showSwitchPrompt(payload);
+              }, 60_000);
+            },
+          },
+          {
+            id: 'quota-restored-switch',
+            label: t('quotaRestored.modal.switchNow', '立即切换（快速切号）'),
+            variant: 'primary',
+            autoClose: true,
+            onClick: async () => {
+              pendingAccountId = null;
+              clearLaterTimer();
+              try {
+                await invoke('trigger_smart_switch');
+                await useAccountStore.getState().fetchAccounts();
+                await useAccountStore.getState().fetchCurrentAccount();
+                setPage('overview');
+              } catch (err) {
+                console.error('[QuotaRestored] hotkey_smart_switch failed:', err);
+              }
+            },
+          },
+        ],
+      });
+    };
+
+    listen<QuotaRestoredPayload>('account:quota_restored', async (event) => {
+      const payload = event.payload;
+      if (!payload?.account_id) return;
+
+      clearLaterTimer();
+      pendingAccountId = payload.account_id;
+
+      await focusWindow();
+      showSwitchPrompt(payload);
+    }).then((fn) => {
+      if (disposed) { fn(); return; }
+      unlisten = fn;
+    });
+
+    return () => {
+      disposed = true;
+      clearLaterTimer();
+      if (unlisten) unlisten();
+    };
+  }, [showModal, t, setPage]);
 
   useEffect(() => {
     let unlisten: UnlistenFn | undefined;
