@@ -2,7 +2,7 @@ use crate::models::codex::{
     CodexAccount, CodexAccountIndex, CodexAccountSummary, CodexAuthFile, CodexAuthTokens,
     CodexJwtPayload, CodexTokens,
 };
-use crate::modules::{codex_oauth, logger};
+use crate::modules::{account, codex_oauth, logger};
 use base64::{engine::general_purpose::URL_SAFE_NO_PAD, Engine};
 use std::collections::HashMap;
 use std::fs;
@@ -23,23 +23,21 @@ pub fn get_auth_json_path() -> PathBuf {
     get_codex_home().join("auth.json")
 }
 
-/// 获取我们的多账号存储路径
-fn get_accounts_storage_path() -> PathBuf {
-    let data_dir = dirs::data_local_dir()
-        .unwrap_or_else(|| dirs::home_dir().expect("无法获取用户目录"))
-        .join("com.antigravity.cockpit-tools");
-    fs::create_dir_all(&data_dir).ok();
-    data_dir.join("codex_accounts.json")
+const ACCOUNTS_INDEX_FILE: &str = "codex_accounts.json";
+const ACCOUNTS_DIR: &str = "codex_accounts";
+
+/// 获取多账号索引文件路径
+fn get_accounts_storage_path() -> Result<PathBuf, String> {
+    Ok(account::get_data_dir()?.join(ACCOUNTS_INDEX_FILE))
 }
 
 /// 获取账号详情存储目录
-fn get_accounts_dir() -> PathBuf {
-    let data_dir = dirs::data_local_dir()
-        .unwrap_or_else(|| dirs::home_dir().expect("无法获取用户目录"))
-        .join("com.antigravity.cockpit-tools")
-        .join("codex_accounts");
-    fs::create_dir_all(&data_dir).ok();
-    data_dir
+fn get_accounts_dir() -> Result<PathBuf, String> {
+    let dir = account::get_data_dir()?.join(ACCOUNTS_DIR);
+    if !dir.exists() {
+        fs::create_dir_all(&dir).map_err(|e| format!("创建 Codex 账号目录失败: {}", e))?;
+    }
+    Ok(dir)
 }
 
 /// 解析 JWT Token 的 payload
@@ -216,7 +214,10 @@ pub fn extract_user_info(
 
 /// 读取账号索引
 pub fn load_account_index() -> CodexAccountIndex {
-    let path = get_accounts_storage_path();
+    let path = match get_accounts_storage_path() {
+        Ok(p) => p,
+        Err(_) => return CodexAccountIndex::new(),
+    };
     if !path.exists() {
         return CodexAccountIndex::new();
     }
@@ -229,7 +230,7 @@ pub fn load_account_index() -> CodexAccountIndex {
 
 /// 保存账号索引
 pub fn save_account_index(index: &CodexAccountIndex) -> Result<(), String> {
-    let path = get_accounts_storage_path();
+    let path = get_accounts_storage_path()?;
     let content = serde_json::to_string_pretty(index).map_err(|e| format!("序列化失败: {}", e))?;
     fs::write(&path, content).map_err(|e| format!("写入文件失败: {}", e))?;
     Ok(())
@@ -237,7 +238,7 @@ pub fn save_account_index(index: &CodexAccountIndex) -> Result<(), String> {
 
 /// 读取单个账号详情
 pub fn load_account(account_id: &str) -> Option<CodexAccount> {
-    let path = get_accounts_dir().join(format!("{}.json", account_id));
+    let path = get_accounts_dir().ok()?.join(format!("{}.json", account_id));
     if !path.exists() {
         return None;
     }
@@ -250,7 +251,7 @@ pub fn load_account(account_id: &str) -> Option<CodexAccount> {
 
 /// 保存单个账号详情
 pub fn save_account(account: &CodexAccount) -> Result<(), String> {
-    let path = get_accounts_dir().join(format!("{}.json", &account.id));
+    let path = get_accounts_dir()?.join(format!("{}.json", &account.id));
     let content =
         serde_json::to_string_pretty(account).map_err(|e| format!("序列化失败: {}", e))?;
     fs::write(&path, content).map_err(|e| format!("写入文件失败: {}", e))?;
@@ -259,7 +260,7 @@ pub fn save_account(account: &CodexAccount) -> Result<(), String> {
 
 /// 删除单个账号
 pub fn delete_account_file(account_id: &str) -> Result<(), String> {
-    let path = get_accounts_dir().join(format!("{}.json", account_id));
+    let path = get_accounts_dir()?.join(format!("{}.json", account_id));
     if path.exists() {
         fs::remove_file(&path).map_err(|e| format!("删除文件失败: {}", e))?;
     }

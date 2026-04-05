@@ -23,8 +23,8 @@ const LIST_ACCOUNTS_CACHE_TTL_MS: u64 = 800;
 
 // 使用与 AntigravityCockpit 插件相同的数据目录
 const DATA_DIR: &str = ".antigravity_cockpit";
-const ACCOUNTS_INDEX: &str = "accounts.json";
-const ACCOUNTS_DIR: &str = "accounts";
+const ACCOUNTS_INDEX: &str = "ag_accounts.json";
+const ACCOUNTS_DIR: &str = "ag_accounts";
 const DELETED_ACCOUNT_FP_BINDINGS: &str = "deleted_account_fingerprint_bindings.json";
 
 #[derive(Debug, Default, Serialize, Deserialize)]
