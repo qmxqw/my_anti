@@ -47,6 +47,8 @@ pub struct GeneralConfig {
     pub opencode_app_path: String,
     /// Antigravity 启动路径（为空则使用默认路径）
     pub antigravity_app_path: String,
+    /// Antigravity 额外启动参数（为空则不附加，多个参数以空格分隔）
+    pub antigravity_launch_args: String,
     /// Codex 启动路径（为空则使用默认路径）
     pub codex_app_path: String,
     /// VS Code 启动路径（为空则使用默认路径）
@@ -197,6 +199,7 @@ pub fn save_network_config(ws_enabled: bool, ws_port: u16) -> Result<bool, Strin
         hide_dock_icon: current.hide_dock_icon,
         opencode_app_path: current.opencode_app_path,
         antigravity_app_path: current.antigravity_app_path,
+        antigravity_launch_args: current.antigravity_launch_args,
         codex_app_path: current.codex_app_path,
         vscode_app_path: current.vscode_app_path,
         windsurf_app_path: current.windsurf_app_path,
@@ -264,6 +267,7 @@ pub fn get_general_config() -> Result<GeneralConfig, String> {
         hide_dock_icon: user_config.hide_dock_icon,
         opencode_app_path: user_config.opencode_app_path,
         antigravity_app_path: user_config.antigravity_app_path,
+        antigravity_launch_args: user_config.antigravity_launch_args,
         codex_app_path: user_config.codex_app_path,
         vscode_app_path: user_config.vscode_app_path,
         windsurf_app_path: user_config.windsurf_app_path,
@@ -315,6 +319,7 @@ pub fn save_general_config(
     hide_dock_icon: Option<bool>,
     opencode_app_path: String,
     antigravity_app_path: String,
+    antigravity_launch_args: Option<String>,
     codex_app_path: String,
     vscode_app_path: String,
     windsurf_app_path: Option<String>,
@@ -351,6 +356,9 @@ pub fn save_general_config(
     let current = config::get_user_config();
     let normalized_opencode_path = opencode_app_path.trim().to_string();
     let normalized_antigravity_path = antigravity_app_path.trim().to_string();
+    let normalized_antigravity_launch_args = antigravity_launch_args
+        .map(|v| v.trim().to_string())
+        .unwrap_or_else(|| current.antigravity_launch_args.clone());
     let normalized_codex_path = codex_app_path.trim().to_string();
     let normalized_vscode_path = vscode_app_path.trim().to_string();
     let normalized_windsurf_path = windsurf_app_path
@@ -397,6 +405,7 @@ pub fn save_general_config(
         hide_dock_icon: hide_dock_icon_value,
         opencode_app_path: normalized_opencode_path,
         antigravity_app_path: normalized_antigravity_path,
+        antigravity_launch_args: normalized_antigravity_launch_args,
         codex_app_path: normalized_codex_path,
         vscode_app_path: normalized_vscode_path,
         windsurf_app_path: normalized_windsurf_path,

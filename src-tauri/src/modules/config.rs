@@ -80,6 +80,9 @@ pub struct UserConfig {
     /// Antigravity 启动路径（为空则使用默认路径）
     #[serde(default = "default_antigravity_app_path")]
     pub antigravity_app_path: String,
+    /// Antigravity 额外启动参数（为空则不附加，多个参数以空格分隔）
+    #[serde(default = "default_antigravity_launch_args")]
+    pub antigravity_launch_args: String,
     /// Codex 启动路径（为空则使用默认路径）
     #[serde(default = "default_codex_app_path")]
     pub codex_app_path: String,
@@ -255,6 +258,9 @@ fn default_opencode_app_path() -> String {
 fn default_antigravity_app_path() -> String {
     String::new()
 }
+fn default_antigravity_launch_args() -> String {
+    String::new()
+}
 fn default_codex_app_path() -> String {
     String::new()
 }
@@ -376,6 +382,7 @@ impl Default for UserConfig {
             hide_dock_icon: default_hide_dock_icon(),
             opencode_app_path: default_opencode_app_path(),
             antigravity_app_path: default_antigravity_app_path(),
+            antigravity_launch_args: default_antigravity_launch_args(),
             codex_app_path: default_codex_app_path(),
             vscode_app_path: default_vscode_app_path(),
             windsurf_app_path: default_windsurf_app_path(),

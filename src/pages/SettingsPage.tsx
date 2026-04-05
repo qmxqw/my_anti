@@ -39,6 +39,7 @@ interface GeneralConfig {
   hide_dock_icon?: boolean;
   opencode_app_path: string;
   antigravity_app_path: string;
+  antigravity_launch_args?: string;
   codex_app_path: string;
   vscode_app_path: string;
   windsurf_app_path: string;
@@ -124,6 +125,7 @@ export function SettingsPage() {
   const [hideDockIcon, setHideDockIcon] = useState(false);
   const [opencodeAppPath, setOpencodeAppPath] = useState('');
   const [antigravityAppPath, setAntigravityAppPath] = useState('');
+  const [antigravityLaunchArgs, setAntigravityLaunchArgs] = useState('');
   const [codexAppPath, setCodexAppPath] = useState('');
   const [vscodeAppPath, setVscodeAppPath] = useState('');
   const [windsurfAppPath, setWindsurfAppPath] = useState('');
@@ -319,6 +321,7 @@ export function SettingsPage() {
           hideDockIcon,
           opencodeAppPath,
           antigravityAppPath,
+          antigravityLaunchArgs,
           codexAppPath,
           vscodeAppPath,
           windsurfAppPath,
@@ -380,6 +383,7 @@ export function SettingsPage() {
     theme,
     opencodeAppPath,
     antigravityAppPath,
+    antigravityLaunchArgs,
     codexAppPath,
     vscodeAppPath,
     windsurfAppPath,
@@ -563,6 +567,7 @@ export function SettingsPage() {
       setHideDockIcon(Boolean(config.hide_dock_icon));
       setOpencodeAppPath(config.opencode_app_path || '');
       setAntigravityAppPath(config.antigravity_app_path || '');
+      setAntigravityLaunchArgs(config.antigravity_launch_args || '');
       setCodexAppPath(config.codex_app_path || '');
       setVscodeAppPath(config.vscode_app_path || '');
       setWindsurfAppPath(config.windsurf_app_path || '');
@@ -1104,6 +1109,22 @@ export function SettingsPage() {
                               : getResetLabelByTarget('antigravity')}
                           </button>
                         </div>
+                      </div>
+                    </div>
+
+                    <div className="settings-row">
+                      <div className="row-label">
+                        <div className="row-title">{t('settings.general.antigravityLaunchArgs', 'Antigravity 启动参数')}</div>
+                        <div className="row-desc">{t('settings.general.antigravityLaunchArgsDesc', '启动时附加的命令行参数，多个参数用空格分隔，留空则不附加')}</div>
+                      </div>
+                      <div className="row-control row-control--grow">
+                        <input
+                          type="text"
+                          className="settings-input settings-input--path"
+                          value={antigravityLaunchArgs}
+                          placeholder={t('settings.general.antigravityLaunchArgsPlaceholder', '例：--remote-debugging-port=9000')}
+                          onChange={(e) => setAntigravityLaunchArgs(e.target.value)}
+                        />
                       </div>
                     </div>
 

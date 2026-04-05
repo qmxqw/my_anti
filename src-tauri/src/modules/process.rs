@@ -4515,7 +4515,14 @@ fn close_pids(pids: &[u32], timeout_secs: u64) -> Result<(), String> {
 
 /// 启动 Antigravity
 pub fn start_antigravity() -> Result<u32, String> {
-    start_antigravity_with_args("", &[])
+    let config = crate::modules::config::get_user_config();
+    let extra_args: Vec<String> = config
+        .antigravity_launch_args
+        .split_whitespace()
+        .filter(|s| !s.is_empty())
+        .map(|s| s.to_string())
+        .collect();
+    start_antigravity_with_args("", &extra_args)
 }
 
 /// 启动 Antigravity（支持 user-data-dir 与附加参数）

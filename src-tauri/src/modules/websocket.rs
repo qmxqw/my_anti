@@ -772,6 +772,7 @@ fn handle_set_language(language: &str, source: Option<&str>) -> Result<String, S
         hide_dock_icon: current.hide_dock_icon,
         opencode_app_path: current.opencode_app_path,
         antigravity_app_path: current.antigravity_app_path,
+        antigravity_launch_args: current.antigravity_launch_args,
         codex_app_path: current.codex_app_path,
         vscode_app_path: current.vscode_app_path,
         windsurf_app_path: current.windsurf_app_path,
