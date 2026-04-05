@@ -411,11 +411,29 @@ export function useProviderAccountsPage<TAccount extends ProviderAccountBase>(
   }, [accounts, normalizeTagGroup]);
 
   const toggleTagFilterValue = useCallback((tag: string) => {
+    const isRemoving = tagFilter.includes(tag);
     setTagFilter((prev) => {
       if (prev.includes(tag)) return prev.filter((item) => item !== tag);
       return [...prev, tag];
     });
-  }, []);
+
+    // 联动账号选中状态：勾选分组时选中该组所有账号，取消勾选时清除该组账号选中状态
+    const groupAccountIds = accounts
+      .filter((acc) => (acc.tags || []).some((t) => normalizeTagGroup(t) === tag))
+      .map((acc) => acc.id);
+
+    if (groupAccountIds.length === 0) return;
+
+    setSelected((prev) => {
+      const next = new Set(prev);
+      if (isRemoving) {
+        groupAccountIds.forEach((id) => next.delete(id));
+      } else {
+        groupAccountIds.forEach((id) => next.add(id));
+      }
+      return next;
+    });
+  }, [tagFilter, accounts, normalizeTagGroup]);
 
   const clearTagFilter = useCallback(() => {
     setTagFilter([]);
