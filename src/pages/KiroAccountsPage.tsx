@@ -785,7 +785,14 @@ export function KiroAccountsPage() {
         </div>
         <div className="toolbar-right">
           <button className="btn btn-primary icon-only" onClick={() => openAddModal('oauth')} title={t('common.shared.addAccount', '添加账号')} aria-label={t('common.shared.addAccount', '添加账号')}><Plus size={14} /></button>
-          <button className="btn btn-secondary icon-only" onClick={handleRefreshAll} disabled={refreshingAll || accounts.length === 0} title={t('common.shared.refreshAll', '刷新全部')} aria-label={t('common.shared.refreshAll', '刷新全部')}>
+          <button className="btn btn-secondary icon-only" onClick={handleRefreshAll}
+            disabled={refreshingAll || accounts.length === 0 || (accounts.length >= 10 && selected.size === 0)}
+            title={selected.size > 0
+              ? t('common.shared.refreshSelected', '刷新选中 ({{count}})').replace('{{count}}', String(selected.size))
+              : accounts.length >= 10
+                ? t('common.shared.refreshAllBlocked', '账号过10个，请先选中账号再刷新')
+                : t('common.shared.refreshAll', '刷新全部')}
+            aria-label={t('common.shared.refreshAll', '刷新全部')}>
             <RefreshCw size={14} className={refreshingAll ? 'loading-spinner' : ''} />
           </button>
           <button className="btn btn-secondary icon-only" onClick={togglePrivacyMode}

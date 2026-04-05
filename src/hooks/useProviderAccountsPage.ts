@@ -484,6 +484,20 @@ export function useProviderAccountsPage<TAccount extends ProviderAccountBase>(
     fetchAccounts();
   }, [fetchAccounts]);
 
+  // ─── 快捷键：ESC 清空选中 ─────────────────────────────────────────────
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape' && !e.altKey && !e.ctrlKey && !e.metaKey) {
+        if (selected.size > 0) {
+          e.preventDefault();
+          setSelected(new Set());
+        }
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [selected]);
+
   // ─── CRUD ─────────────────────────────────────────────────────────────
   const [refreshing, setRefreshing] = useState<string | null>(null);
   const [refreshingAll, setRefreshingAll] = useState(false);
@@ -508,15 +522,30 @@ export function useProviderAccountsPage<TAccount extends ProviderAccountBase>(
     [refreshToken],
   );
 
+  const REFRESH_ALL_THRESHOLD = 10;
   const handleRefreshAll = useCallback(async () => {
-    setRefreshingAll(true);
-    try {
-      await refreshAllTokens();
-    } catch (e) {
-      console.error(e);
+    if (selected.size > 0) {
+      // 有选中：只刷选中账号
+      setRefreshingAll(true);
+      try {
+        for (const id of Array.from(selected)) {
+          await refreshToken(id).catch((e: unknown) => console.error(e));
+        }
+      } finally {
+        setRefreshingAll(false);
+      }
+    } else if (accounts.length < REFRESH_ALL_THRESHOLD) {
+      // 无选中 + 账号数 < 10：刷全部
+      setRefreshingAll(true);
+      try {
+        await refreshAllTokens();
+      } catch (e) {
+        console.error(e);
+      }
+      setRefreshingAll(false);
     }
-    setRefreshingAll(false);
-  }, [refreshAllTokens]);
+    // 无选中 + 账号数 >= 10：不执行（按钮应为 disabled）
+  }, [selected, accounts, refreshToken, refreshAllTokens]);
 
   const handleDelete = useCallback(
     (accountId: string) => {
