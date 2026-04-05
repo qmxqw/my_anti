@@ -72,6 +72,11 @@ const compareByOverallQuota = (
   secondarySortOldestFirst?: boolean,
   currentAccountId?: string,
 ) => {
+  // 当前帐号始终排第1位
+  if (currentAccountId) {
+    if (a.id === currentAccountId) return -1;
+    if (b.id === currentAccountId) return 1;
+  }
   const aQuota = calculateOverallQuota(getAccountQuotas(a, a.id === currentAccountId));
   const bQuota = calculateOverallQuota(getAccountQuotas(b, b.id === currentAccountId));
   const diff = toDirectionValue(bQuota - aQuota, direction);
@@ -112,7 +117,13 @@ const compareByGroupReset = (
   b: Account,
   direction: AntigravitySortDirection,
   group: DisplayGroup,
+  currentAccountId?: string,
 ) => {
+  // 当前帐号始终排第1位
+  if (currentAccountId) {
+    if (a.id === currentAccountId) return -1;
+    if (b.id === currentAccountId) return 1;
+  }
   const aReset = getAntigravityGroupResetTimestamp(a, group);
   const bReset = getAntigravityGroupResetTimestamp(b, group);
   if (aReset === null && bReset === null) return 0;
@@ -130,6 +141,11 @@ const compareByGroupQuota = (
   secondarySortOldestFirst?: boolean,
   currentAccountId?: string,
 ) => {
+  // 当前帐号始终排第1位
+  if (currentAccountId) {
+    if (a.id === currentAccountId) return -1;
+    if (b.id === currentAccountId) return 1;
+  }
   const groupSettings = buildGroupSettings(displayGroups);
   const aIsCurrent = a.id === currentAccountId;
   const bIsCurrent = b.id === currentAccountId;
@@ -197,7 +213,7 @@ export const createAntigravityAccountComparator = ({
       const targetGroupId = normalizedSortBy.slice(ANTIGRAVITY_RESET_SORT_PREFIX.length);
       const targetGroup = displayGroups.find((group) => group.id === targetGroupId);
       if (targetGroup) {
-        return compareByGroupReset(a, b, sortDirection, targetGroup);
+        return compareByGroupReset(a, b, sortDirection, targetGroup, currentAccountId);
       }
     }
 

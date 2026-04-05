@@ -116,6 +116,7 @@ export function AccountsPage({ onNavigate }: AccountsPageProps) {
     fetchCurrentAccount,
     deleteAccounts,
     refreshQuota,
+    refreshAllQuotas,
     startOAuthLogin,
     switchAccount,
     updateAccountTags
@@ -307,8 +308,8 @@ export function AccountsPage({ onNavigate }: AccountsPageProps) {
   const handleSetSortBy = useCallback((value: string) => {
     setSortBy(value)
     if (value.startsWith(ANTIGRAVITY_RESET_SORT_PREFIX)) {
-      // 按重置时间 → 自动升序 + 取消标签分组
-      setSortDirection('asc')
+      // 按重置时间 → 默认降序 + 取消标签分组
+      setSortDirection('desc')
       setGroupByTag(false)
     } else if (value === 'created_at') {
       // 按创建时间 → 默认升序 + 取消标签分组
@@ -922,34 +923,30 @@ export function AccountsPage({ onNavigate }: AccountsPageProps) {
     }
   }
 
+  const REFRESH_ALL_THRESHOLD = 10
   const handleRefreshAll = async () => {
-    if (selected.size === 0) return
-    setRefreshingAll(true)
-    try {
-      // 只刷新选中的账号
-      const results = await Promise.allSettled(
-        Array.from(selected).map((id) => refreshQuota(id))
-      )
-      const warnings: Record<string, { kind: 'auth' | 'error'; message: string }> = {}
-      results.forEach((result, index) => {
-        if (result.status === 'rejected') {
-          const id = Array.from(selected)[index]
-          const target = accounts.find((acc) => acc.id === id)
-          if (target) {
-            const reason = normalizeWarningMessage(String(result.reason))
-            warnings[target.email] = {
-              kind: isAuthFailure(reason) ? 'auth' : 'error',
-              message: reason
-            }
-          }
+    if (selected.size > 0) {
+      // 有选中：只刷选中账号（串行）
+      setRefreshingAll(true)
+      try {
+        for (const id of Array.from(selected)) {
+          await refreshQuota(id).catch((e: unknown) => console.error(e))
         }
-      })
-      setRefreshWarnings((prev) => ({ ...prev, ...warnings }))
-    } catch (e) {
-      console.error(e)
-    } finally {
-      setRefreshingAll(false)
+      } finally {
+        setRefreshingAll(false)
+      }
+    } else if (accounts.length < REFRESH_ALL_THRESHOLD) {
+      // 无选中 + 账号数 < 10：刷全部
+      setRefreshingAll(true)
+      try {
+        await refreshAllQuotas()
+      } catch (e) {
+        console.error(e)
+      } finally {
+        setRefreshingAll(false)
+      }
     }
+    // 无选中 + 账号数 >= 10：不执行（按钮应为 disabled）
   }
 
   const handleDelete = (accountId: string) => {
@@ -2544,9 +2541,15 @@ export function AccountsPage({ onNavigate }: AccountsPageProps) {
             <button
               className="btn btn-secondary icon-only"
               onClick={handleRefreshAll}
-              disabled={refreshingAll}
-              title={t('accounts.refreshAll')}
-              aria-label={t('accounts.refreshAll')}
+              disabled={refreshingAll || accounts.length === 0 || (accounts.length >= REFRESH_ALL_THRESHOLD && selected.size === 0)}
+              title={selected.size > 0
+                ? t('common.shared.refreshSelected', '刷新选中 ({{count}})').replace('{{count}}', String(selected.size))
+                : accounts.length >= REFRESH_ALL_THRESHOLD
+                  ? t('common.shared.refreshAllBlocked', '账号过10个，请先选中账号再刷新')
+                  : t('common.shared.refreshAll', '刷新全部')}
+              aria-label={selected.size > 0
+                ? t('common.shared.refreshSelected', '刷新选中 ({{count}})').replace('{{count}}', String(selected.size))
+                : t('accounts.refreshAll')}
             >
               <RefreshCw
                 size={14}
