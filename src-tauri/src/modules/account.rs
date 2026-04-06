@@ -18,9 +18,7 @@ static LIST_ACCOUNTS_CACHE: std::sync::LazyLock<Mutex<Option<ListAccountsCacheEn
     std::sync::LazyLock::new(|| Mutex::new(None));
 static LIST_ACCOUNTS_LOAD_LOCK: std::sync::LazyLock<Mutex<()>> =
     std::sync::LazyLock::new(|| Mutex::new(()));
-static AG_QUOTA_ALERT_LAST_SENT: std::sync::LazyLock<Mutex<HashMap<String, i64>>> =
-    std::sync::LazyLock::new(|| Mutex::new(HashMap::new()));
-const AG_QUOTA_ALERT_COOLDOWN_SECONDS: i64 = 300;
+
 
 const LIST_ACCOUNTS_CACHE_TTL_MS: u64 = 800;
 
@@ -1862,56 +1860,94 @@ pub async fn hotkey_smart_switch_legacy() -> Result<String, String> {
 
 // ── AG 账号配额预警 ────────────────────────────────────────────────────────────
 
-fn ag_build_quota_alert_cooldown_key(account_id: &str, threshold: i32) -> String {
-    format!("ag:{}:{}", account_id, threshold)
-}
+/// 使用与热键切号（v2）相同的逻辑，从当前账号位置向后按梯度查找推荐账号
+/// 梯度：=100% → ≥80% → ≥60% → ≥40%；已过期模型视为100%
+fn ag_pick_recommendation(all_accounts: &[Account], current_id: &str) -> Option<Account> {
+    let now = chrono::Utc::now().timestamp();
 
-fn ag_should_emit_quota_alert(cooldown_key: &str, now: i64) -> bool {
-    let Ok(mut state) = AG_QUOTA_ALERT_LAST_SENT.lock() else {
-        return true;
+    // 有效最低 percentage（过期模型视为100%）
+    let effective_min_pct = |acc: &Account| -> i32 {
+        let quota = match acc.quota.as_ref() {
+            Some(q) => q,
+            None => return -1,
+        };
+        quota
+            .models
+            .iter()
+            .filter(|m| m.name.to_lowercase().starts_with("claude"))
+            .map(|m| {
+                if !m.reset_time.is_empty() {
+                    if let Ok(reset) = chrono::DateTime::parse_from_rfc3339(&m.reset_time) {
+                        if reset.timestamp() <= now {
+                            return 100;
+                        }
+                    }
+                }
+                m.percentage
+            })
+            .min()
+            .unwrap_or(-1)
     };
-    if let Some(last_sent) = state.get(cooldown_key) {
-        if now - *last_sent < AG_QUOTA_ALERT_COOLDOWN_SECONDS {
-            return false;
-        }
-    }
-    state.insert(cooldown_key.to_string(), now);
-    true
-}
 
-fn ag_clear_quota_alert_cooldown(account_id: &str, threshold: i32) {
-    if let Ok(mut state) = AG_QUOTA_ALERT_LAST_SENT.lock() {
-        state.remove(&ag_build_quota_alert_cooldown_key(account_id, threshold));
-    }
-}
+    let user_cfg = crate::modules::config::get_user_config();
+    let sort_field = user_cfg.switch_sort_field.as_str();
+    let sort_desc = user_cfg.switch_sort_desc;
 
-fn ag_pick_recommendation(accounts: &[Account], current_id: &str) -> Option<Account> {
-    let mut candidates: Vec<Account> = accounts
+    // 候选过滤（与热键v2一致：未禁用、有quota、有claude模型、非UNKNOWN等级）
+    let mut candidates: Vec<&Account> = all_accounts
         .iter()
-        .filter(|acc| acc.id != current_id && !acc.disabled)
         .filter(|acc| {
-            acc.quota
-                .as_ref()
-                .and_then(|q| claude_min_percentage(q))
-                .is_some()
+            if acc.disabled { return false; }
+            let quota = match acc.quota.as_ref() {
+                Some(q) => q,
+                None => return false,
+            };
+            if quota.models.is_empty() { return false; }
+            let tier = quota.subscription_tier.as_deref().unwrap_or("").trim().to_string();
+            if tier.is_empty() { return false; }
+            quota.models.iter().any(|m| m.name.to_lowercase().starts_with("claude"))
         })
-        .cloned()
         .collect();
 
     if candidates.is_empty() {
         return None;
     }
 
+    // 与热键v2相同的排序
     candidates.sort_by(|a, b| {
-        let pct_a = a.quota.as_ref().and_then(|q| claude_min_percentage(q)).unwrap_or(-1);
-        let pct_b = b.quota.as_ref().and_then(|q| claude_min_percentage(q)).unwrap_or(-1);
-        pct_b.cmp(&pct_a)
+        let cmp = match sort_field {
+            "last_used_at" => a.last_used_at.cmp(&b.last_used_at),
+            _ => a.created_at.cmp(&b.created_at),
+        };
+        if sort_desc { cmp.reverse() } else { cmp }
     });
 
-    candidates.into_iter().next()
+    // 找到当前账号在列表中的位置
+    let current_idx = candidates.iter().position(|acc| acc.id == current_id).unwrap_or(0);
+    let n = candidates.len();
+
+    // 从当前位置向后按梯度查找（排除当前账号自身）
+    let find_next = |threshold: i32| -> Option<usize> {
+        for offset in 1..n {
+            let idx = (current_idx + offset) % n;
+            if effective_min_pct(candidates[idx]) >= threshold {
+                return Some(idx);
+            }
+        }
+        None
+    };
+
+    for threshold in [100, 80, 60, 40] {
+        if let Some(idx) = find_next(threshold) {
+            return Some(candidates[idx].clone());
+        }
+    }
+
+    None
 }
 
 /// 检查当前 AG 账号配额是否低于预警阈值，并在需要时触发提示
+/// 每次刷新都会检查，无冷却限制（关闭弹窗/稍后提醒后，下次刷新仍会提示）
 pub fn run_quota_alert_if_needed() -> Result<Option<QuotaAlertPayload>, String> {
     let cfg = crate::modules::config::get_user_config();
     if !cfg.quota_alert_enabled {
@@ -1936,13 +1972,6 @@ pub fn run_quota_alert_if_needed() -> Result<Option<QuotaAlertPayload>, String> 
     };
 
     if min_pct > threshold {
-        ag_clear_quota_alert_cooldown(&current_id, threshold);
-        return Ok(None);
-    }
-
-    let now = chrono::Utc::now().timestamp();
-    let cooldown_key = ag_build_quota_alert_cooldown_key(&current_id, threshold);
-    if !ag_should_emit_quota_alert(&cooldown_key, now) {
         return Ok(None);
     }
 
@@ -1961,6 +1990,7 @@ pub fn run_quota_alert_if_needed() -> Result<Option<QuotaAlertPayload>, String> 
 
     let accounts = list_accounts()?;
     let recommendation = ag_pick_recommendation(&accounts, &current_id);
+    let now = chrono::Utc::now().timestamp();
 
     let payload = QuotaAlertPayload {
         platform: "antigravity".to_string(),
