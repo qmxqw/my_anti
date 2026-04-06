@@ -90,13 +90,13 @@ export const useAccountStore = create<AccountState>((set, get) => ({
         fetchAccountsLastTime = now;
         
         fetchAccountsPromise = (async () => {
-            set({ loading: true, error: null });
             try {
                 const accounts = await accountService.listAccounts();
-                set({ accounts, loading: false });
+                // 直接替换数据，不经过 loading: true 的中间状态，避免列表闪烁
+                set({ accounts, error: null });
                 persistAccountsCache(accounts);
             } catch (e) {
-                set({ error: String(e), loading: false });
+                set({ error: String(e) });
             } finally {
                 // 请求完成后延迟清除 Promise，允许短时间内的后续调用也复用结果
                 setTimeout(() => {

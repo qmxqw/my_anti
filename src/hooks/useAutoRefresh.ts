@@ -131,7 +131,6 @@ export function useAutoRefresh() {
   const fetchKiroAccounts = useKiroAccountStore((state) => state.fetchAccounts);
 
   const agIntervalRef = useRef<number | null>(null);
-  const autoSwitchIntervalRef = useRef<number | null>(null);
   const codexIntervalRef = useRef<number | null>(null);
   const ghcpIntervalRef = useRef<number | null>(null);
   const windsurfIntervalRef = useRef<number | null>(null);
@@ -142,7 +141,6 @@ export function useAutoRefresh() {
   const ghcpRefreshingRef = useRef(false);
   const windsurfRefreshingRef = useRef(false);
   const kiroRefreshingRef = useRef(false);
-  const autoSwitchRefreshingRef = useRef(false);
 
   const setupRunningRef = useRef(false);
   const setupPendingRef = useRef(false);
@@ -278,7 +276,7 @@ export function useAutoRefresh() {
   };
 
   const clearAllTimers = useCallback(() => {
-    const refs = [agIntervalRef, codexIntervalRef, ghcpIntervalRef, autoSwitchIntervalRef, windsurfIntervalRef, kiroIntervalRef];
+    const refs = [agIntervalRef, codexIntervalRef, ghcpIntervalRef, windsurfIntervalRef, kiroIntervalRef];
     for (const ref of refs) {
       if (ref.current) {
         window.clearTimeout(ref.current);
@@ -360,7 +358,16 @@ export function useAutoRefresh() {
                         console.error(`[AutoRefresh] 账号 ${candidate.email} 刷新失败:`, e);
                       }
                     }
-                    // 有帐号被刷新时更新前端 UI
+                    // 有账号额度被刷新时，如果开了自动切号，先执行切号检查再更新 UI
+                    if (config.auto_switch_enabled) {
+                      try {
+                        await syncCurrentFromClient();
+                        await invoke('refresh_current_quota');
+                      } catch (e) {
+                        console.error('[AutoRefresh] 自动切号检查失败:', e);
+                      }
+                    }
+                    // 更新前端 UI
                     await fetchAccounts();
                     await fetchCurrentAccount();
                   } else {
@@ -391,6 +398,7 @@ export function useAutoRefresh() {
             console.log(`[AutoRefresh] Codex 已启用: 每 ${config.codex_auto_refresh_minutes} 分钟（刷新数量: ${codexExtraCount}）`);
             const codexMs = config.codex_auto_refresh_minutes * 60 * 1000;
 
+            // skipTrayCheck=true: 窗口不可见时也刷新
             scheduleAligned(codexMs, async () => {
               if (codexRefreshingRef.current) {
                 return;
@@ -398,27 +406,62 @@ export function useAutoRefresh() {
               codexRefreshingRef.current = true;
 
               try {
-                console.log('[AutoRefresh] 触发 Codex 配额刷新...');
-                if (codexExtraCount > 0) {
-                  const allAccounts = useCodexAccountStore.getState().accounts;
-                  const toRefresh = allAccounts.slice(0, codexExtraCount);
+                if (codexExtraCount === 0) {
+                  // 数量为 0：不刷新
+                  console.log('[AutoRefresh] Codex 刷新数量为 0，跳过');
+                } else if (codexExtraCount === 1) {
+                  // 数量为 1：只刷新当前账号
+                  const currentAccount = useCodexAccountStore.getState().currentAccount;
+                  if (currentAccount) {
+                    console.log(`[AutoRefresh] Codex 刷新当前账号: ${currentAccount.email}`);
+                    try {
+                      await refreshCodexQuota(currentAccount.id);
+                    } catch (e) {
+                      console.error(`[AutoRefresh] Codex 当前账号 ${currentAccount.email} 刷新失败:`, e);
+                    }
+                    await fetchCodexAccounts();
+                    await fetchCodexCurrentAccount();
+                  } else {
+                    console.log('[AutoRefresh] Codex 无当前账号，跳过');
+                  }
+                } else {
+                  // 数量 > 1：当前账号 + 环形队列（按 created_at 升序）后面 N-1 个账号，共 N 个
+                  const state = useCodexAccountStore.getState();
+                  const currentAccount = state.currentAccount;
+                  const sorted = [...state.accounts].sort(
+                    (a, b) => ((a as { created_at?: number }).created_at ?? 0) - ((b as { created_at?: number }).created_at ?? 0)
+                  );
+                  const currentIndex = sorted.findIndex((a) => a.id === currentAccount?.id);
+                  const startIndex = currentIndex >= 0 ? (currentIndex + 1) % sorted.length : 0;
+                  const needed = codexExtraCount - 1;
+                  const tail: typeof sorted = [];
+                  for (let i = 0; i < needed && i < sorted.length; i++) {
+                    const candidate = sorted[(startIndex + i) % sorted.length];
+                    // 不重复添加当前账号（账号总数 <= needed 时可能转回来）
+                    if (candidate.id !== currentAccount?.id) {
+                      tail.push(candidate);
+                    }
+                  }
+                  // 当前账号放首位先刷
+                  const toRefresh = currentAccount ? [currentAccount, ...tail] : tail;
+                  console.log(`[AutoRefresh] Codex 刷新 ${toRefresh.length} 个账号（当前 + 环形队列后 ${tail.length} 个）`);
                   for (const acc of toRefresh) {
                     try {
                       await refreshCodexQuota(acc.id);
+                      console.log(`[AutoRefresh] Codex 账号 ${acc.email} 配额已刷新`);
                     } catch (e) {
                       console.error(`[AutoRefresh] Codex 账号 ${acc.email} 刷新失败:`, e);
                     }
                   }
                   await fetchCodexAccounts();
-                } else {
-                  await refreshAllCodexQuotas();
+                  await fetchCodexCurrentAccount();
                 }
               } catch (e) {
                 console.error('[AutoRefresh] Codex 刷新失败:', e);
               } finally {
                 codexRefreshingRef.current = false;
               }
-            }, codexIntervalRef);
+            }, codexIntervalRef, true);
           } else {
             console.log('[AutoRefresh] Codex 已禁用');
           }
@@ -534,28 +577,8 @@ export function useAutoRefresh() {
             console.log('[AutoRefresh] Kiro 已禁用');
           }
 
-          // 自动切号开启时，额外每 60 秒刷新当前账号（不影响原有配额自动刷新规则）
           if (config.auto_switch_enabled) {
-            console.log('[AutoRefresh] 自动切号已启用: 每 60 秒刷新当前账号');
-            scheduleAligned(60 * 1000, async () => {
-              if (autoSwitchRefreshingRef.current) {
-                return;
-              }
-              autoSwitchRefreshingRef.current = true;
-
-              try {
-                await syncCurrentFromClient();
-                await invoke('refresh_current_quota');
-                await fetchAccounts();
-                await fetchCurrentAccount();
-              } catch (e) {
-                console.error('[AutoRefresh] 自动切号-当前账号刷新失败:', e);
-              } finally {
-                autoSwitchRefreshingRef.current = false;
-              }
-            }, autoSwitchIntervalRef);
-          } else {
-            console.log('[AutoRefresh] 自动切号未启用，跳过 60 秒当前账号刷新');
+            console.log('[AutoRefresh] 自动切号已启用：将在账号额度刷新后自动检查');
           }
         } catch (err) {
           console.error('[AutoRefresh] 加载配置失败:', err);
