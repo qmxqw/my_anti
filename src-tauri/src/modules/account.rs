@@ -18,6 +18,9 @@ static LIST_ACCOUNTS_CACHE: std::sync::LazyLock<Mutex<Option<ListAccountsCacheEn
     std::sync::LazyLock::new(|| Mutex::new(None));
 static LIST_ACCOUNTS_LOAD_LOCK: std::sync::LazyLock<Mutex<()>> =
     std::sync::LazyLock::new(|| Mutex::new(()));
+static AG_QUOTA_ALERT_LAST_SENT: std::sync::LazyLock<Mutex<HashMap<String, i64>>> =
+    std::sync::LazyLock::new(|| Mutex::new(HashMap::new()));
+const AG_QUOTA_ALERT_COOLDOWN_SECONDS: i64 = 300;
 
 const LIST_ACCOUNTS_CACHE_TTL_MS: u64 = 800;
 
@@ -1855,4 +1858,122 @@ pub async fn hotkey_smart_switch_legacy() -> Result<String, String> {
             Err(format!("切换失败: {}", e))
         }
     }
+}
+
+// ── AG 账号配额预警 ────────────────────────────────────────────────────────────
+
+fn ag_build_quota_alert_cooldown_key(account_id: &str, threshold: i32) -> String {
+    format!("ag:{}:{}", account_id, threshold)
+}
+
+fn ag_should_emit_quota_alert(cooldown_key: &str, now: i64) -> bool {
+    let Ok(mut state) = AG_QUOTA_ALERT_LAST_SENT.lock() else {
+        return true;
+    };
+    if let Some(last_sent) = state.get(cooldown_key) {
+        if now - *last_sent < AG_QUOTA_ALERT_COOLDOWN_SECONDS {
+            return false;
+        }
+    }
+    state.insert(cooldown_key.to_string(), now);
+    true
+}
+
+fn ag_clear_quota_alert_cooldown(account_id: &str, threshold: i32) {
+    if let Ok(mut state) = AG_QUOTA_ALERT_LAST_SENT.lock() {
+        state.remove(&ag_build_quota_alert_cooldown_key(account_id, threshold));
+    }
+}
+
+fn ag_pick_recommendation(accounts: &[Account], current_id: &str) -> Option<Account> {
+    let mut candidates: Vec<Account> = accounts
+        .iter()
+        .filter(|acc| acc.id != current_id && !acc.disabled)
+        .filter(|acc| {
+            acc.quota
+                .as_ref()
+                .and_then(|q| claude_min_percentage(q))
+                .is_some()
+        })
+        .cloned()
+        .collect();
+
+    if candidates.is_empty() {
+        return None;
+    }
+
+    candidates.sort_by(|a, b| {
+        let pct_a = a.quota.as_ref().and_then(|q| claude_min_percentage(q)).unwrap_or(-1);
+        let pct_b = b.quota.as_ref().and_then(|q| claude_min_percentage(q)).unwrap_or(-1);
+        pct_b.cmp(&pct_a)
+    });
+
+    candidates.into_iter().next()
+}
+
+/// 检查当前 AG 账号配额是否低于预警阈值，并在需要时触发提示
+pub fn run_quota_alert_if_needed() -> Result<Option<QuotaAlertPayload>, String> {
+    let cfg = crate::modules::config::get_user_config();
+    if !cfg.quota_alert_enabled {
+        return Ok(None);
+    }
+
+    let threshold = cfg.quota_alert_threshold.clamp(0, 100);
+
+    let current_id = match get_current_account_id()? {
+        Some(id) => id,
+        None => return Ok(None),
+    };
+
+    let current = match load_account(&current_id) {
+        Ok(acc) => acc,
+        Err(_) => return Ok(None),
+    };
+
+    let min_pct = match current.quota.as_ref().and_then(|q| claude_min_percentage(q)) {
+        Some(pct) => pct,
+        None => return Ok(None), // 无 claude 模型数据，跳过
+    };
+
+    if min_pct > threshold {
+        ag_clear_quota_alert_cooldown(&current_id, threshold);
+        return Ok(None);
+    }
+
+    let now = chrono::Utc::now().timestamp();
+    let cooldown_key = ag_build_quota_alert_cooldown_key(&current_id, threshold);
+    if !ag_should_emit_quota_alert(&cooldown_key, now) {
+        return Ok(None);
+    }
+
+    // 找出额度低的 claude 模型名称列表
+    let low_models: Vec<String> = current
+        .quota
+        .as_ref()
+        .map(|q| {
+            q.models
+                .iter()
+                .filter(|m| m.name.to_lowercase().starts_with("claude") && m.percentage <= threshold)
+                .map(|m| m.name.clone())
+                .collect()
+        })
+        .unwrap_or_default();
+
+    let accounts = list_accounts()?;
+    let recommendation = ag_pick_recommendation(&accounts, &current_id);
+
+    let payload = QuotaAlertPayload {
+        platform: "antigravity".to_string(),
+        current_account_id: current_id,
+        current_email: current.email.clone(),
+        threshold,
+        lowest_percentage: min_pct,
+        low_models,
+        recommended_account_id: recommendation.as_ref().map(|a| a.id.clone()),
+        recommended_email: recommendation.as_ref().map(|a| a.email.clone()),
+        triggered_at: now,
+    };
+
+    dispatch_quota_alert(&payload);
+    Ok(Some(payload))
 }

@@ -76,6 +76,9 @@ pub async fn fetch_account_quota(account_id: String) -> AppResult<models::QuotaD
     let mut account = modules::load_account(&account_id).map_err(AppError::Account)?;
     let quota = modules::fetch_quota_with_retry(&mut account, true).await?;
     modules::update_account_quota(&account_id, quota).map_err(AppError::Account)?;
+    if let Err(e) = modules::account::run_quota_alert_if_needed() {
+        modules::logger::log_warn(&format!("[QuotaAlert][AG] 预警检查失败: {}", e));
+    }
     // 重新读取落盘后的账号，返回经过可疑 reset_time 过滤的实际 quota
     // 确保前端 UI 与 JSON 存储内容保持一致（不暴露被过滤的可疑值）
     let saved = modules::load_account(&account_id).map_err(AppError::Account)?;
@@ -88,6 +91,9 @@ pub async fn refresh_all_quotas(
 ) -> Result<modules::account::RefreshStats, String> {
     let result = modules::account::refresh_all_quotas_logic().await;
     if result.is_ok() {
+        if let Err(e) = modules::account::run_quota_alert_if_needed() {
+            modules::logger::log_warn(&format!("[QuotaAlert][AG] 全量刷新后预警检查失败: {}", e));
+        }
         let _ = crate::modules::tray::update_tray_menu(&app);
     }
     result
