@@ -140,9 +140,21 @@ pub struct UserConfig {
     /// Kiro 配额预警阈值（百分比）
     #[serde(default = "default_kiro_quota_alert_threshold")]
     pub kiro_quota_alert_threshold: i32,
-    /// 额外刷新帐号数：每次定时刷新时，除当前帐号外额外刷新的帐号数量
+    /// 额外刷新帐号数（Antigravity）：每次定时刷新时，额外刷新的帐号数量
     #[serde(default = "default_extra_refresh_count")]
     pub extra_refresh_count: i32,
+    /// 额外刷新帐号数（Codex）
+    #[serde(default = "default_extra_refresh_count")]
+    pub codex_extra_refresh_count: i32,
+    /// 额外刷新帐号数（GitHub Copilot）
+    #[serde(default = "default_extra_refresh_count")]
+    pub ghcp_extra_refresh_count: i32,
+    /// 额外刷新帐号数（Windsurf）
+    #[serde(default = "default_extra_refresh_count")]
+    pub windsurf_extra_refresh_count: i32,
+    /// 额外刷新帐号数（Kiro）
+    #[serde(default = "default_extra_refresh_count")]
+    pub kiro_extra_refresh_count: i32,
     /// 批量刷新时是否跳过已重置（配额已满）的账号
     #[serde(default = "default_batch_refresh_skip_reset")]
     pub batch_refresh_skip_reset: bool,
@@ -418,6 +430,10 @@ impl Default for UserConfig {
             kiro_quota_alert_enabled: default_kiro_quota_alert_enabled(),
             kiro_quota_alert_threshold: default_kiro_quota_alert_threshold(),
             extra_refresh_count: default_extra_refresh_count(),
+            codex_extra_refresh_count: default_extra_refresh_count(),
+            ghcp_extra_refresh_count: default_extra_refresh_count(),
+            windsurf_extra_refresh_count: default_extra_refresh_count(),
+            kiro_extra_refresh_count: default_extra_refresh_count(),
             batch_refresh_skip_reset: default_batch_refresh_skip_reset(),
 
             refresh_sort_oldest_first: default_refresh_sort_oldest_first(),

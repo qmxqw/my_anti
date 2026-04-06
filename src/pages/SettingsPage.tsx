@@ -59,6 +59,10 @@ interface GeneralConfig {
   kiro_quota_alert_enabled: boolean;
   kiro_quota_alert_threshold: number;
   extra_refresh_count: number;
+  codex_extra_refresh_count: number;
+  ghcp_extra_refresh_count: number;
+  windsurf_extra_refresh_count: number;
+  kiro_extra_refresh_count: number;
   batch_refresh_skip_reset: boolean;
   refresh_sort_oldest_first: boolean;
   refresh_when_tray?: boolean;
@@ -119,6 +123,10 @@ export function SettingsPage() {
   const [theme, setTheme] = useState('system');
   const [autoRefresh, setAutoRefresh] = useState('5');
   const [extraRefreshCount, setExtraRefreshCount] = useState('0');
+  const [codexExtraRefreshCount, setCodexExtraRefreshCount] = useState('0');
+  const [ghcpExtraRefreshCount, setGhcpExtraRefreshCount] = useState('0');
+  const [windsurfExtraRefreshCount, setWindsurfExtraRefreshCount] = useState('0');
+  const [kiroExtraRefreshCount, setKiroExtraRefreshCount] = useState('0');
   const [codexAutoRefresh, setCodexAutoRefresh] = useState('10');
   const [ghcpAutoRefresh, setGhcpAutoRefresh] = useState('10');
   const [windsurfAutoRefresh, setWindsurfAutoRefresh] = useState('10');
@@ -321,6 +329,10 @@ export function SettingsPage() {
           kiroAutoRefreshMinutes: kiroAutoRefreshNum,
           closeBehavior,
           extraRefreshCount: parseInt(extraRefreshCount, 10) || 0,
+          codexExtraRefreshCount: parseInt(codexExtraRefreshCount, 10) || 0,
+          ghcpExtraRefreshCount: parseInt(ghcpExtraRefreshCount, 10) || 0,
+          windsurfExtraRefreshCount: parseInt(windsurfExtraRefreshCount, 10) || 0,
+          kiroExtraRefreshCount: parseInt(kiroExtraRefreshCount, 10) || 0,
           batchRefreshSkipReset: true,
           hideDockIcon,
           opencodeAppPath,
@@ -336,9 +348,9 @@ export function SettingsPage() {
           autoSwitchThreshold: Number.isNaN(parsedAutoSwitchThreshold) ? 20 : parsedAutoSwitchThreshold,
           quotaAlertEnabled: !Number.isNaN(parsedQuotaAlertThreshold) && parsedQuotaAlertThreshold > 0,
           quotaAlertThreshold: Number.isNaN(parsedQuotaAlertThreshold) ? 0 : parsedQuotaAlertThreshold,
-          codexQuotaAlertEnabled,
+          codexQuotaAlertEnabled: !Number.isNaN(parsedCodexQuotaAlertThreshold) && parsedCodexQuotaAlertThreshold > 0,
           codexQuotaAlertThreshold: Number.isNaN(parsedCodexQuotaAlertThreshold)
-            ? 20
+            ? 0
             : parsedCodexQuotaAlertThreshold,
           ghcpQuotaAlertEnabled,
           ghcpQuotaAlertThreshold: Number.isNaN(parsedGhcpQuotaAlertThreshold)
@@ -567,6 +579,10 @@ export function SettingsPage() {
       setTheme(config.theme);
       setAutoRefresh(String(config.auto_refresh_minutes));
       setExtraRefreshCount(String(config.extra_refresh_count ?? 0));
+      setCodexExtraRefreshCount(String(config.codex_extra_refresh_count ?? 0));
+      setGhcpExtraRefreshCount(String(config.ghcp_extra_refresh_count ?? 0));
+      setWindsurfExtraRefreshCount(String(config.windsurf_extra_refresh_count ?? 0));
+      setKiroExtraRefreshCount(String(config.kiro_extra_refresh_count ?? 0));
       setCodexAutoRefresh(String(config.codex_auto_refresh_minutes ?? 10));
       setGhcpAutoRefresh(String(config.ghcp_auto_refresh_minutes ?? 10));
       setWindsurfAutoRefresh(String(config.windsurf_auto_refresh_minutes ?? 10));
@@ -1508,79 +1524,64 @@ export function SettingsPage() {
 
                     <div className="settings-row">
                       <div className="row-label">
-                        <div className="row-title">{t('quickSettings.quotaAlert.enable', '超额预警')}</div>
+                        <div className="row-title">{t('settings.codex.autoSwitch', '自动切号')}</div>
+                        <div className="row-desc">{t('settings.codex.autoSwitchDesc', '当前帐号刷新后配额 ≤ 阈值时，静默切换到下一个帐号（按创建时间升序轮转）。选择不启用则关闭此功能。')}</div>
                       </div>
                       <div className="row-control">
-                        <label className="switch">
-                          <input
-                            type="checkbox"
-                            checked={codexQuotaAlertEnabled}
-                            onChange={(e) => setCodexQuotaAlertEnabled(e.target.checked)}
-                          />
-                          <span className="slider"></span>
-                        </label>
-                      </div>
-                    </div>
-                    {codexQuotaAlertEnabled && (
-                      <div className="settings-row" style={{ animation: 'fadeUp 0.3s ease both' }}>
-                        <div className="row-label">
-                          <div className="row-title">{t('quickSettings.quotaAlert.threshold', '预警阈值')}</div>
-                        </div>
-                        <div className="row-control">
-                          {codexQuotaAlertThresholdCustomMode ? (
-                            <div className="settings-inline-input">
-                              <input
-                                type="number"
-                                min={0}
-                                max={100}
-                                className="settings-select settings-select--input-mode settings-select--with-unit"
-                                value={codexQuotaAlertThreshold}
-                                placeholder={t('quickSettings.inputPercent', '输入百分比')}
-                                onChange={(e) => setCodexQuotaAlertThreshold(sanitizeNumberInput(e.target.value))}
-                                onBlur={() => {
+                        {codexQuotaAlertThresholdCustomMode ? (
+                          <div className="settings-inline-input">
+                            <input
+                              type="number"
+                              min={0}
+                              max={100}
+                              className="settings-select settings-select--input-mode settings-select--with-unit"
+                              value={codexQuotaAlertThreshold}
+                              placeholder={t('quickSettings.inputPercent', '输入百分比')}
+                              onChange={(e) => setCodexQuotaAlertThreshold(sanitizeNumberInput(e.target.value))}
+                              onBlur={() => {
+                                const normalized = normalizeNumberInput(codexQuotaAlertThreshold, 0, 100);
+                                setCodexQuotaAlertThreshold(normalized);
+                                setCodexQuotaAlertThresholdCustomMode(false);
+                              }}
+                              onKeyDown={(e) => {
+                                if (e.key === 'Enter') {
+                                  e.preventDefault();
                                   const normalized = normalizeNumberInput(codexQuotaAlertThreshold, 0, 100);
                                   setCodexQuotaAlertThreshold(normalized);
                                   setCodexQuotaAlertThresholdCustomMode(false);
-                                }}
-                                onKeyDown={(e) => {
-                                  if (e.key === 'Enter') {
-                                    e.preventDefault();
-                                    const normalized = normalizeNumberInput(codexQuotaAlertThreshold, 0, 100);
-                                    setCodexQuotaAlertThreshold(normalized);
-                                    setCodexQuotaAlertThresholdCustomMode(false);
-                                  }
-                                }}
-                              />
-                              <span className="settings-input-unit">%</span>
-                            </div>
-                          ) : (
-                            <select
-                              className="settings-select"
-                              value={codexQuotaAlertThreshold}
-                              onChange={(e) => {
-                                const val = e.target.value;
-                                if (val === 'custom') {
-                                  setCodexQuotaAlertThresholdCustomMode(true);
-                                  setCodexQuotaAlertThreshold(codexQuotaAlertThreshold || '20');
-                                  return;
                                 }
-                                setCodexQuotaAlertThresholdCustomMode(false);
-                                setCodexQuotaAlertThreshold(val);
                               }}
-                            >
-                              {!codexQuotaAlertThresholdIsPreset && (
-                                <option value={codexQuotaAlertThreshold}>{codexQuotaAlertThreshold}%</option>
-                              )}
-                              <option value="0">0%</option>
-                              <option value="20">20%</option>
-                              <option value="40">40%</option>
-                              <option value="60">60%</option>
-                              <option value="custom">{t('settings.general.autoRefreshCustom')}</option>
-                            </select>
-                          )}
-                        </div>
+                            />
+                            <span className="settings-input-unit">%</span>
+                          </div>
+                        ) : (
+                          <select
+                            className="settings-select"
+                            value={codexQuotaAlertThreshold}
+                            onChange={(e) => {
+                              const val = e.target.value;
+                              if (val === 'custom') {
+                                setCodexQuotaAlertThresholdCustomMode(true);
+                                setCodexQuotaAlertThreshold(codexQuotaAlertThreshold || '10');
+                                return;
+                              }
+                              setCodexQuotaAlertThresholdCustomMode(false);
+                              setCodexQuotaAlertThreshold(val);
+                            }}
+                          >
+                            {!codexQuotaAlertThresholdIsPreset && (
+                              <option value={codexQuotaAlertThreshold}>{codexQuotaAlertThreshold}%</option>
+                            )}
+                            <option value="0">{t('quickSettings.quotaAlert.disabled', '不启用')}</option>
+                            <option value="1">1%</option>
+                            <option value="5">5%</option>
+                            <option value="10">10%</option>
+                            <option value="20">20%</option>
+                            <option value="custom">{t('settings.general.autoRefreshCustom')}</option>
+                          </select>
+                        )}
                       </div>
-                    )}
+                    </div>
                   </div>
 
                 </div>

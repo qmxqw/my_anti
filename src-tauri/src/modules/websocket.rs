@@ -793,6 +793,10 @@ fn handle_set_language(language: &str, source: Option<&str>) -> Result<String, S
         kiro_quota_alert_enabled: current.kiro_quota_alert_enabled,
         kiro_quota_alert_threshold: current.kiro_quota_alert_threshold,
         extra_refresh_count: current.extra_refresh_count,
+        codex_extra_refresh_count: current.codex_extra_refresh_count,
+        ghcp_extra_refresh_count: current.ghcp_extra_refresh_count,
+        windsurf_extra_refresh_count: current.windsurf_extra_refresh_count,
+        kiro_extra_refresh_count: current.kiro_extra_refresh_count,
         batch_refresh_skip_reset: current.batch_refresh_skip_reset,
 
         refresh_sort_oldest_first: current.refresh_sort_oldest_first,

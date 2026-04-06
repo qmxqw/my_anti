@@ -38,6 +38,10 @@ interface GeneralConfig {
   kiro_quota_alert_enabled: boolean;
   kiro_quota_alert_threshold: number;
   extra_refresh_count: number;
+  codex_extra_refresh_count: number;
+  ghcp_extra_refresh_count: number;
+  windsurf_extra_refresh_count: number;
+  kiro_extra_refresh_count: number;
   refresh_sort_oldest_first: boolean;
   refresh_when_tray?: boolean;
   ui_auto_refresh?: boolean;
@@ -198,6 +202,10 @@ export function QuickSettingsPopover({ type }: QuickSettingsPopoverProps) {
           kiroQuotaAlertEnabled: merged.kiro_quota_alert_enabled,
           kiroQuotaAlertThreshold: merged.kiro_quota_alert_threshold,
           extraRefreshCount: merged.extra_refresh_count,
+          codexExtraRefreshCount: merged.codex_extra_refresh_count,
+          ghcpExtraRefreshCount: merged.ghcp_extra_refresh_count,
+          windsurfExtraRefreshCount: merged.windsurf_extra_refresh_count,
+          kiroExtraRefreshCount: merged.kiro_extra_refresh_count,
           refreshSortOldestFirst: merged.refresh_sort_oldest_first,
           refreshWhenTray: merged.refresh_when_tray ?? true,
           uiAutoRefresh: merged.ui_auto_refresh ?? false,
@@ -285,6 +293,16 @@ export function QuickSettingsPopover({ type }: QuickSettingsPopoverProps) {
 
   const getRefreshKey = (): keyof GeneralConfig => {
     return getRefreshKeyForType(type);
+  };
+
+  const getExtraRefreshCountKey = (): keyof GeneralConfig => {
+    switch (type) {
+      case 'antigravity': return 'extra_refresh_count';
+      case 'codex': return 'codex_extra_refresh_count';
+      case 'github_copilot': return 'ghcp_extra_refresh_count';
+      case 'windsurf': return 'windsurf_extra_refresh_count';
+      case 'kiro': return 'kiro_extra_refresh_count';
+    }
   };
 
   const getQuotaAlertThresholdKeyForType = (t: QuickSettingsType): QuotaAlertThresholdKey => {
@@ -428,14 +446,23 @@ export function QuickSettingsPopover({ type }: QuickSettingsPopoverProps) {
     } else {
       setQuotaAlertCustomThreshold('');
       setQuotaAlertThresholdEditing(false);
-      saveConfig({ [quotaAlertThresholdKey]: parseInt(val, 10) } as Partial<GeneralConfig>);
+      const parsed = parseInt(val, 10);
+      const patch: Partial<GeneralConfig> = { [quotaAlertThresholdKey]: parsed };
+      if (type === 'codex') {
+        patch.codex_quota_alert_enabled = !isNaN(parsed) && parsed > 0;
+      }
+      saveConfig(patch);
     }
   };
 
   const handleQuotaAlertCustomThresholdApply = () => {
     const parsed = parseInt(quotaAlertCustomThreshold, 10);
     if (!isNaN(parsed) && parsed >= 0 && parsed <= 100) {
-      saveConfig({ [quotaAlertThresholdKey]: parsed } as Partial<GeneralConfig>);
+      const patch: Partial<GeneralConfig> = { [quotaAlertThresholdKey]: parsed };
+      if (type === 'codex') {
+        patch.codex_quota_alert_enabled = parsed > 0;
+      }
+      saveConfig(patch);
       setQuotaAlertCustomThreshold('');
       setQuotaAlertThresholdEditing(false);
       return;
@@ -449,7 +476,7 @@ export function QuickSettingsPopover({ type }: QuickSettingsPopoverProps) {
     <>
       <div className="qs-row" style={{ marginTop: type === 'antigravity' ? 10 : 0 }}>
         <div className="qs-row-label">
-          <span>{t('quickSettings.quotaAlert.threshold', '超额预警')}</span>
+          <span>{type === 'codex' ? t('settings.codex.autoSwitch', '自动切号') : t('quickSettings.quotaAlert.threshold', '超额预警')}</span>
         </div>
         <div className="qs-row-control" style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
           {showQuotaAlertThresholdInput ? (
@@ -484,15 +511,27 @@ export function QuickSettingsPopover({ type }: QuickSettingsPopoverProps) {
                 </option>
               )}
               <option value="0">{t('quickSettings.quotaAlert.disabled', '不启用')}</option>
-              <option value="1">1%</option>
-              <option value="20">20%</option>
-              <option value="40">40%</option>
-              <option value="60">60%</option>
-              <option value="80">80%</option>
+              {type === 'codex' ? (
+                <>
+                  <option value="1">1%</option>
+                  <option value="5">5%</option>
+                  <option value="10">10%</option>
+                  <option value="20">20%</option>
+                  <option value="custom">{t('settings.general.autoRefreshCustom')}</option>
+                </>
+              ) : (
+                <>
+                  <option value="1">1%</option>
+                  <option value="20">20%</option>
+                  <option value="40">40%</option>
+                  <option value="60">60%</option>
+                  <option value="80">80%</option>
+                </>
+              )}
             </select>
           )}
-          {/* 窗口置顶 toggle */}
-          {quotaAlertThresholdValue > 0 && (
+          {/* 窗口置顶 toggle（Codex 自动切号模式不需要） */}
+          {quotaAlertThresholdValue > 0 && type !== 'codex' && (
             <label style={{ display: 'flex', alignItems: 'center', gap: 5, cursor: 'pointer', fontSize: '12px', whiteSpace: 'nowrap' }}>
               <label className="qs-switch">
                 <input
@@ -539,8 +578,8 @@ export function QuickSettingsPopover({ type }: QuickSettingsPopoverProps) {
                     <select
                       className="qs-select"
                       style={{ minWidth: 56 }}
-                      value={String(config.extra_refresh_count ?? 0)}
-                      onChange={(e) => saveConfig({ extra_refresh_count: parseInt(e.target.value, 10) })}
+                      value={String(config[getExtraRefreshCountKey()] ?? 0)}
+                      onChange={(e) => saveConfig({ [getExtraRefreshCountKey()]: parseInt(e.target.value, 10) })}
                     >
                       <option value="0">0</option>
                       <option value="1">1</option>
@@ -873,10 +912,10 @@ export function QuickSettingsPopover({ type }: QuickSettingsPopoverProps) {
             )}
 
             {type !== 'antigravity' && (
-              <div className="qs-section qs-section--highlight">
+            <div className="qs-section qs-section--highlight">
                 <div className="qs-section-header">
                   <Zap size={15} />
-                  <span>{t('quickSettings.quotaAlert.enable', '超额预警')}</span>
+                  <span>{type === 'codex' ? t('settings.codex.autoSwitch', '自动切号') : t('quickSettings.quotaAlert.enable', '超额预警')}</span>
                 </div>
                 {renderQuotaAlertControls()}
               </div>

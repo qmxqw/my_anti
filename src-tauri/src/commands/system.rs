@@ -87,8 +87,16 @@ pub struct GeneralConfig {
     pub kiro_quota_alert_enabled: bool,
     /// Kiro 配额预警阈值（百分比）
     pub kiro_quota_alert_threshold: i32,
-    /// 账号额外刷新数量
+    /// 账号额外刷新数量（Antigravity）
     pub extra_refresh_count: i32,
+    /// 账号额外刷新数量（Codex）
+    pub codex_extra_refresh_count: i32,
+    /// 账号额外刷新数量（GitHub Copilot）
+    pub ghcp_extra_refresh_count: i32,
+    /// 账号额外刷新数量（Windsurf）
+    pub windsurf_extra_refresh_count: i32,
+    /// 账号额外刷新数量（Kiro）
+    pub kiro_extra_refresh_count: i32,
     /// 批量刷新时是否跳过已重置（配额已满）的账号
     pub batch_refresh_skip_reset: bool,
 
@@ -224,6 +232,10 @@ pub fn save_network_config(ws_enabled: bool, ws_port: u16) -> Result<bool, Strin
         kiro_quota_alert_enabled: current.kiro_quota_alert_enabled,
         kiro_quota_alert_threshold: current.kiro_quota_alert_threshold,
         extra_refresh_count: current.extra_refresh_count,
+        codex_extra_refresh_count: current.codex_extra_refresh_count,
+        ghcp_extra_refresh_count: current.ghcp_extra_refresh_count,
+        windsurf_extra_refresh_count: current.windsurf_extra_refresh_count,
+        kiro_extra_refresh_count: current.kiro_extra_refresh_count,
         batch_refresh_skip_reset: current.batch_refresh_skip_reset,
 
         refresh_sort_oldest_first: current.refresh_sort_oldest_first,
@@ -294,6 +306,10 @@ pub fn get_general_config() -> Result<GeneralConfig, String> {
         kiro_quota_alert_enabled: user_config.kiro_quota_alert_enabled,
         kiro_quota_alert_threshold: user_config.kiro_quota_alert_threshold,
         extra_refresh_count: user_config.extra_refresh_count,
+        codex_extra_refresh_count: user_config.codex_extra_refresh_count,
+        ghcp_extra_refresh_count: user_config.ghcp_extra_refresh_count,
+        windsurf_extra_refresh_count: user_config.windsurf_extra_refresh_count,
+        kiro_extra_refresh_count: user_config.kiro_extra_refresh_count,
         batch_refresh_skip_reset: user_config.batch_refresh_skip_reset,
 
         refresh_sort_oldest_first: user_config.refresh_sort_oldest_first,
@@ -348,6 +364,10 @@ pub fn save_general_config(
     kiro_quota_alert_enabled: Option<bool>,
     kiro_quota_alert_threshold: Option<i32>,
     extra_refresh_count: Option<i32>,
+    codex_extra_refresh_count: Option<i32>,
+    ghcp_extra_refresh_count: Option<i32>,
+    windsurf_extra_refresh_count: Option<i32>,
+    kiro_extra_refresh_count: Option<i32>,
     batch_refresh_skip_reset: Option<bool>,
 
     refresh_sort_oldest_first: Option<bool>,
@@ -444,6 +464,10 @@ pub fn save_general_config(
         kiro_quota_alert_threshold: kiro_quota_alert_threshold
             .unwrap_or(current.kiro_quota_alert_threshold),
         extra_refresh_count: extra_refresh_count.unwrap_or(current.extra_refresh_count),
+        codex_extra_refresh_count: codex_extra_refresh_count.unwrap_or(current.codex_extra_refresh_count),
+        ghcp_extra_refresh_count: ghcp_extra_refresh_count.unwrap_or(current.ghcp_extra_refresh_count),
+        windsurf_extra_refresh_count: windsurf_extra_refresh_count.unwrap_or(current.windsurf_extra_refresh_count),
+        kiro_extra_refresh_count: kiro_extra_refresh_count.unwrap_or(current.kiro_extra_refresh_count),
         batch_refresh_skip_reset: batch_refresh_skip_reset.unwrap_or(current.batch_refresh_skip_reset),
 
         refresh_sort_oldest_first: refresh_sort_oldest_first

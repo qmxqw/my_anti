@@ -96,6 +96,10 @@ interface GeneralConfig {
   opencode_sync_on_switch?: boolean;
   codex_launch_on_switch?: boolean;
   extra_refresh_count?: number;
+  codex_extra_refresh_count?: number;
+  ghcp_extra_refresh_count?: number;
+  windsurf_extra_refresh_count?: number;
+  kiro_extra_refresh_count?: number;
   refresh_sort_oldest_first?: boolean;
   refresh_when_tray?: boolean;
   ui_auto_refresh?: boolean;
@@ -113,11 +117,18 @@ export function useAutoRefresh() {
   const fetchCurrentAccount = useAccountStore((state) => state.fetchCurrentAccount);
 
   const refreshAllCodexQuotas = useCodexAccountStore((state) => state.refreshAllQuotas);
+  const refreshCodexQuota = useCodexAccountStore((state) => state.refreshQuota);
   const fetchCodexAccounts = useCodexAccountStore((state) => state.fetchAccounts);
   const fetchCodexCurrentAccount = useCodexAccountStore((state) => state.fetchCurrentAccount);
   const refreshAllGhcpTokens = useGitHubCopilotAccountStore((state) => state.refreshAllTokens);
+  const refreshGhcpToken = useGitHubCopilotAccountStore((state) => state.refreshToken);
+  const fetchGhcpAccounts = useGitHubCopilotAccountStore((state) => state.fetchAccounts);
   const refreshAllWindsurfTokens = useWindsurfAccountStore((state) => state.refreshAllTokens);
+  const refreshWindsurfToken = useWindsurfAccountStore((state) => state.refreshToken);
+  const fetchWindsurfAccounts = useWindsurfAccountStore((state) => state.fetchAccounts);
   const refreshAllKiroTokens = useKiroAccountStore((state) => state.refreshAllTokens);
+  const refreshKiroToken = useKiroAccountStore((state) => state.refreshToken);
+  const fetchKiroAccounts = useKiroAccountStore((state) => state.fetchAccounts);
 
   const agIntervalRef = useRef<number | null>(null);
   const autoSwitchIntervalRef = useRef<number | null>(null);
@@ -376,7 +387,8 @@ export function useAutoRefresh() {
           }
 
           if (config.codex_auto_refresh_minutes > 0) {
-            console.log(`[AutoRefresh] Codex 已启用: 每 ${config.codex_auto_refresh_minutes} 分钟`);
+            const codexExtraCount = config.codex_extra_refresh_count ?? 0;
+            console.log(`[AutoRefresh] Codex 已启用: 每 ${config.codex_auto_refresh_minutes} 分钟（刷新数量: ${codexExtraCount}）`);
             const codexMs = config.codex_auto_refresh_minutes * 60 * 1000;
 
             scheduleAligned(codexMs, async () => {
@@ -387,7 +399,20 @@ export function useAutoRefresh() {
 
               try {
                 console.log('[AutoRefresh] 触发 Codex 配额刷新...');
-                await refreshAllCodexQuotas();
+                if (codexExtraCount > 0) {
+                  const allAccounts = useCodexAccountStore.getState().accounts;
+                  const toRefresh = allAccounts.slice(0, codexExtraCount);
+                  for (const acc of toRefresh) {
+                    try {
+                      await refreshCodexQuota(acc.id);
+                    } catch (e) {
+                      console.error(`[AutoRefresh] Codex 账号 ${acc.email} 刷新失败:`, e);
+                    }
+                  }
+                  await fetchCodexAccounts();
+                } else {
+                  await refreshAllCodexQuotas();
+                }
               } catch (e) {
                 console.error('[AutoRefresh] Codex 刷新失败:', e);
               } finally {
@@ -399,7 +424,8 @@ export function useAutoRefresh() {
           }
 
           if (config.ghcp_auto_refresh_minutes > 0) {
-            console.log(`[AutoRefresh] GitHub Copilot 已启用: 每 ${config.ghcp_auto_refresh_minutes} 分钟`);
+            const ghcpExtraCount = config.ghcp_extra_refresh_count ?? 0;
+            console.log(`[AutoRefresh] GitHub Copilot 已启用: 每 ${config.ghcp_auto_refresh_minutes} 分钟（刷新数量: ${ghcpExtraCount}）`);
             const ghcpMs = config.ghcp_auto_refresh_minutes * 60 * 1000;
 
             scheduleAligned(ghcpMs, async () => {
@@ -410,7 +436,20 @@ export function useAutoRefresh() {
 
               try {
                 console.log('[AutoRefresh] 触发 GitHub Copilot Token 刷新...');
-                await refreshAllGhcpTokens();
+                if (ghcpExtraCount > 0) {
+                  const allAccounts = useGitHubCopilotAccountStore.getState().accounts;
+                  const toRefresh = allAccounts.slice(0, ghcpExtraCount);
+                  for (const acc of toRefresh) {
+                    try {
+                      await refreshGhcpToken((acc as { id: string }).id);
+                    } catch (e) {
+                      console.error('[AutoRefresh] GHCP 账号刷新失败:', e);
+                    }
+                  }
+                  await fetchGhcpAccounts();
+                } else {
+                  await refreshAllGhcpTokens();
+                }
               } catch (e) {
                 console.error('[AutoRefresh] GitHub Copilot 刷新失败:', e);
               } finally {
@@ -422,7 +461,8 @@ export function useAutoRefresh() {
           }
 
           if (config.windsurf_auto_refresh_minutes > 0) {
-            console.log(`[AutoRefresh] Windsurf 已启用: 每 ${config.windsurf_auto_refresh_minutes} 分钟`);
+            const windsurfExtraCount = config.windsurf_extra_refresh_count ?? 0;
+            console.log(`[AutoRefresh] Windsurf 已启用: 每 ${config.windsurf_auto_refresh_minutes} 分钟（刷新数量: ${windsurfExtraCount}）`);
             const windsurfMs = config.windsurf_auto_refresh_minutes * 60 * 1000;
 
             scheduleAligned(windsurfMs, async () => {
@@ -433,7 +473,20 @@ export function useAutoRefresh() {
 
               try {
                 console.log('[AutoRefresh] 触发 Windsurf 配额刷新...');
-                await refreshAllWindsurfTokens();
+                if (windsurfExtraCount > 0) {
+                  const allAccounts = useWindsurfAccountStore.getState().accounts;
+                  const toRefresh = allAccounts.slice(0, windsurfExtraCount);
+                  for (const acc of toRefresh) {
+                    try {
+                      await refreshWindsurfToken((acc as { id: string }).id);
+                    } catch (e) {
+                      console.error('[AutoRefresh] Windsurf 账号刷新失败:', e);
+                    }
+                  }
+                  await fetchWindsurfAccounts();
+                } else {
+                  await refreshAllWindsurfTokens();
+                }
               } catch (e) {
                 console.error('[AutoRefresh] Windsurf 刷新失败:', e);
               } finally {
@@ -445,7 +498,8 @@ export function useAutoRefresh() {
           }
 
           if (config.kiro_auto_refresh_minutes > 0) {
-            console.log(`[AutoRefresh] Kiro 已启用: 每 ${config.kiro_auto_refresh_minutes} 分钟`);
+            const kiroExtraCount = config.kiro_extra_refresh_count ?? 0;
+            console.log(`[AutoRefresh] Kiro 已启用: 每 ${config.kiro_auto_refresh_minutes} 分钟（刷新数量: ${kiroExtraCount}）`);
             const kiroMs = config.kiro_auto_refresh_minutes * 60 * 1000;
 
             scheduleAligned(kiroMs, async () => {
@@ -456,7 +510,20 @@ export function useAutoRefresh() {
 
               try {
                 console.log('[AutoRefresh] 触发 Kiro 配额刷新...');
-                await refreshAllKiroTokens();
+                if (kiroExtraCount > 0) {
+                  const allAccounts = useKiroAccountStore.getState().accounts;
+                  const toRefresh = allAccounts.slice(0, kiroExtraCount);
+                  for (const acc of toRefresh) {
+                    try {
+                      await refreshKiroToken((acc as { id: string }).id);
+                    } catch (e) {
+                      console.error('[AutoRefresh] Kiro 账号刷新失败:', e);
+                    }
+                  }
+                  await fetchKiroAccounts();
+                } else {
+                  await refreshAllKiroTokens();
+                }
               } catch (e) {
                 console.error('[AutoRefresh] Kiro 刷新失败:', e);
               } finally {
@@ -504,18 +571,27 @@ export function useAutoRefresh() {
     fetchCodexAccounts,
     fetchCodexCurrentAccount,
     refreshAllCodexQuotas,
+    refreshCodexQuota,
     refreshAllGhcpTokens,
-    refreshAllKiroTokens,
+    refreshGhcpToken,
+    fetchGhcpAccounts,
     refreshAllWindsurfTokens,
+    refreshWindsurfToken,
+    fetchWindsurfAccounts,
+    refreshAllKiroTokens,
+    refreshKiroToken,
+    fetchKiroAccounts,
     syncCurrentFromClient,
   ]);
 
   useEffect(() => {
     const MIN_REFRESH_INTERVAL = 30000; // 30 秒内不重复刷新
     let unlistenAccountsRefresh: UnlistenFn | undefined;
-    listen<string>('accounts:refresh', async () => {
+    listen<string>('accounts:refresh', async (event) => {
+      const isAccountSwitched = event.payload === 'account_switched';
       const now = Date.now();
-      if (now - lastRefreshTimeRef.current < MIN_REFRESH_INTERVAL) {
+      // 账号切换事件必须立即处理，不受冷却限制
+      if (!isAccountSwitched && now - lastRefreshTimeRef.current < MIN_REFRESH_INTERVAL) {
         console.log('[AutoRefresh] 跳过重复刷新（距上次刷新不足 30 秒）');
         return;
       }
@@ -523,6 +599,12 @@ export function useAutoRefresh() {
       lastRefreshTimeRef.current = now;
       await fetchAccounts();
       await fetchCurrentAccount();
+      // Codex 自动换号后也需同步更新前端
+      await fetchCodexAccounts();
+      await fetchCodexCurrentAccount();
+      if (isAccountSwitched) {
+        console.log('[AutoRefresh] 账号切换事件，已强制刷新 AG + Codex 数据');
+      }
     }).then((fn) => {
       unlistenAccountsRefresh = fn;
     });
@@ -530,7 +612,7 @@ export function useAutoRefresh() {
     return () => {
       if (unlistenAccountsRefresh) unlistenAccountsRefresh();
     };
-  }, [fetchAccounts, fetchCurrentAccount]);
+  }, [fetchAccounts, fetchCurrentAccount, fetchCodexAccounts, fetchCodexCurrentAccount]);
 
   useEffect(() => {
     destroyedRef.current = false;

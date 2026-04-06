@@ -643,6 +643,8 @@ fn format_codex_quota_metric_label(window_minutes: Option<i64>, fallback: &str) 
     format!("{}m", minutes)
 }
 
+/// 提取帐号所有配额维度（供 UI 显示使用，不用于切号判断）
+#[allow(dead_code)]
 fn extract_quota_metrics(account: &CodexAccount) -> Vec<(String, i32)> {
     let Some(quota) = account.quota.as_ref() else {
         return Vec::new();
@@ -676,14 +678,6 @@ fn extract_quota_metrics(account: &CodexAccount) -> Vec<(String, i32)> {
     metrics
 }
 
-fn average_quota_percentage(metrics: &[(String, i32)]) -> f64 {
-    if metrics.is_empty() {
-        return 0.0;
-    }
-    let sum: i32 = metrics.iter().map(|(_, pct)| *pct).sum();
-    sum as f64 / metrics.len() as f64
-}
-
 fn build_quota_alert_cooldown_key(account_id: &str, threshold: i32) -> String {
     format!("codex:{}:{}", account_id, threshold)
 }
@@ -692,13 +686,11 @@ fn should_emit_quota_alert(cooldown_key: &str, now: i64) -> bool {
     let Ok(mut state) = CODEX_QUOTA_ALERT_LAST_SENT.lock() else {
         return true;
     };
-
     if let Some(last_sent) = state.get(cooldown_key) {
         if now - *last_sent < CODEX_QUOTA_ALERT_COOLDOWN_SECONDS {
             return false;
         }
     }
-
     state.insert(cooldown_key.to_string(), now);
     true
 }
@@ -713,7 +705,6 @@ fn resolve_current_account_id(accounts: &[CodexAccount]) -> Option<String> {
     if let Some(account) = get_current_account() {
         return Some(account.id);
     }
-
     if let Ok(settings) = crate::modules::codex_instance::load_default_settings() {
         if let Some(bind_id) = settings.bind_account_id {
             let trimmed = bind_id.trim();
@@ -722,39 +713,44 @@ fn resolve_current_account_id(accounts: &[CodexAccount]) -> Option<String> {
             }
         }
     }
-
     accounts
         .iter()
         .max_by_key(|account| account.created_at)
         .map(|account| account.id.clone())
 }
 
-fn pick_quota_alert_recommendation(
-    accounts: &[CodexAccount],
-    current_id: &str,
-) -> Option<CodexAccount> {
-    let mut candidates: Vec<CodexAccount> = accounts
-        .iter()
-        .filter(|account| account.id != current_id)
-        .filter(|account| !extract_quota_metrics(account).is_empty())
-        .cloned()
-        .collect();
+/// 计算帐号的"有效配额"百分比（用于自动切号判断）
+///
+/// 规则：
+///   - FREE 帐号（plan_type == "free"）：只看 hourly_percentage，忽略 weekly
+///     （weekly 虽然显示 100% 但 FREE 帐号实际不能使用 weekly 额度）
+///   - 其他付费帐号（TODO：具体规则待明确，当前与 FREE 相同，仅用 hourly）
+///
+/// 已重置判定：某个维度的 reset_time 非空且 <= now，则该维度额度视为 100%
+fn extract_effective_quota(account: &CodexAccount, now: i64) -> Option<i32> {
+    let quota = account.quota.as_ref()?;
 
-    if candidates.is_empty() {
-        return None;
-    }
+    // 判断 hourly 维度是否已过重置时间（已自动恢复满额）
+    let hourly_pct = if quota.hourly_reset_time.map_or(false, |t| t <= now) {
+        100 // 重置时间已过，视为满额
+    } else {
+        quota.hourly_percentage.clamp(0, 100)
+    };
 
-    candidates.sort_by(|a, b| {
-        let avg_a = average_quota_percentage(&extract_quota_metrics(a));
-        let avg_b = average_quota_percentage(&extract_quota_metrics(b));
-        avg_b
-            .partial_cmp(&avg_a)
-            .unwrap_or(std::cmp::Ordering::Equal)
-    });
+    // TODO: 当已知付费帐号的额度规则后，在此分支处理
+    // 目前所有帐号类型统一只参考 hourly_percentage
+    // （FREE 帐号 weekly 显示 100% 但实际不可用；付费帐号规则待确认）
+    let _ = &account.plan_type; // 保留以便后续按 plan_type 分支
 
-    candidates.into_iter().next()
+    Some(hourly_pct)
 }
 
+/// 自动切号：当前帐号刷新后配额 <= 阈值时，静默切换到更优帐号
+/// 选号逻辑：
+///   1. 按 created_at 升序排列所有帐号
+///   2. 从当前帐号位置的下一个开始（环形），找第一个有效配额 > 当前帐号有效配额的帐号
+///   3. 找不到则放弃，不切号
+/// 启用条件：codex_quota_alert_enabled=true 且 codex_quota_alert_threshold > 0
 pub fn run_quota_alert_if_needed(
 ) -> Result<Option<crate::modules::account::QuotaAlertPayload>, String> {
     let cfg = crate::modules::config::get_user_config();
@@ -763,6 +759,10 @@ pub fn run_quota_alert_if_needed(
     }
 
     let threshold = normalize_quota_alert_threshold(cfg.codex_quota_alert_threshold);
+    if threshold == 0 {
+        return Ok(None);
+    }
+
     let accounts = list_accounts();
     let current_id = match resolve_current_account_id(&accounts) {
         Some(id) => id,
@@ -774,37 +774,87 @@ pub fn run_quota_alert_if_needed(
         None => return Ok(None),
     };
 
-    let metrics = extract_quota_metrics(current);
-    let low_models: Vec<(String, i32)> = metrics
-        .into_iter()
-        .filter(|(_, pct)| *pct <= threshold)
-        .collect();
+    let now = chrono::Utc::now().timestamp();
 
-    if low_models.is_empty() {
+    // 获取当前帐号的有效配额
+    let current_pct = match extract_effective_quota(current, now) {
+        Some(pct) => pct,
+        None => return Ok(None), // 无配额数据，跳过
+    };
+
+    if current_pct > threshold {
+        // 配额充足，清除冷却
         clear_quota_alert_cooldown(&current_id, threshold);
         return Ok(None);
     }
 
-    let now = chrono::Utc::now().timestamp();
+    // 配额 <= 阈值，检查冷却（防止每次刷新都触发）
     let cooldown_key = build_quota_alert_cooldown_key(&current_id, threshold);
     if !should_emit_quota_alert(&cooldown_key, now) {
         return Ok(None);
     }
 
-    let recommendation = pick_quota_alert_recommendation(&accounts, &current_id);
-    let lowest_percentage = low_models.iter().map(|(_, pct)| *pct).min().unwrap_or(0);
-    let payload = crate::modules::account::QuotaAlertPayload {
-        platform: "codex".to_string(),
-        current_account_id: current_id,
-        current_email: current.email.clone(),
-        threshold,
-        lowest_percentage,
-        low_models: low_models.into_iter().map(|(name, _)| name).collect(),
-        recommended_account_id: recommendation.as_ref().map(|account| account.id.clone()),
-        recommended_email: recommendation.as_ref().map(|account| account.email.clone()),
-        triggered_at: now,
+    // 按 created_at 升序排列所有帐号
+    let mut sorted: Vec<&CodexAccount> = accounts.iter().collect();
+    sorted.sort_by_key(|a| a.created_at);
+
+    if sorted.len() <= 1 {
+        crate::modules::logger::log_info("[AutoSwitch][Codex] 只有一个帐号，无法自动切号");
+        return Ok(None);
+    }
+
+    // 从当前帐号的下一个位置开始，环形查找第一个有效配额 > 当前帐号配额的帐号
+    // 注意：只对比"是否高于当前帐号"，不参考阈值（阈值仅决定是否触发，不影响目标选择）
+    let current_pos = sorted.iter().position(|a| a.id == current_id).unwrap_or(0);
+    let len = sorted.len();
+    let mut target: Option<&CodexAccount> = None;
+
+    for i in 1..len {
+        let candidate = sorted[(current_pos + i) % len];
+        let candidate_pct = extract_effective_quota(candidate, now).unwrap_or(0);
+        if candidate_pct > current_pct {
+            target = Some(candidate);
+            break;
+        }
+    }
+
+    let target = match target {
+        Some(t) => t,
+        None => {
+            crate::modules::logger::log_info(&format!(
+                "[AutoSwitch][Codex] 当前配额 {}%，未找到更优帐号，放弃切号",
+                current_pct
+            ));
+            return Ok(None);
+        }
     };
 
-    crate::modules::account::dispatch_quota_alert(&payload);
-    Ok(Some(payload))
+    let target_id = target.id.clone();
+    let target_email = target.email.clone();
+    let target_pct = extract_effective_quota(target, now).unwrap_or(0);
+
+    // 执行静默切号（只写 auth.json + 更新索引，不重启 App）
+    match switch_account(&target_id) {
+        Ok(_) => {
+            crate::modules::logger::log_info(&format!(
+                "[AutoSwitch][Codex] 当前配额 {}% <= {}%，已切换至配额 {}% 的帐号: {}",
+                current_pct,
+                threshold,
+                target_pct,
+                crate::utils::mask_email(&target_email)
+            ));
+            // 通知前端刷新帐号列表（更新"当前帐号"标记）
+            crate::modules::websocket::broadcast_account_switched(&target_id, &target_email);
+        }
+        Err(e) => {
+            crate::modules::logger::log_warn(&format!(
+                "[AutoSwitch][Codex] 自动切号失败: {}",
+                e
+            ));
+            return Err(e);
+        }
+    }
+
+    Ok(None) // 静默切换，不触发前端弹窗
 }
+
