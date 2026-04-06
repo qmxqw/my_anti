@@ -261,65 +261,7 @@ pub fn save_account(account: &Account) -> Result<(), String> {
     Ok(())
 }
 
-/// 记录账号使用消耗（如有需要）
-/// 规则：若账号 Claude 模型配额 <= 20%，则计为消耗一次；
-///       取这些低配额 Claude 模型的 reset_time 最大值作为当前周期截止；
-///       若当前时间 < usage_count_reset_at（当前周期未到期），跳过计数（去重）。
-pub fn record_account_usage_if_needed(account: &mut Account) -> Result<(), String> {
-    let Some(quota) = account.quota.as_ref() else {
-        return Ok(());
-    };
-
-    const USAGE_THRESHOLD: i32 = 20;
-
-    // 收集所有 Claude 模型中低于阈值的模型
-    let low_models: Vec<_> = quota
-        .models
-        .iter()
-        .filter(|m| m.name.to_lowercase().starts_with("claude") && m.percentage <= USAGE_THRESHOLD)
-        .collect();
-
-    if low_models.is_empty() {
-        return Ok(());
-    }
-
-    // 取低配额模型的最晚 reset_time 作为本次周期截止时间
-    let new_reset_at: Option<i64> = low_models
-        .iter()
-        .filter_map(|m| {
-            chrono::DateTime::parse_from_rfc3339(&m.reset_time)
-                .ok()
-                .map(|dt| dt.timestamp())
-        })
-        .max();
-
-    let now = chrono::Utc::now().timestamp();
-
-    // 去重：如果当前时间仍在上次记录的重置周期内，跳过
-    if let Some(reset_at) = account.usage_count_reset_at {
-        if now < reset_at {
-            modules::logger::log_info(&format!(
-                "[UsageCount] 账号 {} 仍在计数周期内（reset_at={}），跳过计数",
-                account.email, reset_at
-            ));
-            return Ok(());
-        }
-    }
-
-    account.usage_count = account.usage_count.saturating_add(1);
-    account.usage_count_reset_at = new_reset_at;
-
-    modules::logger::log_info(&format!(
-        "[UsageCount] 账号 {} Claude 额度 <=20%，使用计数 +1 → {}（reset_at={:?}）",
-        account.email, account.usage_count, account.usage_count_reset_at
-    ));
-
-    save_account(account)?;
-    Ok(())
-}
-
 /// 切换账号时更新 A（原当前帐号）和 B（目标帐号）的 last_used_at，并持久化到 JSON 文件。
-/// 同时对 A 执行 usage_count 记录逻辑。
 /// `prev_account_id` 为 None 时表示无原帐号，跳过 A 的更新。
 pub fn update_switch_timestamps(
     target_account: &mut Account,
@@ -333,12 +275,6 @@ pub fn update_switch_timestamps(
         if prev_id != target_account.id {
             match load_account(prev_id) {
                 Ok(mut prev_account) => {
-                    // 记录配额消耗计数
-                    if let Err(e) = record_account_usage_if_needed(&mut prev_account) {
-                        modules::logger::log_warn(&format!(
-                            "[Switch] 记录 A 帐号使用消耗失败: {}", e
-                        ));
-                    }
                     // 更新 A 的 last_used_at 并保存（-60s 避免误判为"刚刚使用"）
                     prev_account.last_used_at = now_ts - 60;
                     if let Err(e) = save_account(&prev_account) {
@@ -1514,7 +1450,7 @@ pub async fn hotkey_smart_switch() -> Result<String, String> {
     };
 
     let chosen_idx = if full_quota_first {
-        // 满额优先（默认）：=100% → ≥80% → ≥60% → ≥40%
+        // 大额优先（默认）：=100% → ≥80% → ≥60% → ≥40%
         let thresholds: &[(i32, &str)] = &[
             (100, "=100%"),
             (80, "≥80%"),
@@ -1540,7 +1476,7 @@ pub async fn hotkey_smart_switch() -> Result<String, String> {
             }
         }
     } else {
-        // 非满额优先（升序）：≥40% → ≥60% → ≥80% → =100%
+        // 小额优先（升序）：≥40% → ≥60% → ≥80% → =100%
         let thresholds: &[(i32, &str)] = &[
             (40, "≥40%"),
             (60, "≥60%"),
@@ -1813,13 +1749,6 @@ pub async fn hotkey_smart_switch_legacy() -> Result<String, String> {
                         b.created_at.cmp(&a.created_at)
                     }
                 }
-                "usage_count" => {
-                    if rule.dir == "asc" {
-                        a.usage_count.cmp(&b.usage_count)
-                    } else {
-                        b.usage_count.cmp(&a.usage_count)
-                    }
-                }
                 "last_used" => {
                     let ta = a.last_used_at;
                     let tb = b.last_used_at;
@@ -1984,14 +1913,14 @@ fn ag_pick_recommendation(all_accounts: &[Account], current_id: &str) -> Option<
     };
 
     if full_quota_first {
-        // 满额优先（默认）
+        // 大额优先（默认）
         for threshold in [100, 80, 60, 40] {
             if let Some(idx) = find_next(threshold, None) {
                 return Some(candidates[idx].clone());
             }
         }
     } else {
-        // 非满额优先（升序）：≥40% → ≥60% → ≥80% → =100%
+        // 小额优先（升序）：≥40% → ≥60% → ≥80% → =100%
         for threshold in [40, 60, 80, 100] {
             if let Some(idx) = find_next(threshold, None) {
                 return Some(candidates[idx].clone());

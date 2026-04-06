@@ -36,17 +36,13 @@ pub struct Account {
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub quota_error: Option<QuotaErrorInfo>,
     pub created_at: i64,
-    /// 账号被消耗计数（切换时 Claude 模型额度 <= 20% 的次数）
-    #[serde(default)]
-    pub usage_count: u32,
-    /// 当前计数周期的配额重置截止时间（Unix 时间戳秒）
-    /// 在此时间点之前切换不重复计数
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub usage_count_reset_at: Option<i64>,
     /// 最近一次被切换为当前账号的时间戳（Unix 时间戳秒）
     /// 旧数据不存在时反序列化默认为 72 小时前（非 None）
     #[serde(default = "default_last_used_at")]
     pub last_used_at: i64,
+    /// 忽略旧 JSON 文件中残留的未知字段（如已删除的 usage_count 等）
+    #[serde(flatten)]
+    _extra: std::collections::HashMap<String, serde_json::Value>,
 }
 
 fn default_fingerprint_id() -> Option<String> {
@@ -70,9 +66,8 @@ impl Account {
             protected_models: HashSet::new(),
             quota_error: None,
             created_at: now,
-            usage_count: 0,
-            usage_count_reset_at: None,
             last_used_at: now - 72 * 3600,
+            _extra: std::collections::HashMap::new(),
         }
     }
 

@@ -120,7 +120,7 @@ pub struct GeneralConfig {
     pub refresh_include_full: bool,
     /// 候选列表为空时，是否用当前帐号保底刷新
     pub refresh_fallback_current: bool,
-    /// 切号时是否优先选满额帐号（true = 满额优先，默认）
+    /// 切号时是否优先选满额帐号（true = 大额优先，默认）
     pub switch_full_quota_first: bool,
     /// 配额预警触发时是否将主窗口置前（默认 true）
     pub quota_alert_bring_to_front: bool,

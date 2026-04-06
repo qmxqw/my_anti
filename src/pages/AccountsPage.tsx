@@ -261,8 +261,26 @@ export function AccountsPage({ onNavigate }: AccountsPageProps) {
 
   // 分组管理
   const [showGroupModal, setShowGroupModal] = useState(false)
-  const [displayGroups, setDisplayGroups] = useState<DisplayGroup[]>([])
-  const [displayGroupsLoaded, setDisplayGroupsLoaded] = useState(false)
+  const [displayGroups, setDisplayGroups] = useState<DisplayGroup[]>(() => {
+    try {
+      const raw = localStorage.getItem('agtools.antigravity.displayGroups.cache')
+      if (raw) {
+        const parsed = JSON.parse(raw)
+        if (Array.isArray(parsed) && parsed.length > 0) return parsed
+      }
+    } catch { /* ignore */ }
+    return []
+  })
+  const [displayGroupsLoaded, setDisplayGroupsLoaded] = useState(() => {
+    try {
+      const raw = localStorage.getItem('agtools.antigravity.displayGroups.cache')
+      if (raw) {
+        const parsed = JSON.parse(raw)
+        return Array.isArray(parsed) && parsed.length > 0
+      }
+    } catch { /* ignore */ }
+    return false
+  })
   const [sortBy, setSortBy] = useState<string>(() =>
     normalizeAntigravitySortBy(
       localStorage.getItem(ANTIGRAVITY_ACCOUNTS_SORT_BY_STORAGE_KEY)
@@ -571,6 +589,9 @@ export function AccountsPage({ onNavigate }: AccountsPageProps) {
       const hiddenSet = new Set(settings.hiddenGroups || [])
       const visibleGroups = groups.filter((g) => !hiddenSet.has(g.id))
       setDisplayGroups(visibleGroups)
+      try {
+        localStorage.setItem('agtools.antigravity.displayGroups.cache', JSON.stringify(visibleGroups))
+      } catch { /* ignore */ }
       // Initialize compact mode group order
       setCompactGroupOrder(groups.map((g) => g.id))
 
@@ -1602,32 +1623,29 @@ export function AccountsPage({ onNavigate }: AccountsPageProps) {
               ))}
               {moreTagCount > 0 && <span className="tag-pill more">+{moreTagCount}</span>}
               {(() => {
-                const count = account.usage_count
                 const lastUsedAt = account.last_used_at
-                // 格式化时间差：<100分钟显示 xm，<100小时显示 xh，>=100小时显示 xd
-                const ageStr = (() => {
-                  const nowSec = Math.floor(Date.now() / 1000)
-                  const diffSec = nowSec - lastUsedAt
-                  if (diffSec < 0) return null
-                  const minutes = diffSec / 60
-                  if (minutes < 100) {
-                    return `${Math.round(minutes)}m`
-                  }
-                  const hours = diffSec / 3600
-                  if (hours < 100) {
-                    return `${Math.round(hours)}h`
-                  }
-                  const days = Math.round(hours / 24)
-                  return `${days}d`
-                })()
-                const usageTitle = `使用消耗次数：${count}${ageStr ? `，距上次使用：${ageStr}` : ''}`
-                const displayText = ageStr ? `${count}　${ageStr}` : `${count}`
+                const nowSec = Math.floor(Date.now() / 1000)
+                const diffSec = nowSec - lastUsedAt
+                if (diffSec < 0) return null
+                const totalMinutes = Math.floor(diffSec / 60)
+                const totalHours = Math.floor(diffSec / 3600)
+                let ageStr: string
+                if (totalMinutes < 60) {
+                  ageStr = `${totalMinutes}m`
+                } else if (totalHours > 99) {
+                  const days = Math.floor(totalHours / 24)
+                  const remainHours = totalHours % 24
+                  ageStr = `${days}d ${remainHours}h`
+                } else {
+                  const remainMinutes = totalMinutes % 60
+                  ageStr = `${totalHours}h ${remainMinutes}m`
+                }
                 return (
                   <span
                     className="usage-count-tag"
-                    title={usageTitle}
+                    title={`距上次使用：${ageStr}`}
                   >
-                    {displayText}
+                    {ageStr}
                   </span>
                 )
               })()}
@@ -1639,6 +1657,17 @@ export function AccountsPage({ onNavigate }: AccountsPageProps) {
               <div className="quota-forbidden" title={forbiddenTitle}>
                 <Lock size={14} />
                 <span>{t('accounts.status.forbidden_msg')}</span>
+              </div>
+            ) : !displayGroupsLoaded || !account.quota ? (
+              <div className="quota-compact-item quota-skeleton">
+                <div className="quota-compact-header">
+                  <span className="model-label quota-skeleton-bar" style={{ width: '60%' }} />
+                  <span className="model-pct quota-skeleton-bar" style={{ width: '28px' }} />
+                </div>
+                <div className="quota-compact-bar-track">
+                  <div className="quota-compact-bar quota-skeleton-bar" style={{ width: '50%' }} />
+                </div>
+                <span className="quota-compact-reset quota-skeleton-bar" style={{ width: '70%' }} />
               </div>
             ) : (
               <>
@@ -2187,6 +2216,19 @@ export function AccountsPage({ onNavigate }: AccountsPageProps) {
                 <div className="quota-forbidden" title={forbiddenTitle}>
                   <Lock size={14} />
                   <span>{t('accounts.status.forbidden_msg')}</span>
+                </div>
+              ) : !displayGroupsLoaded || !account.quota ? (
+                <div className="quota-item quota-skeleton">
+                  <div className="quota-header">
+                    <span className="quota-name quota-skeleton-bar" style={{ width: '55%' }} />
+                    <span className="quota-value quota-skeleton-bar" style={{ width: '32px' }} />
+                  </div>
+                  <div className="quota-progress-track">
+                    <div className="quota-progress-bar quota-skeleton-bar" style={{ width: '50%' }} />
+                  </div>
+                  <div className="quota-footer">
+                    <span className="quota-reset quota-skeleton-bar" style={{ width: '65%' }} />
+                  </div>
                 </div>
               ) : (
                 <>

@@ -192,8 +192,8 @@ pub struct UserConfig {
     /// 候选列表为空时，是否用当前帐号保底刷新（默认 false = 不保底）
     #[serde(default = "default_refresh_fallback_current")]
     pub refresh_fallback_current: bool,
-    /// 切号时是否优先选满额帐号（默认 true = 满额优先）
-    /// false = 优先切换到额度低于100%但大于20%的帐号，找不到才使用满额帐号
+    /// 切号时是否优先选大额帐号（默认 true = 大额优先）
+    /// false = 按额度从小到大排序(>20%)
     #[serde(default = "default_switch_full_quota_first")]
     pub switch_full_quota_first: bool,
     /// 配额预警触发时是否将主窗口置前（从托盘/最小化恢复）。默认 true

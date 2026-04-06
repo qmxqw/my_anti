@@ -1187,7 +1187,7 @@ export function SettingsPage() {
                             />
                             <span className="slider"></span>
                           </label>
-                          {t('quickSettings.switchSortField.fullQuotaFirst', '满额优先')}
+                          {t('quickSettings.switchSortField.fullQuotaFirst', '大额优先')}
                         </label>
                       </div>
                     </div>
