@@ -114,6 +114,8 @@ pub struct GeneralConfig {
     pub refresh_fallback_current: bool,
     /// 切号时是否优先选满额帐号（true = 满额优先，默认）
     pub switch_full_quota_first: bool,
+    /// 配额预警触发时是否将主窗口置前（默认 true）
+    pub quota_alert_bring_to_front: bool,
 }
 
 #[tauri::command]
@@ -235,6 +237,7 @@ pub fn save_network_config(ws_enabled: bool, ws_port: u16) -> Result<bool, Strin
         refresh_include_full: current.refresh_include_full,
         refresh_fallback_current: current.refresh_fallback_current,
         switch_full_quota_first: current.switch_full_quota_first,
+        quota_alert_bring_to_front: current.quota_alert_bring_to_front,
     };
 
     config::save_user_config(&new_config)?;
@@ -304,6 +307,7 @@ pub fn get_general_config() -> Result<GeneralConfig, String> {
         refresh_include_full: user_config.refresh_include_full,
         refresh_fallback_current: user_config.refresh_fallback_current,
         switch_full_quota_first: user_config.switch_full_quota_first,
+        quota_alert_bring_to_front: user_config.quota_alert_bring_to_front,
     })
 }
 
@@ -357,6 +361,7 @@ pub fn save_general_config(
     refresh_include_full: Option<bool>,
     refresh_fallback_current: Option<bool>,
     switch_full_quota_first: Option<bool>,
+    quota_alert_bring_to_front: Option<bool>,
 ) -> Result<(), String> {
     let current = config::get_user_config();
     let normalized_opencode_path = opencode_app_path.trim().to_string();
@@ -461,6 +466,8 @@ pub fn save_general_config(
             .unwrap_or(current.refresh_fallback_current),
         switch_full_quota_first: switch_full_quota_first
             .unwrap_or(current.switch_full_quota_first),
+        quota_alert_bring_to_front: quota_alert_bring_to_front
+            .unwrap_or(current.quota_alert_bring_to_front),
     };
 
     config::save_user_config(&new_config)?;

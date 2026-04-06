@@ -806,6 +806,7 @@ fn handle_set_language(language: &str, source: Option<&str>) -> Result<String, S
         refresh_include_full: current.refresh_include_full,
         refresh_fallback_current: current.refresh_fallback_current,
         switch_full_quota_first: current.switch_full_quota_first,
+        quota_alert_bring_to_front: current.quota_alert_bring_to_front,
     };
 
     config::save_user_config(&new_config)?;

@@ -1100,6 +1100,17 @@ pub fn dispatch_quota_alert(payload: &QuotaAlertPayload) {
     ));
 
     if let Some(app_handle) = crate::get_app_handle() {
+        // 根据配置决定是否将主窗口置前
+        let bring_to_front = crate::modules::config::get_user_config().quota_alert_bring_to_front;
+        if bring_to_front {
+            use tauri::Manager;
+            if let Some(window) = app_handle.get_webview_window("main") {
+                let _ = window.show();
+                let _ = window.unminimize();
+                let _ = window.set_focus();
+                modules::logger::log_info("[QuotaAlert] 主窗口已置前");
+            }
+        }
         emit_quota_alert(app_handle, payload);
     }
     send_quota_alert_native_notification(payload);
@@ -1529,39 +1540,22 @@ pub async fn hotkey_smart_switch() -> Result<String, String> {
             }
         }
     } else {
-        // 非满额优先：先找 20%<pct<100% 的（≥80% → ≥60% → ≥40%），找不到再回落到满额梯度
-        let non_full_thresholds: &[(i32, &str)] = &[
-            (80, "≥80%且未满额"),
-            (60, "≥60%且未满额"),
-            (40, "≥40%且未满额"),
+        // 非满额优先（升序）：≥40% → ≥60% → ≥80% → =100%
+        let thresholds: &[(i32, &str)] = &[
+            (40, "≥40%"),
+            (60, "≥60%"),
+            (80, "≥80%"),
+            (100, "=100%"),
         ];
         let mut found: Option<usize> = None;
-        for (threshold, label) in non_full_thresholds {
-            if let Some(idx) = find_next(*threshold, Some(100)) {
+        for (threshold, label) in thresholds {
+            if let Some(idx) = find_next(*threshold, None) {
                 modules::logger::log_info(&format!(
                     "[Hotkey] 找到余额{}的帐号: {} (percentage={}%)",
                     label, candidates[idx].email, effective_min_percentage(candidates[idx])
                 ));
                 found = Some(idx);
                 break;
-            }
-        }
-        if found.is_none() {
-            let full_thresholds: &[(i32, &str)] = &[
-                (100, "=100%（回落）"),
-                (80, "≥80%（回落）"),
-                (60, "≥60%（回落）"),
-                (40, "≥40%（回落）"),
-            ];
-            for (threshold, label) in full_thresholds {
-                if let Some(idx) = find_next(*threshold, None) {
-                    modules::logger::log_info(&format!(
-                        "[Hotkey] 未找到未满额帐号，回落到{}帐号: {} (percentage={}%)",
-                        label, candidates[idx].email, effective_min_percentage(candidates[idx])
-                    ));
-                    found = Some(idx);
-                    break;
-                }
             }
         }
         match found {
@@ -1997,14 +1991,8 @@ fn ag_pick_recommendation(all_accounts: &[Account], current_id: &str) -> Option<
             }
         }
     } else {
-        // 非满额优先：先找 20%<pct<100% 的，找不到再用满额的
-        for threshold in [80, 60, 40] {
-            if let Some(idx) = find_next(threshold, Some(100)) {
-                return Some(candidates[idx].clone());
-            }
-        }
-        // 回落到满额梯度
-        for threshold in [100, 80, 60, 40] {
+        // 非满额优先（升序）：≥40% → ≥60% → ≥80% → =100%
+        for threshold in [40, 60, 80, 100] {
             if let Some(idx) = find_next(threshold, None) {
                 return Some(candidates[idx].clone());
             }
@@ -2015,14 +2003,15 @@ fn ag_pick_recommendation(all_accounts: &[Account], current_id: &str) -> Option<
 }
 
 /// 检查当前 AG 账号配额是否低于预警阈值，并在需要时触发提示
-/// 每次刷新都会检查，无冷却限制（关闭弹窗/稍后提醒后，下次刷新仍会提示）
+/// 启用条件：quota_alert_threshold > 0（阈值设为0则不启用）
+/// 触发条件：最低 claude 模型额度 < 阈值（严格小于，不含 =）
 pub fn run_quota_alert_if_needed() -> Result<Option<QuotaAlertPayload>, String> {
     let cfg = crate::modules::config::get_user_config();
-    if !cfg.quota_alert_enabled {
+    let threshold = cfg.quota_alert_threshold.clamp(0, 100);
+    // 阈值为 0 表示用户选择不启用预警
+    if threshold == 0 {
         return Ok(None);
     }
-
-    let threshold = cfg.quota_alert_threshold.clamp(0, 100);
 
     let current_id = match get_current_account_id()? {
         Some(id) => id,
