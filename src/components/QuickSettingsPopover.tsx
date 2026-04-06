@@ -24,9 +24,7 @@ interface GeneralConfig {
   kiro_app_path: string;
   opencode_sync_on_switch: boolean;
   codex_launch_on_switch: boolean;
-  auto_switch_enabled: boolean;
-  auto_switch_threshold: number;
-  auto_switch_confirm: boolean;
+
   quota_alert_enabled: boolean;
   quota_alert_threshold: number;
   codex_quota_alert_enabled: boolean;
@@ -76,10 +74,8 @@ export function QuickSettingsPopover({ type }: QuickSettingsPopoverProps) {
   const [saving, setSaving] = useState(false);
   const [pathDetecting, setPathDetecting] = useState(false);
   const [refreshEditing, setRefreshEditing] = useState(false);
-  const [thresholdEditing, setThresholdEditing] = useState(false);
   const [quotaAlertThresholdEditing, setQuotaAlertThresholdEditing] = useState(false);
   const [customRefresh, setCustomRefresh] = useState('');
-  const [customThreshold, setCustomThreshold] = useState('');
   const [quotaAlertCustomThreshold, setQuotaAlertCustomThreshold] = useState('');
   const modalRef = useRef<HTMLDivElement>(null);
   const refreshPresets = ['1', '2', '5', '10', '15'];
@@ -144,10 +140,8 @@ export function QuickSettingsPopover({ type }: QuickSettingsPopoverProps) {
       setConfig(cfg);
       // 非预设值通过下拉中的动态选项展示，不默认进入输入态
       setRefreshEditing(false);
-      setThresholdEditing(false);
       setQuotaAlertThresholdEditing(false);
       setCustomRefresh('');
-      setCustomThreshold('');
       setQuotaAlertCustomThreshold('');
     } catch (err) {
       console.error('Failed to load config:', err);
@@ -188,9 +182,6 @@ export function QuickSettingsPopover({ type }: QuickSettingsPopoverProps) {
           kiroAppPath: merged.kiro_app_path,
           opencodeSyncOnSwitch: merged.opencode_sync_on_switch,
           codexLaunchOnSwitch: merged.codex_launch_on_switch,
-          autoSwitchEnabled: merged.auto_switch_enabled,
-          autoSwitchThreshold: merged.auto_switch_threshold,
-          autoSwitchConfirm: merged.auto_switch_confirm,
           quotaAlertEnabled: merged.quota_alert_enabled,
           quotaAlertThreshold: merged.quota_alert_threshold,
           codexQuotaAlertEnabled: merged.codex_quota_alert_enabled,
@@ -385,8 +376,6 @@ export function QuickSettingsPopover({ type }: QuickSettingsPopoverProps) {
   const isPreset = refreshPresets.includes(String(refreshValue));
   const showRefreshInput = refreshEditing;
 
-  const isThresholdPreset = config ? thresholdPresets.includes(String(config.auto_switch_threshold)) : true;
-  const showThresholdInput = thresholdEditing;
   const quotaAlertThresholdKey = getQuotaAlertThresholdKeyForType(type);
 
   const quotaAlertThresholdValue = config ? Number(config[quotaAlertThresholdKey]) : 20;
@@ -414,29 +403,6 @@ export function QuickSettingsPopover({ type }: QuickSettingsPopoverProps) {
     }
     setCustomRefresh('');
     setRefreshEditing(false);
-  };
-
-  const handleThresholdSelectChange = (val: string) => {
-    if (val === 'custom') {
-      setCustomThreshold(String(config?.auto_switch_threshold ?? 20));
-      setThresholdEditing(true);
-    } else {
-      setCustomThreshold('');
-      setThresholdEditing(false);
-      saveConfig({ auto_switch_threshold: parseInt(val, 10) });
-    }
-  };
-
-  const handleCustomThresholdApply = () => {
-    const parsed = parseInt(customThreshold, 10);
-    if (!isNaN(parsed) && parsed >= 0 && parsed <= 100) {
-      saveConfig({ auto_switch_threshold: parsed });
-      setCustomThreshold('');
-      setThresholdEditing(false);
-      return;
-    }
-    setCustomThreshold('');
-    setThresholdEditing(false);
   };
 
   const handleQuotaAlertThresholdSelectChange = (val: string) => {
@@ -818,101 +784,17 @@ export function QuickSettingsPopover({ type }: QuickSettingsPopoverProps) {
                         />
                         <span className="qs-switch-slider"></span>
                       </label>
-                      {t('quickSettings.switchSortField.fullQuotaFirst', '满额优先')}
+                      {t('quickSettings.switchSortField.fullQuotaFirst', '大额优先')}
                     </label>
                   </div>
                 </div>
-
-                <div className="qs-row">
-                  <div className="qs-row-label">
-                    <span>{t('quickSettings.autoSwitch.enable', '启用自动切号')}</span>
-                  </div>
-                  <div className="qs-row-control">
-                    <label className="qs-switch">
-                      <input
-                        type="checkbox"
-                        checked={config.auto_switch_enabled}
-                        onChange={(e) => saveConfig({ auto_switch_enabled: e.target.checked })}
-                      />
-                      <span className="qs-switch-slider"></span>
-                    </label>
-                  </div>
-                </div>
-
-                {config.auto_switch_enabled && (
-                  <div className="qs-field-group" style={{ animation: 'qsFadeUp 0.2s ease both' }}>
-                    <div className="qs-row">
-                      <div className="qs-row-label">
-                        <span>{t('quickSettings.autoSwitch.threshold', '切号阈值')}</span>
-                      </div>
-                      <div className="qs-row-control">
-                        {showThresholdInput ? (
-                          <div className="qs-inline-input">
-                            <input
-                              type="number"
-                              min={0}
-                              max={100}
-                              className="qs-select qs-select--input-mode qs-select--with-unit"
-                              value={customThreshold}
-                              placeholder={t('quickSettings.inputPercent', '输入百分比')}
-                              onChange={(e) => setCustomThreshold(e.target.value.replace(/[^\d]/g, ''))}
-                              onBlur={handleCustomThresholdApply}
-                              onKeyDown={(e) => {
-                                if (e.key === 'Enter') {
-                                  e.preventDefault();
-                                  handleCustomThresholdApply();
-                                }
-                              }}
-                            />
-                            <span className="qs-input-unit">%</span>
-                          </div>
-                        ) : (
-                          <select
-                            className="qs-select"
-                            value={String(config.auto_switch_threshold)}
-                            onChange={(e) => handleThresholdSelectChange(e.target.value)}
-                          >
-                            {!isThresholdPreset && (
-                              <option value={String(config.auto_switch_threshold)}>
-                                {config.auto_switch_threshold}%
-                              </option>
-                            )}
-                            <option value="0">0%</option>
-                            <option value="20">20%</option>
-                            <option value="40">40%</option>
-                            <option value="60">60%</option>
-                            <option value="custom">{t('quickSettings.customInput', '自定义')}</option>
-                          </select>
-                        )}
-                      </div>
-                    </div>
-                  </div>
-                )}
-
-                {config.auto_switch_enabled && (
-                  <div className="qs-row" style={{ marginTop: 6 }}>
-                    <div className="qs-row-label">
-                      <span>{t('quickSettings.autoSwitch.confirm', '切号前确认')}</span>
-                    </div>
-                    <div className="qs-row-control">
-                      <label className="qs-switch">
-                        <input
-                          type="checkbox"
-                          checked={config.auto_switch_confirm}
-                          onChange={(e) => saveConfig({ auto_switch_confirm: e.target.checked })}
-                        />
-                        <span className="qs-switch-slider"></span>
-                      </label>
-                    </div>
-                  </div>
-                )}
 
                 {renderQuotaAlertControls()}
               </div>
             )}
 
             {type !== 'antigravity' && (
-            <div className="qs-section qs-section--highlight">
+              <div className="qs-section qs-section--highlight">
                 <div className="qs-section-header">
                   <Zap size={15} />
                   <span>{type === 'codex' ? t('settings.codex.autoSwitch', '自动切号') : t('quickSettings.quotaAlert.enable', '超额预警')}</span>

@@ -46,8 +46,6 @@ interface GeneralConfig {
   kiro_app_path: string;
   opencode_sync_on_switch: boolean;
   codex_launch_on_switch: boolean;
-  auto_switch_enabled: boolean;
-  auto_switch_threshold: number;
   quota_alert_enabled: boolean;
   quota_alert_threshold: number;
   codex_quota_alert_enabled: boolean;
@@ -143,8 +141,6 @@ export function SettingsPage() {
   const [appPathResetDetectingTargets, setAppPathResetDetectingTargets] = useState<Set<AppPathTarget>>(new Set());
   const [opencodeSyncOnSwitch, setOpencodeSyncOnSwitch] = useState(true);
   const [codexLaunchOnSwitch, setCodexLaunchOnSwitch] = useState(true);
-  const [autoSwitchEnabled, setAutoSwitchEnabled] = useState(false);
-  const [autoSwitchThreshold, setAutoSwitchThreshold] = useState('20');
   const [quotaAlertEnabled, setQuotaAlertEnabled] = useState(false);
   const [quotaAlertThreshold, setQuotaAlertThreshold] = useState('20');
   const [codexQuotaAlertEnabled, setCodexQuotaAlertEnabled] = useState(false);
@@ -169,7 +165,6 @@ export function SettingsPage() {
   const [ghcpAutoRefreshCustomMode, setGhcpAutoRefreshCustomMode] = useState(false);
   const [windsurfAutoRefreshCustomMode, setWindsurfAutoRefreshCustomMode] = useState(false);
   const [kiroAutoRefreshCustomMode, setKiroAutoRefreshCustomMode] = useState(false);
-  const [autoSwitchThresholdCustomMode, setAutoSwitchThresholdCustomMode] = useState(false);
   const [quotaAlertThresholdCustomMode, setQuotaAlertThresholdCustomMode] = useState(false);
   const [codexQuotaAlertThresholdCustomMode, setCodexQuotaAlertThresholdCustomMode] = useState(false);
   const [ghcpQuotaAlertThresholdCustomMode, setGhcpQuotaAlertThresholdCustomMode] = useState(false);
@@ -304,7 +299,6 @@ export function SettingsPage() {
     const ghcpAutoRefreshNum = parseInt(ghcpAutoRefresh, 10) || -1;
     const windsurfAutoRefreshNum = parseInt(windsurfAutoRefresh, 10) || -1;
     const kiroAutoRefreshNum = parseInt(kiroAutoRefresh, 10) || -1;
-    const parsedAutoSwitchThreshold = Number.parseInt(autoSwitchThreshold, 10);
     const parsedQuotaAlertThreshold = Number.parseInt(quotaAlertThreshold, 10);
     const parsedCodexQuotaAlertThreshold = Number.parseInt(codexQuotaAlertThreshold, 10);
     const parsedGhcpQuotaAlertThreshold = Number.parseInt(ghcpQuotaAlertThreshold, 10);
@@ -344,8 +338,6 @@ export function SettingsPage() {
           kiroAppPath,
           opencodeSyncOnSwitch,
           codexLaunchOnSwitch,
-          autoSwitchEnabled,
-          autoSwitchThreshold: Number.isNaN(parsedAutoSwitchThreshold) ? 20 : parsedAutoSwitchThreshold,
           quotaAlertEnabled: !Number.isNaN(parsedQuotaAlertThreshold) && parsedQuotaAlertThreshold > 0,
           quotaAlertThreshold: Number.isNaN(parsedQuotaAlertThreshold) ? 0 : parsedQuotaAlertThreshold,
           codexQuotaAlertEnabled: !Number.isNaN(parsedCodexQuotaAlertThreshold) && parsedCodexQuotaAlertThreshold > 0,
@@ -408,8 +400,6 @@ export function SettingsPage() {
     kiroAppPath,
     opencodeSyncOnSwitch,
     codexLaunchOnSwitch,
-    autoSwitchEnabled,
-    autoSwitchThreshold,
     quotaAlertEnabled,
     quotaAlertThreshold,
     codexQuotaAlertEnabled,
@@ -598,8 +588,6 @@ export function SettingsPage() {
       setKiroAppPath(config.kiro_app_path || '');
       setOpencodeSyncOnSwitch(config.opencode_sync_on_switch ?? true);
       setCodexLaunchOnSwitch(config.codex_launch_on_switch ?? true);
-      setAutoSwitchEnabled(config.auto_switch_enabled ?? false);
-      setAutoSwitchThreshold(String(config.auto_switch_threshold ?? 20));
       setQuotaAlertEnabled(config.quota_alert_enabled ?? false);
       setQuotaAlertThreshold(String(config.quota_alert_threshold ?? 20));
       setCodexQuotaAlertEnabled(config.codex_quota_alert_enabled ?? false);
@@ -624,7 +612,6 @@ export function SettingsPage() {
       setGhcpAutoRefreshCustomMode(false);
       setWindsurfAutoRefreshCustomMode(false);
       setKiroAutoRefreshCustomMode(false);
-      setAutoSwitchThresholdCustomMode(false);
       setQuotaAlertThresholdCustomMode(false);
       setCodexQuotaAlertThresholdCustomMode(false);
       setGhcpQuotaAlertThresholdCustomMode(false);
@@ -767,7 +754,6 @@ export function SettingsPage() {
   const ghcpAutoRefreshIsPreset = REFRESH_PRESET_VALUES.includes(ghcpAutoRefresh);
   const windsurfAutoRefreshIsPreset = REFRESH_PRESET_VALUES.includes(windsurfAutoRefresh);
   const kiroAutoRefreshIsPreset = REFRESH_PRESET_VALUES.includes(kiroAutoRefresh);
-  const autoSwitchThresholdIsPreset = THRESHOLD_PRESET_VALUES.includes(autoSwitchThreshold);
   const quotaAlertThresholdIsPreset = THRESHOLD_PRESET_VALUES.includes(quotaAlertThreshold);
   const codexQuotaAlertThresholdIsPreset = THRESHOLD_PRESET_VALUES.includes(codexQuotaAlertThreshold);
   const ghcpQuotaAlertThresholdIsPreset = THRESHOLD_PRESET_VALUES.includes(ghcpQuotaAlertThreshold);
@@ -1191,84 +1177,6 @@ export function SettingsPage() {
                         </label>
                       </div>
                     </div>
-
-                    <div className="settings-row">
-                      <div className="row-label">
-                        <div className="row-title">{t('quickSettings.autoSwitch.enable', '自动切号')}</div>
-                        <div className="row-desc">{t('quickSettings.autoSwitch.hint', '当任意模型配额低于阈值时，自动切换到配额最高的账号。')}</div>
-                      </div>
-                      <div className="row-control">
-                        <label className="switch">
-                          <input
-                            type="checkbox"
-                            checked={autoSwitchEnabled}
-                            onChange={(e) => setAutoSwitchEnabled(e.target.checked)}
-                          />
-                          <span className="slider"></span>
-                        </label>
-                      </div>
-                    </div>
-                    {autoSwitchEnabled && (
-                      <div className="settings-row" style={{ animation: 'fadeUp 0.3s ease both' }}>
-                        <div className="row-label">
-                          <div className="row-title">{t('quickSettings.autoSwitch.threshold', '切号阈值')}</div>
-                          <div className="row-desc">{t('quickSettings.autoSwitch.thresholdDesc', '任意模型配额低于此百分比时触发自动切号')}</div>
-                        </div>
-                        <div className="row-control">
-                          {autoSwitchThresholdCustomMode ? (
-                            <div className="settings-inline-input">
-                              <input
-                                type="number"
-                                min={0}
-                                max={100}
-                                className="settings-select settings-select--input-mode settings-select--with-unit"
-                                value={autoSwitchThreshold}
-                                placeholder={t('quickSettings.inputPercent', '输入百分比')}
-                                onChange={(e) => setAutoSwitchThreshold(sanitizeNumberInput(e.target.value))}
-                                onBlur={() => {
-                                  const normalized = normalizeNumberInput(autoSwitchThreshold, 0, 100);
-                                  setAutoSwitchThreshold(normalized);
-                                  setAutoSwitchThresholdCustomMode(false);
-                                }}
-                                onKeyDown={(e) => {
-                                  if (e.key === 'Enter') {
-                                    e.preventDefault();
-                                    const normalized = normalizeNumberInput(autoSwitchThreshold, 0, 100);
-                                    setAutoSwitchThreshold(normalized);
-                                    setAutoSwitchThresholdCustomMode(false);
-                                  }
-                                }}
-                              />
-                              <span className="settings-input-unit">%</span>
-                            </div>
-                          ) : (
-                            <select
-                              className="settings-select"
-                              value={autoSwitchThreshold}
-                              onChange={(e) => {
-                                const val = e.target.value;
-                                if (val === 'custom') {
-                                  setAutoSwitchThresholdCustomMode(true);
-                                  setAutoSwitchThreshold(autoSwitchThreshold || '20');
-                                  return;
-                                }
-                                setAutoSwitchThresholdCustomMode(false);
-                                setAutoSwitchThreshold(val);
-                              }}
-                            >
-                              {!autoSwitchThresholdIsPreset && (
-                                <option value={autoSwitchThreshold}>{autoSwitchThreshold}%</option>
-                              )}
-                              <option value="0">0%</option>
-                              <option value="20">20%</option>
-                              <option value="40">40%</option>
-                              <option value="60">60%</option>
-                              <option value="custom">{t('settings.general.autoRefreshCustom')}</option>
-                            </select>
-                          )}
-                        </div>
-                      </div>
-                    )}
 
                     <div className="settings-row">
                       <div className="row-label">

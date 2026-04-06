@@ -224,7 +224,6 @@ pub fn run() {
             commands::account::refresh_all_quotas,
             commands::account::refresh_current_quota,
             commands::account::switch_account,
-            commands::account::broadcast_auto_switch,
             commands::account::set_accounts_disabled,
             commands::account::trigger_smart_switch,
             commands::account::bind_account_fingerprint,

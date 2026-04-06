@@ -356,12 +356,6 @@ pub async fn sync_current_from_client() -> Result<Option<String>, String> {
     Ok(None)
 }
 
-#[tauri::command]
-pub async fn broadcast_auto_switch() -> Result<(), String> {
-    modules::websocket::broadcast_data_changed("auto_switch");
-    Ok(())
-}
-
 /// 批量设置账号禁用/启用状态
 #[tauri::command]
 pub async fn set_accounts_disabled(account_ids: Vec<String>, disabled: bool) -> Result<(), String> {
