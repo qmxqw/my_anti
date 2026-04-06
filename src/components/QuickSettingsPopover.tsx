@@ -48,6 +48,7 @@ interface GeneralConfig {
   switch_sort_desc: boolean;
   refresh_include_full?: boolean;
   refresh_fallback_current?: boolean;
+  switch_full_quota_first?: boolean;
 }
 
 export type QuickSettingsType = 'antigravity' | 'codex' | 'github_copilot' | 'windsurf' | 'kiro';
@@ -212,6 +213,7 @@ export function QuickSettingsPopover({ type }: QuickSettingsPopoverProps) {
           switchSortDesc: merged.switch_sort_desc ?? false,
           refreshIncludeFull: merged.refresh_include_full ?? false,
           refreshFallbackCurrent: merged.refresh_fallback_current ?? false,
+          switchFullQuotaFirst: merged.switch_full_quota_first ?? true,
         });
         window.dispatchEvent(new Event('config-updated'));
       } catch (err) {
@@ -799,6 +801,17 @@ export function QuickSettingsPopover({ type }: QuickSettingsPopoverProps) {
                       <option value="asc">{t('quickSettings.switchSortField.asc', '升序')}</option>
                       <option value="desc">{t('quickSettings.switchSortField.desc', '降序')}</option>
                     </select>
+                    <label style={{ display: 'flex', alignItems: 'center', gap: 5, cursor: 'pointer', fontSize: '12px' }}>
+                      <label className="qs-switch">
+                        <input
+                          type="checkbox"
+                          checked={config.switch_full_quota_first ?? true}
+                          onChange={(e) => saveConfig({ switch_full_quota_first: e.target.checked })}
+                        />
+                        <span className="qs-switch-slider"></span>
+                      </label>
+                      {t('quickSettings.switchSortField.fullQuotaFirst', '满额优先')}
+                    </label>
                   </div>
                 </div>
 

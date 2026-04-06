@@ -1455,6 +1455,7 @@ pub async fn hotkey_smart_switch() -> Result<String, String> {
 
     let sort_field = user_cfg.switch_sort_field.as_str();
     let sort_desc = user_cfg.switch_sort_desc;
+    let full_quota_first = user_cfg.switch_full_quota_first;
 
     candidates.sort_by(|a, b| {
         let cmp = match sort_field {
@@ -1485,38 +1486,82 @@ pub async fn hotkey_smart_switch() -> Result<String, String> {
     let n = candidates.len();
 
     // ── 6. 从当前帐号的下一个位置开始循环查找 ──
-    // 按梯度依次降级：=100% → ≥80% → ≥60% → ≥40%
-    let find_next = |threshold: i32| -> Option<usize> {
+    let find_next = |threshold: i32, max_pct: Option<i32>| -> Option<usize> {
         for offset in 1..n {
             let idx = (current_idx + offset) % n;
             let pct = effective_min_percentage(candidates[idx]);
             if pct >= threshold {
+                if let Some(max) = max_pct {
+                    if pct >= max {
+                        continue;
+                    }
+                }
                 return Some(idx);
             }
         }
         None
     };
 
-    // 梯度阈值列表：(阈值, 日志标签)
-    let thresholds: &[(i32, &str)] = &[
-        (100, "=100%"),
-        (80, "≥80%"),
-        (60, "≥60%"),
-        (40, "≥40%"),
-    ];
-
-    let chosen_idx = {
+    let chosen_idx = if full_quota_first {
+        // 满额优先（默认）：=100% → ≥80% → ≥60% → ≥40%
+        let thresholds: &[(i32, &str)] = &[
+            (100, "=100%"),
+            (80, "≥80%"),
+            (60, "≥60%"),
+            (40, "≥40%"),
+        ];
         let mut found: Option<usize> = None;
         for (threshold, label) in thresholds {
-            if let Some(idx) = find_next(*threshold) {
+            if let Some(idx) = find_next(*threshold, None) {
                 modules::logger::log_info(&format!(
                     "[Hotkey] 找到余额{}的帐号: {} (percentage={}%)",
-                    label,
-                    candidates[idx].email,
-                    effective_min_percentage(candidates[idx])
+                    label, candidates[idx].email, effective_min_percentage(candidates[idx])
                 ));
                 found = Some(idx);
                 break;
+            }
+        }
+        match found {
+            Some(idx) => idx,
+            None => {
+                modules::logger::log_warn("[Hotkey] 无可用帐号（所有帐号余额均<40%）");
+                return Ok("no_available_account".to_string());
+            }
+        }
+    } else {
+        // 非满额优先：先找 20%<pct<100% 的（≥80% → ≥60% → ≥40%），找不到再回落到满额梯度
+        let non_full_thresholds: &[(i32, &str)] = &[
+            (80, "≥80%且未满额"),
+            (60, "≥60%且未满额"),
+            (40, "≥40%且未满额"),
+        ];
+        let mut found: Option<usize> = None;
+        for (threshold, label) in non_full_thresholds {
+            if let Some(idx) = find_next(*threshold, Some(100)) {
+                modules::logger::log_info(&format!(
+                    "[Hotkey] 找到余额{}的帐号: {} (percentage={}%)",
+                    label, candidates[idx].email, effective_min_percentage(candidates[idx])
+                ));
+                found = Some(idx);
+                break;
+            }
+        }
+        if found.is_none() {
+            let full_thresholds: &[(i32, &str)] = &[
+                (100, "=100%（回落）"),
+                (80, "≥80%（回落）"),
+                (60, "≥60%（回落）"),
+                (40, "≥40%（回落）"),
+            ];
+            for (threshold, label) in full_thresholds {
+                if let Some(idx) = find_next(*threshold, None) {
+                    modules::logger::log_info(&format!(
+                        "[Hotkey] 未找到未满额帐号，回落到{}帐号: {} (percentage={}%)",
+                        label, candidates[idx].email, effective_min_percentage(candidates[idx])
+                    ));
+                    found = Some(idx);
+                    break;
+                }
             }
         }
         match found {
@@ -1892,6 +1937,7 @@ fn ag_pick_recommendation(all_accounts: &[Account], current_id: &str) -> Option<
     let user_cfg = crate::modules::config::get_user_config();
     let sort_field = user_cfg.switch_sort_field.as_str();
     let sort_desc = user_cfg.switch_sort_desc;
+    let full_quota_first = user_cfg.switch_full_quota_first;
 
     // 候选过滤（与热键v2一致：未禁用、有quota、有claude模型、非UNKNOWN等级）
     let mut candidates: Vec<&Account> = all_accounts
@@ -1927,19 +1973,41 @@ fn ag_pick_recommendation(all_accounts: &[Account], current_id: &str) -> Option<
     let n = candidates.len();
 
     // 从当前位置向后按梯度查找（排除当前账号自身）
-    let find_next = |threshold: i32| -> Option<usize> {
+    let find_next = |threshold: i32, max_pct: Option<i32>| -> Option<usize> {
         for offset in 1..n {
             let idx = (current_idx + offset) % n;
-            if effective_min_pct(candidates[idx]) >= threshold {
+            let pct = effective_min_pct(candidates[idx]);
+            if pct >= threshold {
+                if let Some(max) = max_pct {
+                    if pct >= max {
+                        continue;
+                    }
+                }
                 return Some(idx);
             }
         }
         None
     };
 
-    for threshold in [100, 80, 60, 40] {
-        if let Some(idx) = find_next(threshold) {
-            return Some(candidates[idx].clone());
+    if full_quota_first {
+        // 满额优先（默认）
+        for threshold in [100, 80, 60, 40] {
+            if let Some(idx) = find_next(threshold, None) {
+                return Some(candidates[idx].clone());
+            }
+        }
+    } else {
+        // 非满额优先：先找 20%<pct<100% 的，找不到再用满额的
+        for threshold in [80, 60, 40] {
+            if let Some(idx) = find_next(threshold, Some(100)) {
+                return Some(candidates[idx].clone());
+            }
+        }
+        // 回落到满额梯度
+        for threshold in [100, 80, 60, 40] {
+            if let Some(idx) = find_next(threshold, None) {
+                return Some(candidates[idx].clone());
+            }
         }
     }
 

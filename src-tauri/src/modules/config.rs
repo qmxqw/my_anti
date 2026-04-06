@@ -180,6 +180,10 @@ pub struct UserConfig {
     /// 候选列表为空时，是否用当前帐号保底刷新（默认 false = 不保底）
     #[serde(default = "default_refresh_fallback_current")]
     pub refresh_fallback_current: bool,
+    /// 切号时是否优先选满额帐号（默认 true = 满额优先）
+    /// false = 优先切换到额度低于100%但大于20%的帐号，找不到才使用满额帐号
+    #[serde(default = "default_switch_full_quota_first")]
+    pub switch_full_quota_first: bool,
 }
 
 /// 窗口关闭行为
@@ -365,6 +369,10 @@ fn default_refresh_fallback_current() -> bool {
     false
 }
 
+fn default_switch_full_quota_first() -> bool {
+    true
+}
+
 impl Default for UserConfig {
     fn default() -> Self {
         Self {
@@ -415,6 +423,7 @@ impl Default for UserConfig {
             switch_sort_desc: default_switch_sort_desc(),
             refresh_include_full: default_refresh_include_full(),
             refresh_fallback_current: default_refresh_fallback_current(),
+            switch_full_quota_first: default_switch_full_quota_first(),
         }
     }
 }

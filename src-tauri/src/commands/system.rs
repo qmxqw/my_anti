@@ -112,6 +112,8 @@ pub struct GeneralConfig {
     pub refresh_include_full: bool,
     /// 候选列表为空时，是否用当前帐号保底刷新
     pub refresh_fallback_current: bool,
+    /// 切号时是否优先选满额帐号（true = 满额优先，默认）
+    pub switch_full_quota_first: bool,
 }
 
 #[tauri::command]
@@ -232,6 +234,7 @@ pub fn save_network_config(ws_enabled: bool, ws_port: u16) -> Result<bool, Strin
         switch_sort_desc: current.switch_sort_desc,
         refresh_include_full: current.refresh_include_full,
         refresh_fallback_current: current.refresh_fallback_current,
+        switch_full_quota_first: current.switch_full_quota_first,
     };
 
     config::save_user_config(&new_config)?;
@@ -300,6 +303,7 @@ pub fn get_general_config() -> Result<GeneralConfig, String> {
         switch_sort_desc: user_config.switch_sort_desc,
         refresh_include_full: user_config.refresh_include_full,
         refresh_fallback_current: user_config.refresh_fallback_current,
+        switch_full_quota_first: user_config.switch_full_quota_first,
     })
 }
 
@@ -352,6 +356,7 @@ pub fn save_general_config(
     switch_sort_desc: Option<bool>,
     refresh_include_full: Option<bool>,
     refresh_fallback_current: Option<bool>,
+    switch_full_quota_first: Option<bool>,
 ) -> Result<(), String> {
     let current = config::get_user_config();
     let normalized_opencode_path = opencode_app_path.trim().to_string();
@@ -454,6 +459,8 @@ pub fn save_general_config(
             .unwrap_or(current.refresh_include_full),
         refresh_fallback_current: refresh_fallback_current
             .unwrap_or(current.refresh_fallback_current),
+        switch_full_quota_first: switch_full_quota_first
+            .unwrap_or(current.switch_full_quota_first),
     };
 
     config::save_user_config(&new_config)?;

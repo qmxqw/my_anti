@@ -70,6 +70,7 @@ interface GeneralConfig {
   switch_sort_desc: boolean;
   refresh_include_full?: boolean;
   refresh_fallback_current?: boolean;
+  switch_full_quota_first?: boolean;
 }
 
 type AppPathTarget = 'antigravity' | 'codex' | 'vscode' | 'opencode' | 'windsurf' | 'kiro';
@@ -149,6 +150,7 @@ export function SettingsPage() {
   const [uiAutoRefresh, setUiAutoRefresh] = useState(false);
   const [switchSortField, setSwitchSortField] = useState('created_at');
   const [switchSortDesc, setSwitchSortDesc] = useState(false);
+  const [switchFullQuotaFirst, setSwitchFullQuotaFirst] = useState(true);
   const [refreshIncludeFull, setRefreshIncludeFull] = useState(false);
   const [refreshFallbackCurrent, setRefreshFallbackCurrent] = useState(false);
 
@@ -353,6 +355,7 @@ export function SettingsPage() {
           uiAutoRefresh,
           switchSortField,
           switchSortDesc,
+          switchFullQuotaFirst,
           refreshIncludeFull,
           refreshFallbackCurrent,
 
@@ -406,6 +409,7 @@ export function SettingsPage() {
     uiAutoRefresh,
     switchSortField,
     switchSortDesc,
+    switchFullQuotaFirst,
     refreshIncludeFull,
     refreshFallbackCurrent,
 
@@ -590,6 +594,7 @@ export function SettingsPage() {
       setUiAutoRefresh(Boolean(config.ui_auto_refresh));
       setSwitchSortField(config.switch_sort_field || 'created_at');
       setSwitchSortDesc(Boolean(config.switch_sort_desc));
+      setSwitchFullQuotaFirst(config.switch_full_quota_first ?? true);
       setRefreshIncludeFull(Boolean(config.refresh_include_full));
       setRefreshFallbackCurrent(Boolean(config.refresh_fallback_current));
 
@@ -1152,6 +1157,17 @@ export function SettingsPage() {
                           <option value="asc">{t('quickSettings.switchSortField.asc', '升序')}</option>
                           <option value="desc">{t('quickSettings.switchSortField.desc', '降序')}</option>
                         </select>
+                        <label style={{ display: 'flex', alignItems: 'center', gap: 6, cursor: 'pointer', fontSize: '13px', whiteSpace: 'nowrap' }}>
+                          <label className="switch" style={{ transform: 'scale(0.85)', transformOrigin: 'left center' }}>
+                            <input
+                              type="checkbox"
+                              checked={switchFullQuotaFirst}
+                              onChange={(e) => setSwitchFullQuotaFirst(e.target.checked)}
+                            />
+                            <span className="slider"></span>
+                          </label>
+                          {t('quickSettings.switchSortField.fullQuotaFirst', '满额优先')}
+                        </label>
                       </div>
                     </div>
 
