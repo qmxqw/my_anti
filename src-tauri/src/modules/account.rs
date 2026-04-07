@@ -787,6 +787,44 @@ pub fn update_account_quota(account_id: &str, quota: QuotaData) -> Result<(), St
         }
     }
 
+    // ── AG 额度恢复记录 ──────────────────────────────────────────────────
+    // 条件：旧额度 < 100 且 新额度 > 旧额度（对所有账号生效，不限当前账号）
+    if !quota.models.is_empty() && !quota.is_forbidden {
+        if let Some(new_min) = claude_min_percentage(&quota) {
+            if let Some(ref old_q) = account.quota {
+                if let Some(old_min) = claude_min_percentage(old_q) {
+                    if old_min < 100 && new_min > old_min {
+                        // 找最低额度 claude 模型的 reset_time，计算距现在小时数（取整）
+                        let reset_hours = quota
+                            .models
+                            .iter()
+                            .filter(|m| m.name.to_lowercase().starts_with("claude"))
+                            .min_by_key(|m| m.percentage)
+                            .and_then(|m| {
+                                if m.reset_time.is_empty() {
+                                    return None;
+                                }
+                                chrono::DateTime::parse_from_rfc3339(&m.reset_time)
+                                    .ok()
+                                    .map(|reset| {
+                                        let diff =
+                                            reset.timestamp() - chrono::Utc::now().timestamp();
+                                        (diff / 3600).max(0)
+                                    })
+                            });
+                        modules::quota_reset_record::append_record(
+                            "AG",
+                            &account.email,
+                            old_min,
+                            new_min,
+                            reset_hours,
+                        );
+                    }
+                }
+            }
+        }
+    }
+
     account.update_quota(quota);
     save_account(&account)?;
     if let Some(ref quota) = account.quota {

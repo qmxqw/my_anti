@@ -1,0 +1,77 @@
+use std::fs::{self, OpenOptions};
+use std::io::Write;
+
+use chrono::{FixedOffset, Utc};
+
+/// 向 quota_reset_record.csv 追加一条额度恢复记录。
+/// 条件由调用方保证：旧额度 < 100 且 新额度 > 旧额度。
+/// reset_hours：最低额度模型的下次恢复时间距现在的小时数（取整），None 时写 "-"。
+pub fn append_record(
+    platform: &str,
+    email: &str,
+    old_pct: i32,
+    new_pct: i32,
+    reset_hours: Option<i64>,
+) {
+    // 时间：+8 时区，格式 YYYY-MM-DD HH:MM:SS
+    let tz = FixedOffset::east_opt(8 * 3600).expect("valid offset");
+    let now = Utc::now().with_timezone(&tz);
+    let time_str = now.format("%Y-%m-%d %H:%M:%S").to_string();
+
+    let reset_str = reset_hours
+        .map(|h| h.to_string())
+        .unwrap_or_else(|| "-".to_string());
+
+    let line = format!(
+        "{},{},{},{},{},{}\n",
+        platform, time_str, email, old_pct, new_pct, reset_str
+    );
+
+    match get_csv_path() {
+        Ok(path) => {
+            // 若文件不存在则写入表头
+            let write_header = !path.exists();
+            match OpenOptions::new().create(true).append(true).open(&path) {
+                Ok(mut file) => {
+                    if write_header {
+                        let _ = file
+                            .write_all(b"platform,time,email,old_pct,new_pct,hours_to_reset\n");
+                    }
+                    if let Err(e) = file.write_all(line.as_bytes()) {
+                        crate::modules::logger::log_warn(&format!(
+                            "[QuotaResetRecord] 写入失败: {}",
+                            e
+                        ));
+                    } else {
+                        crate::modules::logger::log_info(&format!(
+                            "[QuotaResetRecord] 记录: platform={}, email={}, {}% -> {}%, reset_in={}h",
+                            platform, email, old_pct, new_pct, reset_str
+                        ));
+                    }
+                }
+                Err(e) => {
+                    crate::modules::logger::log_warn(&format!(
+                        "[QuotaResetRecord] 打开文件失败: {}",
+                        e
+                    ));
+                }
+            }
+        }
+        Err(e) => {
+            crate::modules::logger::log_warn(&format!(
+                "[QuotaResetRecord] 获取路径失败: {}",
+                e
+            ));
+        }
+    }
+}
+
+fn get_csv_path() -> Result<std::path::PathBuf, String> {
+    let data_dir = crate::modules::account::get_data_dir()?;
+    // 确保目录存在
+    if !data_dir.exists() {
+        fs::create_dir_all(&data_dir)
+            .map_err(|e| format!("创建数据目录失败: {}", e))?;
+    }
+    Ok(data_dir.join("quota_reset_record.csv"))
+}

@@ -327,6 +327,35 @@ pub async fn refresh_account_quota(account_id: &str) -> Result<CodexQuota, Strin
         sync_plan_type_from_token(&mut account, result.plan_type);
     }
 
+    // ── Codex 额度恢复记录 ────────────────────────────────────────────────
+    // 取 hourly 和 weekly 中的较小值作为整体额度进行对比
+    // 条件：旧额度 < 100 且 新额度 > 旧额度
+    {
+        let new_min = result.quota.hourly_percentage.min(result.quota.weekly_percentage);
+        if let Some(ref old_quota) = account.quota {
+            let old_min = old_quota.hourly_percentage.min(old_quota.weekly_percentage);
+            if old_min < 100 && new_min > old_min {
+                // 取决定 min 的那方的 reset_time，计算距现在小时数（取整）
+                let reset_ts = if result.quota.hourly_percentage <= result.quota.weekly_percentage {
+                    result.quota.hourly_reset_time
+                } else {
+                    result.quota.weekly_reset_time
+                };
+                let reset_hours = reset_ts.map(|t| {
+                    let diff = t - chrono::Utc::now().timestamp();
+                    (diff / 3600).max(0)
+                });
+                crate::modules::quota_reset_record::append_record(
+                    "Codex",
+                    &account.email,
+                    old_min,
+                    new_min,
+                    reset_hours,
+                );
+            }
+        }
+    }
+
     account.quota = Some(result.quota.clone());
     account.quota_error = None;
     codex_account::save_account(&account)?;

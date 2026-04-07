@@ -25,6 +25,7 @@ pub mod opencode_auth;
 pub mod process;
 pub mod quota;
 pub mod quota_cache;
+pub mod quota_reset_record;
 pub mod sync_settings;
 pub mod tray;
 pub mod tray_layout;
