@@ -292,8 +292,11 @@
 
 .codex-account-card .card-actions {
   display: flex;
-  gap: 6px;
+  gap: 4px;
   justify-content: center;
+  border: 1px solid var(--border-light);
+  border-radius: 999px;
+  padding: 3px;
 }
 
 .codex-account-card .card-action-btn {
@@ -825,6 +828,7 @@
     opacity: 0;
     transform: scale(0.95) translateY(-10px);
   }
+
   to {
     opacity: 1;
     transform: scale(1) translateY(0);
@@ -1105,6 +1109,7 @@
     opacity: 0;
     transform: translateY(12px);
   }
+
   to {
     opacity: 1;
     transform: translateY(0);
@@ -1116,6 +1121,7 @@
     opacity: 0;
     transform: translateY(12px);
   }
+
   to {
     opacity: 1;
     transform: translateY(0);

@@ -336,7 +336,7 @@ pub async fn refresh_account_quota(account_id: &str) -> Result<CodexQuota, Strin
         let new_min = result.quota.hourly_percentage.min(result.quota.weekly_percentage);
         if let Some(ref old_quota) = account.quota {
             let old_min = old_quota.hourly_percentage.min(old_quota.weekly_percentage);
-            if old_min < 100 && new_min > old_min {
+            if old_min < 100 && new_min == 100 {
                 // 取决定 min 的那方的 reset_time，计算距现在小时数（取整）
                 let reset_ts = if result.quota.hourly_percentage <= result.quota.weekly_percentage {
                     result.quota.hourly_reset_time
