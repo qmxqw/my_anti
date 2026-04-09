@@ -469,7 +469,39 @@ export function CodexAccountsPage() {
             {hasQuotaError && (<span className="codex-status-pill quota-error" title={quotaErrorMeta.rawMessage}><CircleAlert size={12} />{quotaErrorMeta.statusCode || t('codex.quotaError.badge', '配额异常')}</span>)}
             <span className={`tier-badge ${planClass}`}>{presentation.planLabel}</span>
           </div>
-          {accountTags.length > 0 && (<div className="card-tags">{visibleTags.map((tag, idx) => (<span key={`${account.id}-${tag}-${idx}`} className="tag-pill">{tag}</span>))}{moreTagCount > 0 && <span className="tag-pill more">+{moreTagCount}</span>}</div>)}
+          {(accountTags.length > 0 || account.quota?.last_used_at) && (
+            <div className="card-tags">
+              {visibleTags.map((tag, idx) => (
+                <span key={`${account.id}-${tag}-${idx}`} className="tag-pill">{tag}</span>
+              ))}
+              {moreTagCount > 0 && <span className="tag-pill more">+{moreTagCount}</span>}
+              {(() => {
+                const lastUsedAt = account.quota?.last_used_at;
+                if (!lastUsedAt) return null;
+                const nowSec = Math.floor(Date.now() / 1000);
+                const diffSec = nowSec - lastUsedAt;
+                if (diffSec < 0) return null;
+                const totalMinutes = Math.floor(diffSec / 60);
+                const totalHours = Math.floor(diffSec / 3600);
+                let ageStr: string;
+                if (totalMinutes < 60) {
+                  ageStr = `${totalMinutes}m`;
+                } else if (totalHours > 99) {
+                  const days = Math.floor(totalHours / 24);
+                  const remainHours = totalHours % 24;
+                  ageStr = `${days}d ${remainHours}h`;
+                } else {
+                  const remainMinutes = totalMinutes % 60;
+                  ageStr = `${totalHours}h ${remainMinutes}m`;
+                }
+                return (
+                  <span className="usage-count-tag" title={`距上次额度变化：${ageStr}`}>
+                    {ageStr}
+                  </span>
+                );
+              })()}
+            </div>
+          )}
           <div className="codex-quota-section">
             {hasQuotaError && (<div className="quota-error-inline" title={quotaErrorMeta.rawMessage}><CircleAlert size={14} /><span>{quotaErrorMeta.displayText}</span></div>)}
             {quotaItems.map((item, index) => {
@@ -481,7 +513,12 @@ export function CodexAccountsPage() {
             {quotaItems.length === 0 && (<div className="quota-empty">{t('common.shared.quota.noData', '暂无配额数据')}</div>)}
           </div>
           <div className="card-footer">
-            <span className="card-date">{formatDate(account.created_at)}</span>
+            <div className="card-date-row">
+              <span className="card-date">{formatDate(account.created_at)}</span>
+              {account.quota?.last_updated ? (
+                <span className="card-date card-date-updated">{formatDate(account.quota.last_updated)}</span>
+              ) : null}
+            </div>
             <div className="card-actions">
               <button className="card-action-btn" onClick={() => openTagModal(account.id)} title={t('accounts.editTags', '编辑标签')}><Tag size={14} /></button>
               <button className={`card-action-btn ${!isCurrent ? 'success' : ''}`} onClick={() => handleSwitch(account.id)} disabled={!!switching} title={t('codex.switch', '切换')}>

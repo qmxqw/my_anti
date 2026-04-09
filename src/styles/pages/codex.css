@@ -258,11 +258,18 @@
 /* 卡片底部 */
 .codex-account-card .card-footer {
   display: flex;
-  align-items: center;
-  justify-content: space-between;
+  flex-direction: column;
+  gap: 6px;
   padding-top: 12px;
   border-top: 1px solid var(--border-light);
   margin-top: auto;
+}
+
+.codex-account-card .card-date-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
 }
 
 .codex-account-card .card-date {
@@ -270,16 +277,30 @@
   color: var(--text-secondary);
 }
 
+.codex-account-card .card-date-updated {
+  color: var(--text-muted);
+}
+
+.codex-accounts-page .usage-count-tag {
+  margin-left: auto;
+  padding: 2px 4px;
+  font-size: 11px;
+  font-weight: 500;
+  color: var(--text-muted);
+  white-space: nowrap;
+}
+
 .codex-account-card .card-actions {
   display: flex;
   gap: 6px;
+  justify-content: center;
 }
 
 .codex-account-card .card-action-btn {
   width: 32px;
   height: 32px;
   border: none;
-  background: var(--bg-tertiary);
+  background: transparent;
   color: var(--text-secondary);
   border-radius: var(--radius-sm);
   cursor: pointer;

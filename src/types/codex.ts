@@ -45,6 +45,10 @@ export interface CodexQuota {
   weekly_window_present?: boolean;
   /** 原始响应数据 */
   raw_data?: unknown;
+  /** 最后一次从服务端取到新数据的时间 (Unix timestamp) */
+  last_updated?: number;
+  /** 最后一次额度发生变化的时间 (Unix timestamp) */
+  last_used_at?: number;
 }
 
 /** 获取订阅类型显示名称 */
