@@ -246,6 +246,8 @@ fn parse_quota_from_usage(usage: &UsageResponse, raw_body: &str) -> Result<Codex
         weekly_window_minutes,
         weekly_window_present: Some(secondary_window.is_some()),
         raw_data,
+        last_updated: 0,
+        last_used_at: None,
     })
 }
 
@@ -356,11 +358,28 @@ pub async fn refresh_account_quota(account_id: &str) -> Result<CodexQuota, Strin
         }
     }
 
-    account.quota = Some(result.quota.clone());
+    let now = chrono::Utc::now().timestamp();
+    let mut new_quota = result.quota.clone();
+    new_quota.last_updated = now;
+
+    // 若额度发生变化则更新 last_used_at
+    let new_min = new_quota.hourly_percentage.min(new_quota.weekly_percentage);
+    let old_min_opt = account.quota.as_ref().map(|q| q.hourly_percentage.min(q.weekly_percentage));
+    if let Some(old_min) = old_min_opt {
+        if new_min != old_min {
+            new_quota.last_used_at = Some(now);
+        } else {
+            // 保留旧值
+            new_quota.last_used_at = account.quota.as_ref().and_then(|q| q.last_used_at);
+        }
+    }
+    // old_min_opt 为 None（首次写入）时，last_used_at 保持 None
+
+    account.quota = Some(new_quota);
     account.quota_error = None;
     codex_account::save_account(&account)?;
 
-    Ok(result.quota)
+    Ok(account.quota.clone().unwrap())
 }
 
 /// 刷新所有账号配额

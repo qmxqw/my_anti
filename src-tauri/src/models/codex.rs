@@ -52,6 +52,12 @@ pub struct CodexQuota {
     /// 原始响应数据
     #[serde(skip_serializing_if = "Option::is_none")]
     pub raw_data: Option<serde_json::Value>,
+    /// 最后一次从服务端取到新数据的时间 (Unix timestamp)
+    #[serde(default)]
+    pub last_updated: i64,
+    /// 最后一次额度发生变化的时间 (Unix timestamp)，None 表示从未观测到变化
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub last_used_at: Option<i64>,
 }
 
 /// Codex 配额错误信息
