@@ -337,22 +337,22 @@ pub async fn refresh_account_quota(account_id: &str) -> Result<CodexQuota, Strin
         if let Some(ref old_quota) = account.quota {
             let old_min = old_quota.hourly_percentage.min(old_quota.weekly_percentage);
             if old_min < 100 && new_min == 100 {
-                // 取决定 min 的那方的 reset_time，计算距现在小时数（取整）
+                // 取决定 min 的那方的 reset_time，计算距现在的秒数
                 let reset_ts = if result.quota.hourly_percentage <= result.quota.weekly_percentage {
                     result.quota.hourly_reset_time
                 } else {
                     result.quota.weekly_reset_time
                 };
-                let reset_hours = reset_ts.map(|t| {
+                let reset_secs = reset_ts.map(|t| {
                     let diff = t - chrono::Utc::now().timestamp();
-                    (diff / 3600).max(0)
+                    diff.max(0)
                 });
                 crate::modules::quota_reset_record::append_record(
                     "Codex",
                     &account.email,
                     old_min,
                     new_min,
-                    reset_hours,
+                    reset_secs,
                 );
             }
         }

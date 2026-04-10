@@ -723,49 +723,10 @@ fn claude_min_percentage(quota: &QuotaData) -> Option<i32> {
     min
 }
 
-#[derive(Debug, Clone, serde::Serialize)]
-pub struct QuotaRestoredPayload {
-    pub account_id: String,
-    pub email: String,
-    pub previous_min_percentage: i32,
-    pub current_min_percentage: i32,
-}
 
 /// 更新账号配额
 pub fn update_account_quota(account_id: &str, quota: QuotaData) -> Result<(), String> {
     let mut account = load_account(account_id)?;
-
-    // ── 额度恢复检测 ──────────────────────────────────────────────────
-    // 仅对当前正在使用中的账号检测，且只在非空且新额度100%/旧额度<100%时触发
-    let quota_restored_payload: Option<QuotaRestoredPayload> = (|| {
-        // 仅当新配额有数据时才检测
-        if quota.models.is_empty() || quota.is_forbidden {
-            return None;
-        }
-        let new_min = claude_min_percentage(&quota)?;
-        if new_min < 100 {
-            return None; // 新额度未满
-        }
-        let old_min = claude_min_percentage(account.quota.as_ref()?)?;
-        if old_min >= 100 {
-            return None; // 旧额度已经是100%，不是"恢复"
-        }
-        // 仅对当前使用中的账号触发
-        let current_id = get_current_account_id().ok()??;
-        if current_id != account_id {
-            return None;
-        }
-        modules::logger::log_info(&format!(
-            "[QuotaRestored] 账号 {} claude 额度恢复: {}% -> {}%",
-            account.email, old_min, new_min
-        ));
-        Some(QuotaRestoredPayload {
-            account_id: account_id.to_string(),
-            email: account.email.clone(),
-            previous_min_percentage: old_min,
-            current_min_percentage: new_min,
-        })
-    })();
 
     // 容错：如果新获取的 models 为空，但之前有数据，保留原来的 models
     if quota.models.is_empty() {
@@ -794,8 +755,8 @@ pub fn update_account_quota(account_id: &str, quota: QuotaData) -> Result<(), St
             if let Some(ref old_q) = account.quota {
                 if let Some(old_min) = claude_min_percentage(old_q) {
                     if old_min < 100 && new_min > old_min {
-                        // 找最低额度 claude 模型的 reset_time，计算距现在小时数（取整）
-                        let reset_hours = quota
+                        // 找最低额度 claude 模型的 reset_time，计算距现在的秒数
+                        let reset_secs = quota
                             .models
                             .iter()
                             .filter(|m| m.name.to_lowercase().starts_with("claude"))
@@ -809,7 +770,7 @@ pub fn update_account_quota(account_id: &str, quota: QuotaData) -> Result<(), St
                                     .map(|reset| {
                                         let diff =
                                             reset.timestamp() - chrono::Utc::now().timestamp();
-                                        (diff / 3600).max(0)
+                                        diff.max(0)
                                     })
                             });
                         modules::quota_reset_record::append_record(
@@ -817,7 +778,7 @@ pub fn update_account_quota(account_id: &str, quota: QuotaData) -> Result<(), St
                             &account.email,
                             old_min,
                             new_min,
-                            reset_hours,
+                            reset_secs,
                         );
                     }
                 }
@@ -829,14 +790,6 @@ pub fn update_account_quota(account_id: &str, quota: QuotaData) -> Result<(), St
     save_account(&account)?;
     if let Some(ref quota) = account.quota {
         let _ = modules::quota_cache::write_quota_cache("authorized", &account.email, quota);
-    }
-
-    // 写文件完成后，再发出额度恢复事件（保证前端拉取时数据已是最新）
-    if let Some(payload) = quota_restored_payload {
-        if let Some(app_handle) = crate::get_app_handle() {
-            use tauri::Emitter;
-            let _ = app_handle.emit("account:quota_restored", &payload);
-        }
     }
 
     Ok(())

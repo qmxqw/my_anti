@@ -3,23 +3,43 @@ use std::io::Write;
 
 use chrono::{FixedOffset, Utc};
 
+/// 将秒数格式化为"xx天xx小时xx分"，省略前面为零的部分。
+/// 示例：3661 -> "1小时1分", 86400 -> "1天", 0 -> "0分"
+fn format_duration(total_secs: i64) -> String {
+    let days = total_secs / 86400;
+    let hours = (total_secs % 86400) / 3600;
+    let mins = (total_secs % 3600) / 60;
+
+    let mut parts: Vec<String> = Vec::new();
+    if days > 0 {
+        parts.push(format!("{}天", days));
+    }
+    if hours > 0 {
+        parts.push(format!("{}小时", hours));
+    }
+    if mins > 0 || parts.is_empty() {
+        parts.push(format!("{}分", mins));
+    }
+    parts.join("")
+}
+
 /// 向 quota_reset_record.csv 追加一条额度恢复记录。
 /// 条件由调用方保证：旧额度 < 100 且 新额度 > 旧额度。
-/// reset_hours：最低额度模型的下次恢复时间距现在的小时数（取整），None 时写 "-"。
+/// reset_secs：最低额度模型的下次恢复时间距现在的秒数，None 时写 "-"。
 pub fn append_record(
     platform: &str,
     email: &str,
     old_pct: i32,
     new_pct: i32,
-    reset_hours: Option<i64>,
+    reset_secs: Option<i64>,
 ) {
     // 时间：+8 时区，格式 YYYY-MM-DD HH:MM:SS
     let tz = FixedOffset::east_opt(8 * 3600).expect("valid offset");
     let now = Utc::now().with_timezone(&tz);
     let time_str = now.format("%Y-%m-%d %H:%M:%S").to_string();
 
-    let reset_str = reset_hours
-        .map(|h| h.to_string())
+    let reset_str = reset_secs
+        .map(|s| format_duration(s))
         .unwrap_or_else(|| "-".to_string());
 
     let line = format!(
@@ -35,7 +55,7 @@ pub fn append_record(
                 Ok(mut file) => {
                     if write_header {
                         let _ = file
-                            .write_all(b"platform,time,email,old_pct,new_pct,hours_to_reset\n");
+                            .write_all(b"platform,time,email,old_pct,new_pct,time_to_reset\n");
                     }
                     if let Err(e) = file.write_all(line.as_bytes()) {
                         crate::modules::logger::log_warn(&format!(
@@ -44,7 +64,7 @@ pub fn append_record(
                         ));
                     } else {
                         crate::modules::logger::log_info(&format!(
-                            "[QuotaResetRecord] 记录: platform={}, email={}, {}% -> {}%, reset_in={}h",
+                            "[QuotaResetRecord] 记录: platform={}, email={}, {}% -> {}%, reset_in={}",
                             platform, email, old_pct, new_pct, reset_str
                         ));
                     }
