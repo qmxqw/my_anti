@@ -409,52 +409,52 @@ export function useAutoRefresh() {
                 if (codexExtraCount === 0) {
                   // 数量为 0：不刷新
                   console.log('[AutoRefresh] Codex 刷新数量为 0，跳过');
-                } else if (codexExtraCount === 1) {
-                  // 数量为 1：只刷新当前账号
-                  const currentAccount = useCodexAccountStore.getState().currentAccount;
-                  if (currentAccount) {
-                    console.log(`[AutoRefresh] Codex 刷新当前账号: ${currentAccount.email}`);
-                    try {
-                      await refreshCodexQuota(currentAccount.id);
-                    } catch (e) {
-                      console.error(`[AutoRefresh] Codex 当前账号 ${currentAccount.email} 刷新失败:`, e);
+                } else {
+                  // 筛选候选账号：额度 < 100% 且至少一个窗口的 reset_time 已过期
+                  const nowMs = Date.now();
+                  const nowSec = Math.floor(nowMs / 1000);
+                  const state = useCodexAccountStore.getState();
+                  const currentAccount = state.currentAccount;
+
+                  const candidates = [...state.accounts].filter((acc) => {
+                    const q = (acc as { quota?: { hourly_percentage: number; weekly_percentage: number; hourly_reset_time?: number; weekly_reset_time?: number } }).quota;
+                    if (!q) return false;
+                    const minPct = Math.min(q.hourly_percentage, q.weekly_percentage);
+                    if (minPct >= 100) return false; // 额度已满，无需刷新
+                    // 至少一个窗口的 reset_time 已过期（timestamp 单位：秒）
+                    const hourlyExpired = q.hourly_reset_time != null && q.hourly_reset_time <= nowSec;
+                    const weeklyExpired = q.weekly_reset_time != null && q.weekly_reset_time <= nowSec;
+                    return hourlyExpired || weeklyExpired;
+                  }).sort((a, b) => {
+                    // 按 last_updated 升序（最久未刷新的优先）
+                    const la = (a as { quota?: { last_updated?: number } }).quota?.last_updated ?? 0;
+                    const lb = (b as { quota?: { last_updated?: number } }).quota?.last_updated ?? 0;
+                    return la - lb;
+                  });
+
+                  // 候选为空时，用当前账号保底
+                  const toRefresh = candidates.length > 0
+                    ? candidates.slice(0, codexExtraCount)
+                    : (currentAccount ? [currentAccount] : []);
+
+                  if (toRefresh.length > 0) {
+                    const isFallback = candidates.length === 0;
+                    console.log(isFallback
+                      ? `[AutoRefresh] Codex 无候选账号，当前账号保底: ${currentAccount?.email}`
+                      : `[AutoRefresh] Codex 刷新 ${toRefresh.length} 个已重置账号（共 ${candidates.length} 个候选）`);
+                    for (const acc of toRefresh) {
+                      try {
+                        await refreshCodexQuota((acc as { id: string }).id);
+                        console.log(`[AutoRefresh] Codex 账号 ${(acc as { email: string }).email} 配额已刷新`);
+                      } catch (e) {
+                        console.error(`[AutoRefresh] Codex 账号 ${(acc as { email: string }).email} 刷新失败:`, e);
+                      }
                     }
                     await fetchCodexAccounts();
                     await fetchCodexCurrentAccount();
                   } else {
-                    console.log('[AutoRefresh] Codex 无当前账号，跳过');
+                    console.log('[AutoRefresh] Codex 无候选账号且无当前账号，跳过');
                   }
-                } else {
-                  // 数量 > 1：当前账号 + 环形队列（按 created_at 升序）后面 N-1 个账号，共 N 个
-                  const state = useCodexAccountStore.getState();
-                  const currentAccount = state.currentAccount;
-                  const sorted = [...state.accounts].sort(
-                    (a, b) => ((a as { created_at?: number }).created_at ?? 0) - ((b as { created_at?: number }).created_at ?? 0)
-                  );
-                  const currentIndex = sorted.findIndex((a) => a.id === currentAccount?.id);
-                  const startIndex = currentIndex >= 0 ? (currentIndex + 1) % sorted.length : 0;
-                  const needed = codexExtraCount - 1;
-                  const tail: typeof sorted = [];
-                  for (let i = 0; i < needed && i < sorted.length; i++) {
-                    const candidate = sorted[(startIndex + i) % sorted.length];
-                    // 不重复添加当前账号（账号总数 <= needed 时可能转回来）
-                    if (candidate.id !== currentAccount?.id) {
-                      tail.push(candidate);
-                    }
-                  }
-                  // 当前账号放首位先刷
-                  const toRefresh = currentAccount ? [currentAccount, ...tail] : tail;
-                  console.log(`[AutoRefresh] Codex 刷新 ${toRefresh.length} 个账号（当前 + 环形队列后 ${tail.length} 个）`);
-                  for (const acc of toRefresh) {
-                    try {
-                      await refreshCodexQuota(acc.id);
-                      console.log(`[AutoRefresh] Codex 账号 ${acc.email} 配额已刷新`);
-                    } catch (e) {
-                      console.error(`[AutoRefresh] Codex 账号 ${acc.email} 刷新失败:`, e);
-                    }
-                  }
-                  await fetchCodexAccounts();
-                  await fetchCodexCurrentAccount();
                 }
               } catch (e) {
                 console.error('[AutoRefresh] Codex 刷新失败:', e);
