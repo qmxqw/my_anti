@@ -167,9 +167,23 @@ export function formatCodexResetTime(
   const now = Math.floor(Date.now() / 1000);
   const diff = resetTime - now;
 
-  if (diff <= 0) return t('common.shared.quota.resetDone');
+  if (diff <= 0) {
+    // 已过期：显示 "已重置 xd xh xm"（与AG平台风格一致）
+    const elapsedSecs = -diff;
+    const totalElapsedMinutes = Math.ceil(elapsedSecs / 60);
+    const elapsedH = Math.floor(totalElapsedMinutes / 60);
+    const elapsedM = totalElapsedMinutes % 60;
+    const resetDoneLabel = t('common.shared.quota.resetDone');
+    if (elapsedH >= 24) {
+      const elapsedD = Math.floor(elapsedH / 24);
+      const remainH = elapsedH % 24;
+      return remainH > 0 ? `${resetDoneLabel} ${elapsedD}d ${remainH}h` : `${resetDoneLabel} ${elapsedD}d`;
+    }
+    if (elapsedH === 0) return `${resetDoneLabel} ${elapsedM}m`;
+    return elapsedM > 0 ? `${resetDoneLabel} ${elapsedH}h ${elapsedM}m` : `${resetDoneLabel} ${elapsedH}h`;
+  }
 
-  const totalMinutes = Math.floor(diff / 60);
+  const totalMinutes = Math.ceil(diff / 60); // 向上取整，避免因操作延迟导致时间显示偏小
   const days = Math.floor(totalMinutes / (60 * 24));
   const hours = Math.floor((totalMinutes % (60 * 24)) / 60);
   const minutes = totalMinutes % 60;

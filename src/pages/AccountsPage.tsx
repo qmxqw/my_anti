@@ -1672,7 +1672,7 @@ export function AccountsPage({ onNavigate }: AccountsPageProps) {
             ) : (
               <>
                 {quotaDisplayItems.map((item) => {
-                  const resetLabel = formatResetTimeDisplay(item.resetTime, t)
+                  const resetLabel = item.percentage >= 100 ? '' : formatResetTimeDisplay(item.resetTime, t)
                   return (
                     <div key={item.key} className="quota-compact-item">
                       <div className="quota-compact-header">
@@ -2250,7 +2250,7 @@ export function AccountsPage({ onNavigate }: AccountsPageProps) {
                       </div>
                       <div className="quota-footer">
                         <span className="quota-reset">
-                          {formatResetTimeDisplay(item.resetTime, t)}
+                          {item.percentage < 100 ? formatResetTimeDisplay(item.resetTime, t) : ''}
                         </span>
                       </div>
                     </div>

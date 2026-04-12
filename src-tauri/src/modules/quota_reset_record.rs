@@ -3,12 +3,32 @@ use std::io::Write;
 
 use chrono::{FixedOffset, Utc};
 
-/// 将秒数格式化为"xx天xx小时xx分"，省略前面为零的部分。
-/// 示例：3661 -> "1小时1分", 86400 -> "1天", 0 -> "0分"
+/// 解析账号标识符：有标签则取第一个标签，否则取 email @ 前缀。
+pub fn resolve_identifier(tags: Option<&[String]>, email: &str) -> String {
+    if let Some(tags) = tags {
+        if let Some(first) = tags.first() {
+            if !first.is_empty() {
+                return first.clone();
+            }
+        }
+    }
+    // 无标签：取 email @ 之前的部分
+    match email.find('@') {
+        Some(pos) => email[..pos].to_string(),
+        None => email.to_string(),
+    }
+}
+
+/// 将秒数格式化为重置时间标签。
+/// - 总秒数 < 6小时（21600秒）→ 固定写 "5小时"
+/// - 否则按 N天N小时 格式（省略为零的部分），最小写 "1小时"
 fn format_duration(total_secs: i64) -> String {
+    if total_secs < 6 * 3600 {
+        return "5小时".to_string();
+    }
+
     let days = total_secs / 86400;
     let hours = (total_secs % 86400) / 3600;
-    let mins = (total_secs % 3600) / 60;
 
     let mut parts: Vec<String> = Vec::new();
     if days > 0 {
@@ -17,8 +37,8 @@ fn format_duration(total_secs: i64) -> String {
     if hours > 0 {
         parts.push(format!("{}小时", hours));
     }
-    if mins > 0 || parts.is_empty() {
-        parts.push(format!("{}分", mins));
+    if parts.is_empty() {
+        parts.push("1小时".to_string());
     }
     parts.join("")
 }
@@ -55,7 +75,7 @@ pub fn append_record(
                 Ok(mut file) => {
                     if write_header {
                         let _ = file
-                            .write_all(b"platform,time,email,old_pct,new_pct,time_to_reset\n");
+                            .write_all(b"platform,time,account,old_pct,new_pct,time_to_reset\n");
                     }
                     if let Err(e) = file.write_all(line.as_bytes()) {
                         crate::modules::logger::log_warn(&format!(
@@ -64,7 +84,7 @@ pub fn append_record(
                         ));
                     } else {
                         crate::modules::logger::log_info(&format!(
-                            "[QuotaResetRecord] 记录: platform={}, email={}, {}% -> {}%, reset_in={}",
+                            "[QuotaResetRecord] 记录: platform={}, account={}, {}% -> {}%, reset_in={}",
                             platform, email, old_pct, new_pct, reset_str
                         ));
                     }

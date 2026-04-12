@@ -773,9 +773,13 @@ pub fn update_account_quota(account_id: &str, quota: QuotaData) -> Result<(), St
                                         diff.max(0)
                                     })
                             });
+                        let identifier = modules::quota_reset_record::resolve_identifier(
+                            Some(&account.tags),
+                            &account.email,
+                        );
                         modules::quota_reset_record::append_record(
                             "AG",
-                            &account.email,
+                            &identifier,
                             old_min,
                             new_min,
                             reset_secs,

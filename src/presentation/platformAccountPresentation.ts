@@ -261,7 +261,7 @@ export function buildAntigravityAccountPresentation(
     percentage: item.percentage,
     quotaClass: getAntigravityQuotaClass(item.percentage),
     valueText: `${item.percentage}%`,
-    resetText: item.resetTime ? formatResetTimeDisplay(item.resetTime, t) : '',
+    resetText: item.percentage >= 100 ? '' : (item.resetTime ? formatResetTimeDisplay(item.resetTime, t) : ''),
     resetAt: item.resetTime,
   }));
 
@@ -286,7 +286,16 @@ export function buildCodexAccountPresentation(
     percentage: window.percentage,
     quotaClass: 'high',
     valueText: `${window.percentage}%`,
-    resetText: window.resetTime ? formatCodexResetTime(window.resetTime, t) : '',
+    resetText: window.percentage >= 100
+      ? (() => {
+          // 满额：已过期显示 "已重置 xh"，未过期显示窗口时长标签
+          if (window.resetTime) {
+            const nowSec = Math.floor(Date.now() / 1000);
+            if (window.resetTime <= nowSec) return formatCodexResetTime(window.resetTime, t);
+          }
+          return window.label;
+        })()
+      : (window.resetTime ? formatCodexResetTime(window.resetTime, t) : ''),
     resetAt: window.resetTime,
   }));
 

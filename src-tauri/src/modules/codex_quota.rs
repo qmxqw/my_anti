@@ -347,9 +347,13 @@ pub async fn refresh_account_quota(account_id: &str) -> Result<CodexQuota, Strin
                     let diff = t - chrono::Utc::now().timestamp();
                     diff.max(0)
                 });
+                let identifier = crate::modules::quota_reset_record::resolve_identifier(
+                    account.tags.as_deref(),
+                    &account.email,
+                );
                 crate::modules::quota_reset_record::append_record(
                     "Codex",
-                    &account.email,
+                    &identifier,
                     old_min,
                     new_min,
                     reset_secs,
