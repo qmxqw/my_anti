@@ -4,7 +4,7 @@ import type { GitHubCopilotAccount } from '../types/githubCopilot';
 import type { WindsurfAccount } from '../types/windsurf';
 import type { KiroAccount, KiroAccountStatus } from '../types/kiro';
 import {
-  formatResetTimeDisplay,
+  formatAgResetTimeDisplay,
   getAntigravityTierBadge,
   getDisplayModels,
   getModelShortName,
@@ -261,7 +261,7 @@ export function buildAntigravityAccountPresentation(
     percentage: item.percentage,
     quotaClass: getAntigravityQuotaClass(item.percentage),
     valueText: `${item.percentage}%`,
-    resetText: item.percentage >= 100 ? '' : (item.resetTime ? formatResetTimeDisplay(item.resetTime, t) : ''),
+    resetText: item.resetTime ? formatAgResetTimeDisplay(item.resetTime, item.percentage, t) : '',
     resetAt: item.resetTime,
   }));
 

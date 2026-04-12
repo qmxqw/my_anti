@@ -44,6 +44,7 @@ import {
   getAntigravityTierBadge,
   getQuotaClass,
   formatResetTimeDisplay,
+  formatAgResetTimeDisplay,
   getSubscriptionTier,
 } from '../utils/account'
 import { listen, UnlistenFn } from '@tauri-apps/api/event'
@@ -1672,7 +1673,7 @@ export function AccountsPage({ onNavigate }: AccountsPageProps) {
             ) : (
               <>
                 {quotaDisplayItems.map((item) => {
-                  const resetLabel = item.percentage >= 100 ? '' : formatResetTimeDisplay(item.resetTime, t)
+                  const resetLabel = formatAgResetTimeDisplay(item.resetTime, item.percentage, t)
                   return (
                     <div key={item.key} className="quota-compact-item">
                       <div className="quota-compact-header">
@@ -2250,7 +2251,7 @@ export function AccountsPage({ onNavigate }: AccountsPageProps) {
                       </div>
                       <div className="quota-footer">
                         <span className="quota-reset">
-                          {item.percentage < 100 ? formatResetTimeDisplay(item.resetTime, t) : ''}
+                          {formatAgResetTimeDisplay(item.resetTime, item.percentage, t)}
                         </span>
                       </div>
                     </div>

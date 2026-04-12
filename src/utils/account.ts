@@ -149,3 +149,26 @@ export function getDisplayModels(quota?: QuotaData) {
 export function getModelShortName(name: string): string {
   return getAntigravityModelDisplayName(name);
 }
+
+/**
+ * AG平台重置时间显示策略：
+ * - 额度 >= 100% 且 resetTime 未过期 → 固定显示 "5h"（不显示动态倒计时）
+ * - 额度 >= 100% 且 resetTime 已过期 → "已重置 xDxH"
+ * - 额度 < 100%                       → 正常倒计时
+ */
+export function formatAgResetTimeDisplay(
+  resetTime: string,
+  percentage: number,
+  t: Translate,
+): string {
+  if (!resetTime) return '';
+  if (percentage >= 100) {
+    try {
+      const reset = new Date(resetTime);
+      if (!isNaN(reset.getTime()) && reset > new Date()) {
+        return '5h';
+      }
+    } catch { /* ignore */ }
+  }
+  return formatResetTimeDisplay(resetTime, t);
+}
