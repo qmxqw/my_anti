@@ -300,7 +300,7 @@ export function CodexAccountsPage() {
     setMessage(null);
     setSwitching(accountId);
     try {
-      const account = await switchAccount(accountId);
+      const account = await switchAccount(accountId, false);
       setMessage({ text: t('codex.switched', { email: maskAccountText(account.email) }) });
     } catch (e) {
       setMessage({ text: t('codex.switchFailed', { error: String(e) }), tone: 'error' });

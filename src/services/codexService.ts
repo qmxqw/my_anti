@@ -17,8 +17,8 @@ export async function getCurrentCodexAccount(): Promise<CodexAccount | null> {
 }
 
 /** 切换 Codex 账号 */
-export async function switchCodexAccount(accountId: string): Promise<CodexAccount> {
-  return await invoke('switch_codex_account', { accountId });
+export async function switchCodexAccount(accountId: string, isAuto?: boolean): Promise<CodexAccount> {
+  return await invoke('switch_codex_account', { accountId, isAuto: isAuto ?? null });
 }
 
 /** 删除 Codex 账号 */

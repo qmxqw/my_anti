@@ -55,7 +55,7 @@ interface CodexAccountState {
   // Actions
   fetchAccounts: () => Promise<void>;
   fetchCurrentAccount: () => Promise<void>;
-  switchAccount: (accountId: string) => Promise<CodexAccount>;
+  switchAccount: (accountId: string, isAuto?: boolean) => Promise<CodexAccount>;
   deleteAccount: (accountId: string) => Promise<void>;
   deleteAccounts: (accountIds: string[]) => Promise<void>;
   refreshQuota: (accountId: string) => Promise<CodexQuota>;
@@ -92,8 +92,8 @@ export const useCodexAccountStore = create<CodexAccountState>((set, get) => ({
     }
   },
   
-  switchAccount: async (accountId: string) => {
-    const account = await codexService.switchCodexAccount(accountId);
+  switchAccount: async (accountId: string, isAuto?: boolean) => {
+    const account = await codexService.switchCodexAccount(accountId, isAuto);
     set({ currentAccount: account });
     await get().fetchAccounts();
     return account;

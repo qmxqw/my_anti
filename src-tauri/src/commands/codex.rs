@@ -23,6 +23,7 @@ pub fn get_current_codex_account() -> Result<Option<CodexAccount>, String> {
 pub async fn switch_codex_account(
     app: AppHandle,
     account_id: String,
+    is_auto: Option<bool>,
 ) -> Result<CodexAccount, String> {
     let _ = codex_account::prepare_account_for_injection(&account_id).await?;
 
@@ -72,6 +73,47 @@ pub async fn switch_codex_account(
         }
     } else {
         logger::log_info("已关闭 OpenCode 自动重启");
+    }
+
+    #[cfg(target_os = "windows")]
+    {
+        let is_auto_switch = is_auto.unwrap_or(false);
+        let script_config = user_config.codex_app_path.trim().to_string();
+        if !script_config.is_empty() {
+            // 格式："path/script.py arg1 arg2 arg3"
+            // 手动：python.exe script.py arg1 arg2
+            // 自动：python.exe script.py arg1 arg3
+            let parts: Vec<&str> = script_config.splitn(4, ' ').collect();
+            if parts.len() >= 3 {
+                let script_path = parts[0];
+                let arg1 = parts[1];
+                let arg2_or_3 = if is_auto_switch {
+                    parts.get(3).copied().unwrap_or(parts[2])
+                } else {
+                    parts[2]
+                };
+                logger::log_info(&format!(
+                    "[Codex Switch Script] is_auto={} => python {} {} {}",
+                    is_auto_switch, script_path, arg1, arg2_or_3
+                ));
+                match std::process::Command::new("python")
+                    .args([script_path, arg1, arg2_or_3])
+                    .spawn()
+                {
+                    Ok(_) => {}
+                    Err(e) => {
+                        logger::log_warn(&format!("[Codex Switch Script] 运行失败: {}", e));
+                    }
+                }
+            } else {
+                logger::log_info(&format!(
+                    "[Codex Switch Script] 路径不含参数，跳过脚本调用: {}",
+                    script_config
+                ));
+            }
+        } else {
+            logger::log_info("未配置 Windows Codex 切号脚本");
+        }
     }
 
     #[cfg(target_os = "macos")]
