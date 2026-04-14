@@ -149,6 +149,22 @@ pub fn apply_cached_quota(account: &mut Account, source: &str) -> Result<bool, S
             }
         }
     }
+    // 满额 reset_time 冻结：新旧 percentage 都 >= 100 时保留旧的 reset_time
+    if let Some(ref old_quota) = account.quota {
+        for new_model in quota.models.iter_mut() {
+            if new_model.percentage >= 100 {
+                if let Some(old_model) = old_quota
+                    .models
+                    .iter()
+                    .find(|m| m.name == new_model.name)
+                {
+                    if old_model.percentage >= 100 && !old_model.reset_time.is_empty() {
+                        new_model.reset_time = old_model.reset_time.clone();
+                    }
+                }
+            }
+        }
+    }
 
     account.update_quota(quota);
     Ok(true)

@@ -790,7 +790,29 @@ pub fn update_account_quota(account_id: &str, quota: QuotaData) -> Result<(), St
         }
     }
 
-    account.update_quota(quota);
+    // ── 满额 reset_time 冻结 ──────────────────────────────────────────────
+    // 当某模型新旧 percentage 都 >= 100 时，保留旧的 reset_time 不更新，
+    // 这样 UI 可以用冻结的 reset_time 显示"满额已持续多久"。
+    if let Some(ref old_quota) = account.quota {
+        let mut quota = quota;
+        for new_model in quota.models.iter_mut() {
+            if new_model.percentage >= 100 {
+                if let Some(old_model) = old_quota
+                    .models
+                    .iter()
+                    .find(|m| m.name == new_model.name)
+                {
+                    if old_model.percentage >= 100 && !old_model.reset_time.is_empty() {
+                        new_model.reset_time = old_model.reset_time.clone();
+                    }
+                }
+            }
+        }
+        account.update_quota(quota);
+    } else {
+        account.update_quota(quota);
+    }
+
     save_account(&account)?;
     if let Some(ref quota) = account.quota {
         let _ = modules::quota_cache::write_quota_cache("authorized", &account.email, quota);

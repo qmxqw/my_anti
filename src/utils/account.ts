@@ -152,23 +152,17 @@ export function getModelShortName(name: string): string {
 
 /**
  * AG平台重置时间显示策略：
- * - 额度 >= 100% 且 resetTime 未过期 → 固定显示 "5h"（不显示动态倒计时）
+ * 后端已对满额模型冻结 reset_time（新旧都是100%时不更新），
+ * 所以这里统一用 formatResetTimeDisplay 显示：
+ * - 额度 < 100%  → 正常倒计时 "1d 18h (04/15 11:52)"
+ * - 额度 >= 100% 且 resetTime 未过期 → 倒计时（实际是冻结的恢复窗口时间）
  * - 额度 >= 100% 且 resetTime 已过期 → "已重置 xDxH"
- * - 额度 < 100%                       → 正常倒计时
  */
 export function formatAgResetTimeDisplay(
   resetTime: string,
-  percentage: number,
+  _percentage: number,
   t: Translate,
 ): string {
   if (!resetTime) return '';
-  if (percentage >= 100) {
-    try {
-      const reset = new Date(resetTime);
-      if (!isNaN(reset.getTime()) && reset > new Date()) {
-        return '5h';
-      }
-    } catch { /* ignore */ }
-  }
   return formatResetTimeDisplay(resetTime, t);
 }
