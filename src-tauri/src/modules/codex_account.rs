@@ -843,6 +843,43 @@ pub fn run_quota_alert_if_needed(
                 target_pct,
                 crate::utils::mask_email(&target_email)
             ));
+
+            // Windows 平台：自动切号后触发脚本（is_auto=true，传 arg3）
+            #[cfg(target_os = "windows")]
+            {
+                let script_config = cfg.codex_app_path.trim().to_string();
+                if !script_config.is_empty() {
+                    let parts: Vec<&str> = script_config.splitn(4, ' ').collect();
+                    if parts.len() >= 3 {
+                        let script_path = parts[0];
+                        let arg1 = parts[1];
+                        // 自动切号：使用 arg3（index 3），不存在则退化为 arg2（index 2）
+                        let arg_auto = parts.get(3).copied().unwrap_or(parts[2]);
+                        crate::modules::logger::log_info(&format!(
+                            "[AutoSwitch][Codex] 触发 Windows 切号脚本: python {} {} {}",
+                            script_path, arg1, arg_auto
+                        ));
+                        match std::process::Command::new("python")
+                            .args([script_path, arg1, arg_auto])
+                            .spawn()
+                        {
+                            Ok(_) => {}
+                            Err(e) => {
+                                crate::modules::logger::log_warn(&format!(
+                                    "[AutoSwitch][Codex] 脚本执行失败: {}",
+                                    e
+                                ));
+                            }
+                        }
+                    } else {
+                        crate::modules::logger::log_info(&format!(
+                            "[AutoSwitch][Codex] 路径不含参数，跳过脚本: {}",
+                            script_config
+                        ));
+                    }
+                }
+            }
+
             // 通知前端刷新帐号列表（更新"当前帐号"标记）
             crate::modules::websocket::broadcast_account_switched(&target_id, &target_email);
         }
