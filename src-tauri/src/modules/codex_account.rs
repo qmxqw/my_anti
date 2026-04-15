@@ -803,24 +803,40 @@ pub fn run_quota_alert_if_needed(
         return Ok(None);
     }
 
-    // 从当前帐号的下一个位置开始，环形查找第一个有效配额 > 当前帐号配额的帐号
-    // 注意：只对比"是否高于当前帐号"，不参考阈值（阈值仅决定是否触发，不影响目标选择）
+    // 从当前帐号的下一个位置开始，环形遍历所有候选：
+    //   优先找额度 100% 的帐号（按环形顺序取第一个）；
+    //   若无 100% 的，则取整个候选集中额度最高的（相同最高额时取环形顺序第一个）；
+    //   最终目标帐号的额度必须高于当前帐号，否则放弃切号。
     let current_pos = sorted.iter().position(|a| a.id == current_id).unwrap_or(0);
     let len = sorted.len();
-    let mut target: Option<&CodexAccount> = None;
+    // 按环形顺序收集所有候选（排除当前帐号自身）
+    let candidates: Vec<&CodexAccount> = (1..len)
+        .map(|i| sorted[(current_pos + i) % len])
+        .collect();
 
-    for i in 1..len {
-        let candidate = sorted[(current_pos + i) % len];
-        let candidate_pct = extract_effective_quota(candidate, now).unwrap_or(0);
-        if candidate_pct > current_pct {
-            target = Some(candidate);
-            break;
-        }
-    }
+    // 先在环形顺序中找第一个 100% 满额的
+    let target = candidates
+        .iter()
+        .find(|c| extract_effective_quota(c, now).unwrap_or(0) >= 100)
+        .copied()
+        // 找不到满额的，则取额度最高的（相同额度时保持环形顺序，即 max_by_key 会取最后遇到的，
+        // 为了取环形顺序第一个，使用 fold 手动维护）
+        .or_else(|| {
+            candidates.iter().copied().fold(None, |best, c| {
+                let pct = extract_effective_quota(c, now).unwrap_or(0);
+                match best {
+                    None => Some(c),
+                    Some(b) => {
+                        let best_pct = extract_effective_quota(b, now).unwrap_or(0);
+                        if pct > best_pct { Some(c) } else { Some(b) }
+                    }
+                }
+            })
+        });
 
     let target = match target {
-        Some(t) => t,
-        None => {
+        Some(t) if extract_effective_quota(t, now).unwrap_or(0) > current_pct => t,
+        _ => {
             crate::modules::logger::log_info(&format!(
                 "[AutoSwitch][Codex] 当前配额 {}%，未找到更优帐号，放弃切号",
                 current_pct
