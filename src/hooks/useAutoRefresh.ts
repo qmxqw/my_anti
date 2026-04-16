@@ -73,7 +73,7 @@ function findSmartRefreshCandidates(
 
   // 分组：已使用（claude* 额度 < 100%）优先，全满（claude* 额度 >= 100%）按配置决定是否纳入
   const partial = candidates.filter(hasPartialQuota).sort(sortFn);
-  const full    = candidates.filter((a) => !hasPartialQuota(a)).sort(sortFn);
+  const full = candidates.filter((a) => !hasPartialQuota(a)).sort(sortFn);
 
   return includeFullQuota ? [...partial, ...full] : [...partial];
 }
@@ -173,7 +173,7 @@ export function useAutoRefresh() {
         const config = await invoke<GeneralConfig>('get_general_config');
         if (config.auto_refresh_minutes === -1 || config.auto_refresh_minutes > 2) {
           console.log(`[AutoRefresh] 检测到活跃的配额重置任务，自动修正刷新间隔: ${config.auto_refresh_minutes} -> 2`);
-          
+
           await invoke('save_general_config', {
             language: config.language,
             theme: config.theme,
@@ -193,7 +193,7 @@ export function useAutoRefresh() {
             extraRefreshCount: config.extra_refresh_count ?? 20,
             refreshSortOldestFirst: config.refresh_sort_oldest_first ?? false,
           });
-          
+
           if (!unmounted) {
             window.dispatchEvent(new Event('config-updated'));
           }
@@ -327,7 +327,7 @@ export function useAutoRefresh() {
 
               try {
                 // 每次定时刷新时更新当前帐号的 last_used_at
-                await invoke('touch_current_last_used').catch(() => {});
+                await invoke('touch_current_last_used').catch(() => { });
 
                 // 统一筛选所有帐号，只刷新配额已重置的
                 if (extraCount > 0) {
@@ -336,9 +336,9 @@ export function useAutoRefresh() {
                   const currentAccount = useAccountStore.getState().currentAccount;
                   // 读取快速切号的排序配置（field + desc 两维）
                   const sortField = (config.switch_sort_field === 'last_used_at' ? 'last_used_at' : 'created_at') as 'created_at' | 'last_used_at';
-                  const sortDesc  = config.switch_sort_desc ?? false;
+                  const sortDesc = config.switch_sort_desc ?? false;
                   const includeFullQuota = config.refresh_include_full ?? false;
-                  const fallbackCurrent  = config.refresh_fallback_current ?? false;
+                  const fallbackCurrent = config.refresh_fallback_current ?? false;
                   const candidates = findSmartRefreshCandidates(allAccounts, currentAccount?.id, sortField, sortDesc, includeFullQuota);
                   // 候选列表为空时，按配置决定是否用当前账号保底
                   const toRefresh = candidates.length > 0
@@ -491,7 +491,7 @@ export function useAutoRefresh() {
                   }
                   await fetchGhcpAccounts();
                 } else {
-                  await refreshAllGhcpTokens();
+                  //console.log('[AutoRefresh] GitHub Copilot 刷新数量为 0，跳过');
                 }
               } catch (e) {
                 console.error('[AutoRefresh] GitHub Copilot 刷新失败:', e);
@@ -528,7 +528,7 @@ export function useAutoRefresh() {
                   }
                   await fetchWindsurfAccounts();
                 } else {
-                  await refreshAllWindsurfTokens();
+                  console.log('[AutoRefresh] Windsurf 刷新数量为 0，跳过');
                 }
               } catch (e) {
                 console.error('[AutoRefresh] Windsurf 刷新失败:', e);
@@ -565,7 +565,7 @@ export function useAutoRefresh() {
                   }
                   await fetchKiroAccounts();
                 } else {
-                  await refreshAllKiroTokens();
+                  console.log('[AutoRefresh] Kiro 刷新数量为 0，跳过');
                 }
               } catch (e) {
                 console.error('[AutoRefresh] Kiro 刷新失败:', e);
