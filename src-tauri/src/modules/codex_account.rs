@@ -913,3 +913,166 @@ pub fn run_quota_alert_if_needed(
     Ok(None) // 静默切换，不触发前端弹窗
 }
 
+/// Alt+F2 热键触发的 Codex 智能切号
+///
+/// 逻辑：
+/// 1. 读取配置中的阈值（codex_quota_alert_threshold），未配置则跳过
+/// 2. 获取当前 Codex 帐号的有效配额
+/// 3. 只有当当前帐号配额 <= 阈值时才执行切换
+/// 4. 切换逻辑与自动切号相同：优先找 100% 满额帐号，找不到则取最高配额帐号
+/// 5. 目标帐号的配额必须高于当前帐号，否则放弃
+/// 6. Windows 平台：切换成功后触发配置的脚本（使用 arg2，即手动切号参数）
+pub fn hotkey_smart_switch() -> Result<String, String> {
+    logger::log_info("[Hotkey][Codex] Alt+F2 Codex 智能切号开始");
+
+    let cfg = crate::modules::config::get_user_config();
+    let threshold = normalize_quota_alert_threshold(cfg.codex_quota_alert_threshold);
+    if threshold == 0 {
+        logger::log_info("[Hotkey][Codex] 未配置阈值（codex_quota_alert_threshold=0），跳过");
+        return Ok("no_threshold".to_string());
+    }
+
+    let accounts = list_accounts();
+    let current_id = match resolve_current_account_id(&accounts) {
+        Some(id) => id,
+        None => {
+            logger::log_info("[Hotkey][Codex] 无当前帐号，跳过");
+            return Ok("no_current_account".to_string());
+        }
+    };
+
+    let current = match accounts.iter().find(|a| a.id == current_id) {
+        Some(a) => a,
+        None => {
+            logger::log_info("[Hotkey][Codex] 当前帐号不在列表中，跳过");
+            return Ok("no_current_account".to_string());
+        }
+    };
+
+    let now = chrono::Utc::now().timestamp();
+    let current_pct = match extract_effective_quota(current, now) {
+        Some(pct) => pct,
+        None => {
+            logger::log_info("[Hotkey][Codex] 当前帐号无配额数据，跳过");
+            return Ok("no_quota_data".to_string());
+        }
+    };
+
+    if current_pct > threshold {
+        logger::log_info(&format!(
+            "[Hotkey][Codex] 当前配额 {}% > 阈值 {}%，无需切号",
+            current_pct, threshold
+        ));
+        return Ok("quota_sufficient".to_string());
+    }
+
+    logger::log_info(&format!(
+        "[Hotkey][Codex] 当前配额 {}% <= 阈值 {}%，开始查找切换目标",
+        current_pct, threshold
+    ));
+
+    // 按 created_at 升序排列所有帐号
+    let mut sorted: Vec<&CodexAccount> = accounts.iter().collect();
+    sorted.sort_by_key(|a| a.created_at);
+
+    if sorted.len() <= 1 {
+        logger::log_info("[Hotkey][Codex] 只有一个帐号，无法切号");
+        return Ok("only_one_account".to_string());
+    }
+
+    let current_pos = sorted.iter().position(|a| a.id == current_id).unwrap_or(0);
+    let len = sorted.len();
+    let candidates: Vec<&CodexAccount> = (1..len)
+        .map(|i| sorted[(current_pos + i) % len])
+        .collect();
+
+    // 优先找 100% 满额帐号，找不到则取最高配额帐号（相同时保持环形顺序）
+    let target = candidates
+        .iter()
+        .find(|c| extract_effective_quota(c, now).unwrap_or(0) >= 100)
+        .copied()
+        .or_else(|| {
+            candidates.iter().copied().fold(None, |best, c| {
+                let pct = extract_effective_quota(c, now).unwrap_or(0);
+                match best {
+                    None => Some(c),
+                    Some(b) => {
+                        let best_pct = extract_effective_quota(b, now).unwrap_or(0);
+                        if pct > best_pct { Some(c) } else { Some(b) }
+                    }
+                }
+            })
+        });
+
+    let target = match target {
+        Some(t) if extract_effective_quota(t, now).unwrap_or(0) > current_pct => t,
+        _ => {
+            logger::log_info(&format!(
+                "[Hotkey][Codex] 当前配额 {}%，未找到更优帐号，放弃切号",
+                current_pct
+            ));
+            return Ok("no_better_account".to_string());
+        }
+    };
+
+    let target_id = target.id.clone();
+    let target_email = target.email.clone();
+    let target_pct = extract_effective_quota(target, now).unwrap_or(0);
+
+    match switch_account(&target_id) {
+        Ok(_) => {
+            logger::log_info(&format!(
+                "[Hotkey][Codex] 当前配额 {}% <= {}%，已切换至配额 {}% 的帐号: {}",
+                current_pct,
+                threshold,
+                target_pct,
+                crate::utils::mask_email(&target_email)
+            ));
+
+            // Windows 平台：手动热键切号后触发脚本（使用 arg2，即手动切号参数）
+            #[cfg(target_os = "windows")]
+            {
+                let script_config = cfg.codex_app_path.trim().to_string();
+                if !script_config.is_empty() {
+                    let parts: Vec<&str> = script_config.splitn(4, ' ').collect();
+                    if parts.len() >= 3 {
+                        let script_path = parts[0];
+                        let arg1 = parts[1];
+                        let arg2 = parts[2]; // 手动切号使用 arg2
+                        logger::log_info(&format!(
+                            "[Hotkey][Codex] 触发 Windows 切号脚本: python {} {} {}",
+                            script_path, arg1, arg2
+                        ));
+                        match std::process::Command::new("python")
+                            .args([script_path, arg1, arg2])
+                            .spawn()
+                        {
+                            Ok(_) => {}
+                            Err(e) => {
+                                logger::log_warn(&format!(
+                                    "[Hotkey][Codex] 脚本执行失败: {}",
+                                    e
+                                ));
+                            }
+                        }
+                    } else {
+                        logger::log_info(&format!(
+                            "[Hotkey][Codex] 路径不含参数，跳过脚本: {}",
+                            script_config
+                        ));
+                    }
+                }
+            }
+
+            // 通知前端刷新帐号列表
+            crate::modules::websocket::broadcast_account_switched(&target_id, &target_email);
+
+            Ok(format!("switched_to:{}", crate::utils::mask_email(&target_email)))
+        }
+        Err(e) => {
+            logger::log_warn(&format!("[Hotkey][Codex] 切号失败: {}", e));
+            Err(e)
+        }
+    }
+}
+

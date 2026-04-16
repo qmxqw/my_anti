@@ -98,6 +98,7 @@ pub fn run() {
                     Code, GlobalShortcutExt, Modifiers, Shortcut, ShortcutState,
                 };
                 let alt_f1 = Shortcut::new(Some(Modifiers::ALT), Code::F1);
+                let alt_f2 = Shortcut::new(Some(Modifiers::ALT), Code::F2);
                 let alt_backquote = Shortcut::new(Some(Modifiers::ALT), Code::Backquote);
                 let app_handle = app.handle().clone();
                 app.handle().plugin(
@@ -124,6 +125,22 @@ pub fn run() {
                                         }
                                     }
                                 });
+                            } else if shortcut == &alt_f2 {
+                                logger::log_info("[Hotkey] Alt+F2 触发");
+                                match modules::codex_account::hotkey_smart_switch() {
+                                    Ok(result) => {
+                                        logger::log_info(&format!(
+                                            "[Hotkey] Codex 切号结果: {}",
+                                            result
+                                        ));
+                                    }
+                                    Err(e) => {
+                                        logger::log_error(&format!(
+                                            "[Hotkey] Codex 切号失败: {}",
+                                            e
+                                        ));
+                                    }
+                                };
                             } else if shortcut == &alt_backquote {
                                 logger::log_info("[Hotkey] Alt+` 触发");
                                 if let Some(window) = app_handle.get_webview_window("main") {
@@ -145,8 +162,9 @@ pub fn run() {
                         .build(),
                 )?;
                 app.global_shortcut().register(alt_f1)?;
+                app.global_shortcut().register(alt_f2)?;
                 app.global_shortcut().register(alt_backquote)?;
-                info!("[Hotkey] Alt+F1, Alt+` 全局快捷键已注册");
+                info!("[Hotkey] Alt+F1, Alt+F2, Alt+` 全局快捷键已注册");
             }
 
             // 启动时同步：读取共享配置文件，与本地配置比较时间戳后合并
