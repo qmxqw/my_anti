@@ -1,4 +1,4 @@
-use crate::models::codex::{CodexAccount, CodexQuota, CodexQuotaErrorInfo};
+use crate::models::codex::{CodexAccount, CodexQuota};
 use crate::modules::{codex_account, logger};
 use reqwest::header::{HeaderMap, HeaderValue, ACCEPT, AUTHORIZATION};
 use serde::{Deserialize, Serialize};
@@ -32,20 +32,8 @@ fn extract_detail_code_from_body(body: &str) -> Option<String> {
     None
 }
 
-fn extract_error_code_from_message(message: &str) -> Option<String> {
-    let marker = "[error_code:";
-    let start = message.find(marker)?;
-    let code_start = start + marker.len();
-    let end = message[code_start..].find(']')?;
-    Some(message[code_start..code_start + end].to_string())
-}
-
-fn write_quota_error(account: &mut CodexAccount, message: String) {
-    account.quota_error = Some(CodexQuotaErrorInfo {
-        code: extract_error_code_from_message(&message),
-        message,
-        timestamp: chrono::Utc::now().timestamp(),
-    });
+fn clear_persisted_quota_error(account: &mut CodexAccount) {
+    account.quota_error = None;
 }
 
 /// 使用率窗口（5小时/周）
@@ -296,18 +284,18 @@ pub async fn refresh_account_quota(account_id: &str) -> Result<CodexQuota, Strin
                 Err(e) => {
                     logger::log_error(&format!("账号 {} Token 刷新失败: {}", crate::utils::mask_email(&account.email), e));
                     let message = format!("Token 已过期且刷新失败: {}", e);
-                    write_quota_error(&mut account, message.clone());
+                    clear_persisted_quota_error(&mut account);
                     if let Err(save_err) = codex_account::save_account(&account) {
-                        logger::log_warn(&format!("写入 Codex 配额错误失败: {}", save_err));
+                        logger::log_warn(&format!("保存账号状态失败: {}", save_err));
                     }
                     return Err(message);
                 }
             }
         } else {
             let message = "Token 已过期且无 refresh_token".to_string();
-            write_quota_error(&mut account, message.clone());
+            clear_persisted_quota_error(&mut account);
             if let Err(save_err) = codex_account::save_account(&account) {
-                logger::log_warn(&format!("写入 Codex 配额错误失败: {}", save_err));
+                logger::log_warn(&format!("保存账号状态失败: {}", save_err));
             }
             return Err(message);
         }
@@ -316,9 +304,9 @@ pub async fn refresh_account_quota(account_id: &str) -> Result<CodexQuota, Strin
     let result = match fetch_quota(&account).await {
         Ok(result) => result,
         Err(e) => {
-            write_quota_error(&mut account, e.clone());
+            clear_persisted_quota_error(&mut account);
             if let Err(save_err) = codex_account::save_account(&account) {
-                logger::log_warn(&format!("写入 Codex 配额错误失败: {}", save_err));
+                logger::log_warn(&format!("保存账号状态失败: {}", save_err));
             }
             return Err(e);
         }
@@ -380,7 +368,7 @@ pub async fn refresh_account_quota(account_id: &str) -> Result<CodexQuota, Strin
     // old_min_opt 为 None（首次写入）时，last_used_at 保持 None
 
     account.quota = Some(new_quota);
-    account.quota_error = None;
+    clear_persisted_quota_error(&mut account);
     codex_account::save_account(&account)?;
 
     Ok(account.quota.clone().unwrap())
@@ -421,4 +409,32 @@ pub async fn refresh_all_quotas() -> Result<Vec<(String, Result<CodexQuota, Stri
     }
 
     Ok(results)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::clear_persisted_quota_error;
+    use crate::models::codex::{CodexAccount, CodexQuotaErrorInfo, CodexTokens};
+
+    #[test]
+    fn codex_refresh_failure_clears_persisted_quota_error() {
+        let mut account = CodexAccount::new(
+            "codex-test".to_string(),
+            "user@example.com".to_string(),
+            CodexTokens {
+                id_token: "id".to_string(),
+                access_token: "access".to_string(),
+                refresh_token: Some("refresh".to_string()),
+            },
+        );
+        account.quota_error = Some(CodexQuotaErrorInfo {
+            code: Some("network_error".to_string()),
+            message: "request failed".to_string(),
+            timestamp: 1,
+        });
+
+        clear_persisted_quota_error(&mut account);
+
+        assert!(account.quota_error.is_none());
+    }
 }

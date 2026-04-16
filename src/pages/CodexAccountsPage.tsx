@@ -29,7 +29,6 @@ import { useCodexAccountStore } from '../stores/useCodexAccountStore';
 import * as codexService from '../services/codexService';
 import { TagEditModal } from '../components/TagEditModal';
 import { ExportJsonModal } from '../components/ExportJsonModal';
-import { type CodexQuotaErrorInfo } from '../types/codex';
 import { buildCodexAccountPresentation } from '../presentation/platformAccountPresentation';
 
 import { listen, UnlistenFn } from '@tauri-apps/api/event';
@@ -345,14 +344,6 @@ export function CodexAccountsPage() {
 
   // ─── Platform-specific: Presentation ─────────────────────────────────
 
-  const resolveQuotaErrorMeta = useCallback((quotaError?: CodexQuotaErrorInfo) => {
-    if (!quotaError?.message) return { statusCode: '', errorCode: '', displayText: '', rawMessage: '' };
-    const rawMessage = quotaError.message;
-    const statusCode = rawMessage.match(/API 返回错误\s+(\d{3})/i)?.[1] || rawMessage.match(/status[=: ]+(\d{3})/i)?.[1] || '';
-    const errorCode = quotaError.code || rawMessage.match(/\[error_code:([^\]]+)\]/)?.[1] || '';
-    return { statusCode, errorCode, displayText: errorCode || rawMessage, rawMessage };
-  }, []);
-
   const accountPresentations = useMemo(() => {
     const map = new Map<string, ReturnType<typeof buildCodexAccountPresentation>>();
     accounts.forEach((a) => map.set(a.id, buildCodexAccountPresentation(a, t)));
@@ -455,8 +446,6 @@ export function CodexAccountsPage() {
       const planClass = presentation.planClass || 'unknown';
       const isSelected = selected.has(account.id);
       const quotaItems = presentation.quotaItems;
-      const quotaErrorMeta = resolveQuotaErrorMeta(account.quota_error);
-      const hasQuotaError = Boolean(quotaErrorMeta.rawMessage);
       const accountTags = (account.tags || []).map((tag) => tag.trim()).filter(Boolean);
       const visibleTags = accountTags.slice(0, 2);
       const moreTagCount = Math.max(0, accountTags.length - visibleTags.length);
@@ -466,7 +455,6 @@ export function CodexAccountsPage() {
             <div className="card-select"><input type="checkbox" checked={isSelected} onChange={() => toggleSelect(account.id)} /></div>
             <span className="account-email" title={maskAccountText(presentation.displayName)}>{maskAccountText(presentation.displayName)}</span>
             {isCurrent && <span className="current-tag">{t('codex.current', '当前')}</span>}
-            {hasQuotaError && (<span className="codex-status-pill quota-error" title={quotaErrorMeta.rawMessage}><CircleAlert size={12} />{quotaErrorMeta.statusCode || t('codex.quotaError.badge', '配额异常')}</span>)}
             <span className={`tier-badge ${planClass}`}>{presentation.planLabel}</span>
           </div>
           {(accountTags.length > 0 || account.quota?.last_used_at) && (
@@ -503,7 +491,6 @@ export function CodexAccountsPage() {
             </div>
           )}
           <div className="codex-quota-section">
-            {hasQuotaError && (<div className="quota-error-inline" title={quotaErrorMeta.rawMessage}><CircleAlert size={14} /><span>{quotaErrorMeta.displayText}</span></div>)}
             {quotaItems.map((item, index) => {
               const QuotaIcon = index === 1 ? Calendar : Clock;
               return (<div key={item.key} className="quota-item"><div className="quota-header"><QuotaIcon size={14} /><span className="quota-label">{item.label}</span><span className={`quota-pct ${item.quotaClass}`}>{item.valueText}</span></div>
@@ -548,22 +535,18 @@ export function CodexAccountsPage() {
       const planClass = presentation.planClass || 'unknown';
       const primaryWindow = presentation.quotaItems[0];
       const secondaryWindow = presentation.quotaItems[1];
-      const quotaErrorMeta = resolveQuotaErrorMeta(account.quota_error);
-      const hasQuotaError = Boolean(quotaErrorMeta.rawMessage);
       return (
         <tr key={groupKey ? `${groupKey}-${account.id}` : account.id} className={isCurrent ? 'current' : ''} onContextMenu={(e) => { e.preventDefault(); toggleSelect(account.id) }}>
           <td><input type="checkbox" checked={selected.has(account.id)} onChange={() => toggleSelect(account.id)} /></td>
           <td><div className="account-cell"><div className="account-main-line"><span className="account-email-text" title={maskAccountText(presentation.displayName)}>{maskAccountText(presentation.displayName)}</span>
-            {isCurrent && <span className="mini-tag current">{t('codex.current', '当前')}</span>}</div>
-            {hasQuotaError && (<div className="account-sub-line"><span className="codex-status-pill quota-error" title={quotaErrorMeta.rawMessage}><CircleAlert size={12} />{quotaErrorMeta.statusCode || t('codex.quotaError.badge', '配额异常')}</span></div>)}</div></td>
+            {isCurrent && <span className="mini-tag current">{t('codex.current', '当前')}</span>}</div></div></td>
           <td><span className={`tier-badge ${planClass}`}>{presentation.planLabel}</span></td>
           <td>{primaryWindow ? (<div className="quota-item"><div className="quota-header"><span className="quota-name">{primaryWindow.label}</span><span className={`quota-value ${primaryWindow.quotaClass}`}>{primaryWindow.valueText}</span></div>
             <div className="quota-progress-track"><div className={`quota-progress-bar ${primaryWindow.quotaClass}`} style={{ width: `${primaryWindow.percentage}%` }} /></div>
             {primaryWindow.resetText && (<div className="quota-footer"><span className="quota-reset">{primaryWindow.resetText}</span></div>)}</div>) : (<div className="quota-empty">—</div>)}</td>
           <td>{secondaryWindow ? (<div className="quota-item"><div className="quota-header"><span className="quota-name">{secondaryWindow.label}</span><span className={`quota-value ${secondaryWindow.quotaClass}`}>{secondaryWindow.valueText}</span></div>
             <div className="quota-progress-track"><div className={`quota-progress-bar ${secondaryWindow.quotaClass}`} style={{ width: `${secondaryWindow.percentage}%` }} /></div>
-            {secondaryWindow.resetText && (<div className="quota-footer"><span className="quota-reset">{secondaryWindow.resetText}</span></div>)}</div>) : (<div className="quota-empty">—</div>)}
-            {hasQuotaError && (<div className="quota-error-inline table" title={quotaErrorMeta.rawMessage}><CircleAlert size={12} /><span>{quotaErrorMeta.displayText}</span></div>)}</td>
+            {secondaryWindow.resetText && (<div className="quota-footer"><span className="quota-reset">{secondaryWindow.resetText}</span></div>)}</div>) : (<div className="quota-empty">—</div>)}</td>
           <td className="sticky-action-cell table-action-cell"><div className="action-buttons">
             <button className="action-btn" onClick={() => openTagModal(account.id)} title={t('accounts.editTags', '编辑标签')}><Tag size={14} /></button>
             <button className={`action-btn ${!isCurrent ? 'success' : ''}`} onClick={() => handleSwitch(account.id)} disabled={!!switching} title={t('codex.switch', '切换')}>

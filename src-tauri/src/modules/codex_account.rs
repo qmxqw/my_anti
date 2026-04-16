@@ -748,8 +748,10 @@ fn extract_effective_quota(account: &CodexAccount, now: i64) -> Option<i32> {
 /// 自动切号：当前帐号刷新后配额 <= 阈值时，静默切换到更优帐号
 /// 选号逻辑：
 ///   1. 按 created_at 升序排列所有帐号
-///   2. 从当前帐号位置的下一个开始（环形），找第一个有效配额 > 当前帐号有效配额的帐号
-///   3. 找不到则放弃，不切号
+///   2. 从当前帐号位置的下一个开始（环形遍历）：
+///      a. 优先找第一个额度 100% 的帐号
+///      b. 若无满额帐号，取额度最高的（相同额度时取环形顺序第一个）
+///   3. 最终目标帐号的额度必须高于当前帐号，否则放弃切号
 /// 启用条件：codex_quota_alert_enabled=true 且 codex_quota_alert_threshold > 0
 pub fn run_quota_alert_if_needed(
 ) -> Result<Option<crate::modules::account::QuotaAlertPayload>, String> {
