@@ -823,8 +823,35 @@ function App() {
     };
   }, []);
 
+  // 程序内热键：Alt+F1 → AG 页 + 触发切号，Alt+F2 → Codex 页 + 触发切号
+  useEffect(() => {
+    const handleHotkey = (e: KeyboardEvent) => {
+      if (!e.altKey || e.ctrlKey || e.shiftKey || e.metaKey) return;
+      const tag = (e.target as HTMLElement)?.tagName;
+      if (tag === 'INPUT' || tag === 'TEXTAREA' || (e.target as HTMLElement)?.isContentEditable) return;
+
+      if (e.key === 'F1') {
+        e.preventDefault();
+        setPage('overview');
+        void invoke('trigger_smart_switch').catch((err: unknown) => {
+          console.error('[Hotkey] Alt+F1 切号失败:', err);
+        });
+      } else if (e.key === 'F2') {
+        e.preventDefault();
+        setPage('codex');
+        void invoke('trigger_codex_smart_switch').catch((err: unknown) => {
+          console.error('[Hotkey] Alt+F2 Codex 切号失败:', err);
+        });
+      }
+    };
+
+    document.addEventListener('keydown', handleHotkey);
+    return () => document.removeEventListener('keydown', handleHotkey);
+  }, []);
+
   useEffect(() => {
     let unlisten: UnlistenFn | undefined;
+
     let disposed = false;
 
     listen<QuotaAlertPayload>('quota:alert', (event) => {

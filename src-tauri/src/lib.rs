@@ -91,14 +91,12 @@ pub fn run() {
                 info!("[Updater] Tauri Updater + Process 插件已初始化");
             }
 
-            // 初始化全局快捷键插件，注册 Alt+F1 智能切号热键 + Alt+` 窗口显示/隐藏切换热键
+            // 初始化全局快捷键插件，注册 Alt+` 窗口显示/隐藏切换热键
             #[cfg(desktop)]
             {
                 use tauri_plugin_global_shortcut::{
                     Code, GlobalShortcutExt, Modifiers, Shortcut, ShortcutState,
                 };
-                let alt_f1 = Shortcut::new(Some(Modifiers::ALT), Code::F1);
-                let alt_f2 = Shortcut::new(Some(Modifiers::ALT), Code::F2);
                 let alt_backquote = Shortcut::new(Some(Modifiers::ALT), Code::Backquote);
                 let app_handle = app.handle().clone();
                 app.handle().plugin(
@@ -107,41 +105,7 @@ pub fn run() {
                             if event.state() != ShortcutState::Pressed {
                                 return;
                             }
-                            if shortcut == &alt_f1 {
-                                logger::log_info("[Hotkey] Alt+F1 触发");
-                                tauri::async_runtime::spawn(async {
-                                    match modules::account::hotkey_smart_switch().await {
-                                        Ok(result) => {
-                                            logger::log_info(&format!(
-                                                "[Hotkey] 智能切号结果: {}",
-                                                result
-                                            ));
-                                        }
-                                        Err(e) => {
-                                            logger::log_error(&format!(
-                                                "[Hotkey] 智能切号失败: {}",
-                                                e
-                                            ));
-                                        }
-                                    }
-                                });
-                            } else if shortcut == &alt_f2 {
-                                logger::log_info("[Hotkey] Alt+F2 触发");
-                                match modules::codex_account::hotkey_smart_switch() {
-                                    Ok(result) => {
-                                        logger::log_info(&format!(
-                                            "[Hotkey] Codex 切号结果: {}",
-                                            result
-                                        ));
-                                    }
-                                    Err(e) => {
-                                        logger::log_error(&format!(
-                                            "[Hotkey] Codex 切号失败: {}",
-                                            e
-                                        ));
-                                    }
-                                };
-                            } else if shortcut == &alt_backquote {
+                            if shortcut == &alt_backquote {
                                 logger::log_info("[Hotkey] Alt+` 触发");
                                 if let Some(window) = app_handle.get_webview_window("main") {
                                     let is_visible = window.is_visible().unwrap_or(false);
@@ -161,10 +125,8 @@ pub fn run() {
                         })
                         .build(),
                 )?;
-                app.global_shortcut().register(alt_f1)?;
-                app.global_shortcut().register(alt_f2)?;
                 app.global_shortcut().register(alt_backquote)?;
-                info!("[Hotkey] Alt+F1, Alt+F2, Alt+` 全局快捷键已注册");
+                info!("[Hotkey] Alt+` 全局快捷键已注册");
             }
 
             // 启动时同步：读取共享配置文件，与本地配置比较时间戳后合并
@@ -353,6 +315,7 @@ pub fn run() {
             commands::codex::is_codex_oauth_port_in_use,
             commands::codex::close_codex_oauth_port,
             commands::codex::update_codex_account_tags,
+            commands::codex::trigger_codex_smart_switch,
             // GitHub Copilot Commands
             commands::github_copilot::list_github_copilot_accounts,
             commands::github_copilot::delete_github_copilot_account,

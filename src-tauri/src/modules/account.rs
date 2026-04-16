@@ -1252,34 +1252,6 @@ pub async fn switch_account_internal(account_id: &str) -> Result<Account, String
         }
     }
 
-    // 4. 切换前刷新当前帐号的配额
-    if let Ok(Some(ref current_acc)) = get_current_account() {
-        let cur_id = current_acc.id.clone();
-        let cur_email = current_acc.email.clone();
-        let mut acc_for_quota = match load_account(&cur_id) {
-            Ok(a) => a,
-            Err(_) => current_acc.clone(),
-        };
-        match fetch_quota_with_retry(&mut acc_for_quota, true).await {
-            Ok(quota) => {
-                if let Err(e) = update_account_quota(&cur_id, quota) {
-                    modules::logger::log_warn(&format!(
-                        "[Switch] 当前帐号 {} 配额保存失败: {}", cur_email, e
-                    ));
-                } else {
-                    modules::logger::log_info(&format!(
-                        "[Switch] 当前帐号 {} 配额已刷新", cur_email
-                    ));
-                }
-            }
-            Err(e) => {
-                modules::logger::log_warn(&format!(
-                    "[Switch] 当前帐号 {} 配额刷新失败: {}，继续切换", cur_email, e
-                ));
-            }
-        }
-    }
-
     // 5. 更新 A/B 两个帐号的 last_used_at（公共逻辑）
     let prev_id = get_current_account_id().ok().flatten();
     update_switch_timestamps(&mut account, prev_id.as_deref());
@@ -1354,29 +1326,42 @@ pub async fn hotkey_smart_switch() -> Result<String, String> {
     let current_id = current_account.id.clone();
     let current_email = current_account.email.clone();
 
-    // ── 2. 刷新当前帐号配额 ──
+    // ── 2. 检查当前帐号配额（缓存）是否 <= 20%，不满足则跳过 ──
+    let now = chrono::Utc::now().timestamp();
     {
-        let mut acc = load_account(&current_id)?;
-        match fetch_quota_with_retry(&mut acc, true).await {
-            Ok(quota) => {
-                update_account_quota(&current_id, quota)?;
-                modules::logger::log_info(&format!(
-                    "[Hotkey] 当前帐号 {} 配额已刷新",
-                    current_email
-                ));
-            }
-            Err(e) => {
-                modules::logger::log_warn(&format!(
-                    "[Hotkey] 当前帐号 {} 配额刷新失败: {}，继续执行切号逻辑",
-                    current_email, e
-                ));
-            }
+        let acc = load_account(&current_id)?;
+        let current_pct = acc.quota.as_ref().map(|quota| {
+            quota.models.iter()
+                .filter(|m| m.name.to_lowercase().starts_with("claude"))
+                .map(|m| {
+                    if !m.reset_time.is_empty() {
+                        if let Ok(reset) = chrono::DateTime::parse_from_rfc3339(&m.reset_time) {
+                            if reset.timestamp() <= now {
+                                return 100i32;
+                            }
+                        }
+                    }
+                    m.percentage
+                })
+                .min()
+                .unwrap_or(-1)
+        }).unwrap_or(-1);
+
+        if current_pct > 20 {
+            modules::logger::log_info(&format!(
+                "[Hotkey] 当前帐号配额 {}%，无需切号（阈值 20%）",
+                current_pct
+            ));
+            return Ok("quota_sufficient".to_string());
         }
+        modules::logger::log_info(&format!(
+            "[Hotkey] 当前帐号配额 {}% <= 20%，开始查找切换目标",
+            current_pct
+        ));
     }
 
     // ── 3. 获取所有帐号并过滤 ──
     let all_accounts = list_accounts()?;
-    let now = chrono::Utc::now().timestamp();
 
     // 计算帐号的 claude* 模型有效最低 percentage（已过期视为 100%）
     let effective_min_percentage = |acc: &Account| -> i32 {
@@ -1552,6 +1537,12 @@ pub async fn hotkey_smart_switch() -> Result<String, String> {
                     account.email
                 ));
                 modules::websocket::broadcast_account_switched(&account.id, &account.email);
+                // 切换完成后刷新配额（原步骤2移到此处）
+                if let Ok(mut acc) = load_account(&current_id) {
+                    if let Ok(quota) = fetch_quota_with_retry(&mut acc, true).await {
+                        let _ = update_account_quota(&current_id, quota);
+                    }
+                }
                 Ok(format!("restarted:{}", account.email))
             }
             Err(e) => {
@@ -1568,6 +1559,12 @@ pub async fn hotkey_smart_switch() -> Result<String, String> {
                 current_email, account.email
             ));
             modules::websocket::broadcast_account_switched(&account.id, &account.email);
+            // 切换完成后刷新前帐号配额（原步骤2移到此处）
+            if let Ok(mut acc) = load_account(&current_id) {
+                if let Ok(quota) = fetch_quota_with_retry(&mut acc, true).await {
+                    let _ = update_account_quota(&current_id, quota);
+                }
+            }
             Ok(format!("switched:{}:{}", current_email, account.email))
         }
         Err(e) => {

@@ -348,3 +348,11 @@ pub fn close_codex_oauth_port() -> Result<u32, String> {
     let killed = process::kill_port_processes(port)?;
     Ok(killed as u32)
 }
+
+/// 前端触发 Codex 智能切号（与 Alt+F2 内部热键相同逻辑）
+#[tauri::command]
+pub fn trigger_codex_smart_switch(app: AppHandle) -> Result<String, String> {
+    let result = codex_account::hotkey_smart_switch()?;
+    let _ = crate::modules::tray::update_tray_menu(&app);
+    Ok(result)
+}
