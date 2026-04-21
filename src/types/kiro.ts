@@ -10,6 +10,7 @@ import {
   safeLeft,
   sumDefined,
 } from '../utils/dataExtract';
+import { formatLargestRelativeTimeParts } from '../utils/time';
 
 /** Kiro 账号数据（后端原样返回 + 前端兼容字段） */
 export interface KiroAccount {
@@ -738,35 +739,29 @@ export function formatKiroResetTime(resetAt: number | null | undefined, t: Trans
   const hours = Math.floor((totalMinutes % (60 * 24)) / 60);
   const minutes = totalMinutes % 60;
 
-  let relative = t('common.shared.time.lessThanMinute', { defaultValue: '<1m' });
-  if (days > 0 && hours > 0) {
-    relative = t('common.shared.time.relativeDaysHours', {
-      days,
-      hours,
-      defaultValue: '{{days}}d {{hours}}h',
-    });
-  } else if (days > 0) {
-    relative = t('common.shared.time.relativeDays', {
-      days,
-      defaultValue: '{{days}}d',
-    });
-  } else if (hours > 0 && minutes > 0) {
-    relative = t('common.shared.time.relativeHoursMinutes', {
-      hours,
-      minutes,
-      defaultValue: '{{hours}}h {{minutes}}m',
-    });
-  } else if (hours > 0) {
-    relative = t('common.shared.time.relativeHours', {
-      hours,
-      defaultValue: '{{hours}}h',
-    });
-  } else if (minutes > 0) {
-    relative = t('common.shared.time.relativeMinutes', {
-      minutes,
-      defaultValue: '{{minutes}}m',
-    });
-  }
+  const relative = formatLargestRelativeTimeParts([
+    {
+      value: days,
+      text: t('common.shared.time.relativeDays', {
+        days,
+        defaultValue: '{{days}}d',
+      }),
+    },
+    {
+      value: hours,
+      text: t('common.shared.time.relativeHours', {
+        hours,
+        defaultValue: '{{hours}}h',
+      }),
+    },
+    {
+      value: minutes,
+      text: t('common.shared.time.relativeMinutes', {
+        minutes,
+        defaultValue: '{{minutes}}m',
+      }),
+    },
+  ], t('common.shared.time.lessThanMinute', { defaultValue: '<1m' }));
 
   const absolute = formatKiroResetTimeAbsolute(ts);
   return t('common.shared.time.relativeWithAbsolute', {

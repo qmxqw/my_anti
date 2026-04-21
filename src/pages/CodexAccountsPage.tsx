@@ -490,7 +490,11 @@ export function CodexAccountsPage() {
               })()}
             </div>
           )}
-          <div className="codex-quota-section">
+          <div
+            className={`codex-quota-section ${
+              quotaItems.length > 1 ? 'multi' : quotaItems.length === 1 ? 'single' : 'empty'
+            }`}
+          >
             {quotaItems.map((item, index) => {
               const QuotaIcon = index === 1 ? Calendar : Clock;
               return (<div key={item.key} className="quota-item"><div className="quota-header"><QuotaIcon size={14} /><span className="quota-label">{item.label}</span><span className={`quota-pct ${item.quotaClass}`}>{item.valueText}</span></div>

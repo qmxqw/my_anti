@@ -4,6 +4,7 @@ import {
   getAntigravityDisplayModelsFromQuota,
   getAntigravityModelDisplayName,
 } from './antigravityModels';
+import { formatLargestRelativeTimeParts } from './time';
 
 export const DISPLAY_MODEL_ORDER = [
   ...AUTH_RECOMMENDED_LABELS.map((label) => ({ ids: [label], label })),
@@ -101,15 +102,11 @@ export function formatResetTime(resetTime: string, t: Translate): string {
     const hours = Math.floor((totalMinutesInt % (60 * 24)) / 60);
     const minutes = totalMinutesInt % 60;
 
-    const parts: string[] = [];
-    if (days > 0) parts.push(`${days}d`);
-    if (hours > 0) parts.push(`${hours}h`);
-    // 时差 >= 24h 时截断，只显示 nD nH
-    if (days === 0 && minutes > 0) parts.push(`${minutes}m`);
-
-    if (parts.length === 0) return '<1m';
-
-    return parts.join(' ');
+    return formatLargestRelativeTimeParts([
+      { value: days, text: `${days}d` },
+      { value: hours, text: `${hours}h` },
+      { value: minutes, text: `${minutes}m` },
+    ], '<1m');
   } catch {
     return '';
   }

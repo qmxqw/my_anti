@@ -1,3 +1,5 @@
+import { formatLargestRelativeTimeParts } from '../utils/time';
+
 /** Codex 账号数据 */
 export interface CodexAccount {
   id: string;
@@ -188,12 +190,11 @@ export function formatCodexResetTime(
   const hours = Math.floor((totalMinutes % (60 * 24)) / 60);
   const minutes = totalMinutes % 60;
 
-  let parts = [];
-  if (days > 0) parts.push(`${days}d`);
-  if (hours > 0) parts.push(`${hours}h`);
-  if (minutes > 0) parts.push(`${minutes}m`);
-  
-  const relative = parts.length > 0 ? parts.join(' ') : '<1m';
+  const relative = formatLargestRelativeTimeParts([
+    { value: days, text: `${days}d` },
+    { value: hours, text: `${hours}h` },
+    { value: minutes, text: `${minutes}m` },
+  ], '<1m');
   const absolute = formatCodexResetTimeAbsolute(resetTime);
 
   return `${relative} (${absolute})`;
