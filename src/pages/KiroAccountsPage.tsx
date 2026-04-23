@@ -507,7 +507,7 @@ export function KiroAccountsPage() {
                   <span className="windsurf-credit-left">{addOnMetrics?.valueText ?? '0%'}</span>
                 </div>
                 <div className="quota-bar-track">
-                  <div className={`quota-bar-inverted ${addOnMetrics?.quotaClass ?? 'high'}`} style={{ width: `${addOnMetrics?.percentage ?? 0}%` }} />
+                  <div className={`quota-bar ${addOnMetrics?.quotaClass ?? 'high'}`} style={{ width: `${addOnMetrics?.percentage ?? 0}%` }} />
                 </div>
               </div>
             ) : (
@@ -522,7 +522,7 @@ export function KiroAccountsPage() {
                   <span className="windsurf-credit-left">{promptMetrics?.valueText ?? '0%'}</span>
                 </div>
                 <div className="quota-bar-track">
-                  <div className={`quota-bar-inverted ${promptMetrics?.quotaClass ?? 'high'}`} style={{ width: `${promptMetrics?.percentage ?? 0}%` }} />
+                  <div className={`quota-bar ${promptMetrics?.quotaClass ?? 'high'}`} style={{ width: `${promptMetrics?.percentage ?? 0}%` }} />
                 </div>
               </div>
             )}
@@ -624,7 +624,7 @@ export function KiroAccountsPage() {
                   <span className="windsurf-credit-left">{addOnMetrics?.valueText ?? '0%'}</span>
                 </div>
                 <div className="quota-progress-track">
-                  <div className={`quota-progress-bar-inverted ${addOnMetrics?.quotaClass ?? 'high'}`} style={{ width: `${addOnMetrics?.percentage ?? 0}%` }} />
+                  <div className={`quota-progress-bar ${addOnMetrics?.quotaClass ?? 'high'}`} style={{ width: `${addOnMetrics?.percentage ?? 0}%` }} />
                 </div>
               </div>
             ) : (
@@ -639,7 +639,7 @@ export function KiroAccountsPage() {
                   <span className="windsurf-credit-left">{promptMetrics?.valueText ?? '0%'}</span>
                 </div>
                 <div className="quota-progress-track">
-                  <div className={`quota-progress-bar-inverted ${promptMetrics?.quotaClass ?? 'high'}`} style={{ width: `${promptMetrics?.percentage ?? 0}%` }} />
+                  <div className={`quota-progress-bar ${promptMetrics?.quotaClass ?? 'high'}`} style={{ width: `${promptMetrics?.percentage ?? 0}%` }} />
                 </div>
               </div>
             )}

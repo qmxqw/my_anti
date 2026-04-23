@@ -440,32 +440,34 @@
   background: linear-gradient(90deg, #ef4444, #dc2626);
 }
 
-/* 反转进度条样式 - 绿色背景，已使用部分显示灰色，从右向左 */
-.ghcp-quota-section .quota-bar-inverted {
-  height: 100%;
-  border-radius: 3px;
+/* 表格视图的进度条 */
+.quota-progress-track {
+  height: 4px;
   background: var(--bg-tertiary);
-  margin-left: auto;
+  border-radius: 2px;
+  overflow: hidden;
 }
 
-.ghcp-quota-section .quota-bar-track {
-  background: linear-gradient(90deg, #22c55e, #16a34a);
-  display: flex;
-  flex-direction: row-reverse;
-}
-
-/* 表格视图的反转进度条 */
-.quota-progress-bar-inverted {
+.quota-progress-bar {
   height: 100%;
   border-radius: 2px;
-  background: var(--bg-tertiary);
-  margin-left: auto;
+  transition: width 0.3s ease;
 }
 
-.quota-progress-track {
+.quota-progress-bar.high {
   background: linear-gradient(90deg, #22c55e, #16a34a);
-  display: flex;
-  flex-direction: row-reverse;
+}
+
+.quota-progress-bar.medium {
+  background: linear-gradient(90deg, #f59e0b, #d97706);
+}
+
+.quota-progress-bar.low {
+  background: linear-gradient(90deg, #f97316, #ea580c);
+}
+
+.quota-progress-bar.critical {
+  background: linear-gradient(90deg, #ef4444, #dc2626);
 }
 
 .ghcp-quota-section .quota-reset {

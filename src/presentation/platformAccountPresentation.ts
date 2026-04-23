@@ -39,7 +39,6 @@ import {
   getKiroCreditsSummary,
   getKiroPlanBadgeClass,
   getKiroPlanDisplayName,
-  getKiroQuotaClass,
 } from '../types/kiro';
 import type { DisplayGroup, GroupSettings } from '../services/groupService';
 import { calculateGroupQuota } from '../services/groupService';
@@ -527,8 +526,8 @@ export function buildKiroAccountPresentation(
     quotaItems.push({
       key: 'addon',
       label: t('common.shared.columns.addOnPromptCredits', 'Add-on prompt credits'),
-      percentage: addOnMetrics.usedPercent,
-      quotaClass: getKiroQuotaClass(addOnMetrics.usedPercent),
+      percentage: addOnMetrics.leftPercent,
+      quotaClass: 'high',
       valueText: `${addOnMetrics.leftPercent}%`,
       resetText: `${t('kiro.columns.expiry', '到期日')}: ${addOnExpiryText}`,
       used: addOnMetrics.used,
@@ -540,8 +539,8 @@ export function buildKiroAccountPresentation(
     quotaItems.push({
       key: 'prompt',
       label: t('common.shared.columns.promptCredits', 'User Prompt credits'),
-      percentage: promptMetrics.usedPercent,
-      quotaClass: getKiroQuotaClass(promptMetrics.usedPercent),
+      percentage: promptMetrics.leftPercent,
+      quotaClass: 'high',
       valueText: `${promptMetrics.leftPercent}%`,
       resetText: cycleExpiryText,
       used: promptMetrics.used,
