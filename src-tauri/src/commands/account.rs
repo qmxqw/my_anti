@@ -170,7 +170,7 @@ pub async fn switch_account(app: AppHandle, account_id: String) -> Result<models
         }
     }
 
-    // 4. 切换前刷新当前帐号的配额
+    // 4. 后台刷新当前帐号配额（不阻塞切号主流程）
     if let Ok(Some(ref current_acc)) = modules::get_current_account() {
         let cur_id = current_acc.id.clone();
         let cur_email = current_acc.email.clone();
@@ -178,24 +178,26 @@ pub async fn switch_account(app: AppHandle, account_id: String) -> Result<models
             Ok(a) => a,
             Err(_) => current_acc.clone(),
         };
-        match modules::fetch_quota_with_retry(&mut acc_for_quota, true).await {
-            Ok(quota) => {
-                if let Err(e) = modules::update_account_quota(&cur_id, quota) {
+        tokio::spawn(async move {
+            match modules::fetch_quota_with_retry(&mut acc_for_quota, true).await {
+                Ok(quota) => {
+                    if let Err(e) = modules::update_account_quota(&cur_id, quota) {
+                        modules::logger::log_warn(&format!(
+                            "[Switch] 当前帐号 {} 配额保存失败: {}", crate::utils::mask_email(&cur_email), e
+                        ));
+                    } else {
+                        modules::logger::log_info(&format!(
+                            "[Switch] 当前帐号 {} 配额已后台刷新", crate::utils::mask_email(&cur_email)
+                        ));
+                    }
+                }
+                Err(e) => {
                     modules::logger::log_warn(&format!(
-                        "[Switch] 当前帐号 {} 配额保存失败: {}", crate::utils::mask_email(&cur_email), e
-                    ));
-                } else {
-                    modules::logger::log_info(&format!(
-                        "[Switch] 当前帐号 {} 配额已刷新", crate::utils::mask_email(&cur_email)
+                        "[Switch] 当前帐号 {} 配额后台刷新失败: {}", crate::utils::mask_email(&cur_email), e
                     ));
                 }
             }
-            Err(e) => {
-                modules::logger::log_warn(&format!(
-                    "[Switch] 当前帐号 {} 配额刷新失败: {}，继续切换", crate::utils::mask_email(&cur_email), e
-                ));
-            }
-        }
+        });
     }
 
     // 5. 更新 A/B 两个帐号的 last_used_at（公共逻辑）

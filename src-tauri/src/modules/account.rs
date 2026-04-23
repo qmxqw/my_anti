@@ -1537,12 +1537,15 @@ pub async fn hotkey_smart_switch() -> Result<String, String> {
                     account.email
                 ));
                 modules::websocket::broadcast_account_switched(&account.id, &account.email);
-                // 切换完成后刷新配额（原步骤2移到此处）
-                if let Ok(mut acc) = load_account(&current_id) {
-                    if let Ok(quota) = fetch_quota_with_retry(&mut acc, true).await {
-                        let _ = update_account_quota(&current_id, quota);
+                // 后台刷新配额，不阻塞切号返回
+                let id_for_quota = current_id.clone();
+                tokio::spawn(async move {
+                    if let Ok(mut acc) = load_account(&id_for_quota) {
+                        if let Ok(quota) = fetch_quota_with_retry(&mut acc, true).await {
+                            let _ = update_account_quota(&id_for_quota, quota);
+                        }
                     }
-                }
+                });
                 Ok(format!("restarted:{}", account.email))
             }
             Err(e) => {
@@ -1559,12 +1562,15 @@ pub async fn hotkey_smart_switch() -> Result<String, String> {
                 current_email, account.email
             ));
             modules::websocket::broadcast_account_switched(&account.id, &account.email);
-            // 切换完成后刷新前帐号配额（原步骤2移到此处）
-            if let Ok(mut acc) = load_account(&current_id) {
-                if let Ok(quota) = fetch_quota_with_retry(&mut acc, true).await {
-                    let _ = update_account_quota(&current_id, quota);
+            // 后台刷新前帐号配额，不阻塞切号返回
+            let id_for_quota = current_id.clone();
+            tokio::spawn(async move {
+                if let Ok(mut acc) = load_account(&id_for_quota) {
+                    if let Ok(quota) = fetch_quota_with_retry(&mut acc, true).await {
+                        let _ = update_account_quota(&id_for_quota, quota);
+                    }
                 }
-            }
+            });
             Ok(format!("switched:{}:{}", current_email, account.email))
         }
         Err(e) => {
