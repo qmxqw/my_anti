@@ -120,11 +120,7 @@ export function SettingsPage() {
   const [language, setLanguage] = useState(getCurrentLanguage());
   const [theme, setTheme] = useState('system');
   const [autoRefresh, setAutoRefresh] = useState('5');
-  const [extraRefreshCount, setExtraRefreshCount] = useState('0');
-  const [codexExtraRefreshCount, setCodexExtraRefreshCount] = useState('0');
-  const [ghcpExtraRefreshCount, setGhcpExtraRefreshCount] = useState('0');
-  const [windsurfExtraRefreshCount, setWindsurfExtraRefreshCount] = useState('0');
-  const [kiroExtraRefreshCount, setKiroExtraRefreshCount] = useState('0');
+
   const [codexAutoRefresh, setCodexAutoRefresh] = useState('10');
   const [ghcpAutoRefresh, setGhcpAutoRefresh] = useState('10');
   const [windsurfAutoRefresh, setWindsurfAutoRefresh] = useState('10');
@@ -152,7 +148,7 @@ export function SettingsPage() {
   const [kiroQuotaAlertEnabled, setKiroQuotaAlertEnabled] = useState(false);
   const [kiroQuotaAlertThreshold, setKiroQuotaAlertThreshold] = useState('20');
 
-  const [uiAutoRefresh, setUiAutoRefresh] = useState(false);
+
   const [switchSortField, setSwitchSortField] = useState('created_at');
   const [switchSortDesc, setSwitchSortDesc] = useState(false);
   const [switchFullQuotaFirst, setSwitchFullQuotaFirst] = useState(true);
@@ -322,11 +318,11 @@ export function SettingsPage() {
           windsurfAutoRefreshMinutes: windsurfAutoRefreshNum,
           kiroAutoRefreshMinutes: kiroAutoRefreshNum,
           closeBehavior,
-          extraRefreshCount: parseInt(extraRefreshCount, 10) || 0,
-          codexExtraRefreshCount: parseInt(codexExtraRefreshCount, 10) || 0,
-          ghcpExtraRefreshCount: parseInt(ghcpExtraRefreshCount, 10) || 0,
-          windsurfExtraRefreshCount: parseInt(windsurfExtraRefreshCount, 10) || 0,
-          kiroExtraRefreshCount: parseInt(kiroExtraRefreshCount, 10) || 0,
+          extraRefreshCount: 1,
+          codexExtraRefreshCount: 1,
+          ghcpExtraRefreshCount: 1,
+          windsurfExtraRefreshCount: 1,
+          kiroExtraRefreshCount: 1,
           batchRefreshSkipReset: true,
           hideDockIcon,
           opencodeAppPath,
@@ -358,7 +354,7 @@ export function SettingsPage() {
             : parsedKiroQuotaAlertThreshold,
 
           refreshWhenTray: true,
-          uiAutoRefresh,
+          uiAutoRefresh: false,
           switchSortField,
           switchSortDesc,
           switchFullQuotaFirst,
@@ -381,7 +377,7 @@ export function SettingsPage() {
     };
   }, [
     autoRefresh,
-    extraRefreshCount,
+
     codexAutoRefresh,
     ghcpAutoRefresh,
     windsurfAutoRefresh,
@@ -411,7 +407,7 @@ export function SettingsPage() {
     kiroQuotaAlertEnabled,
     kiroQuotaAlertThreshold,
 
-    uiAutoRefresh,
+
     switchSortField,
     switchSortDesc,
     switchFullQuotaFirst,
@@ -568,11 +564,7 @@ export function SettingsPage() {
       setLanguage(normalizeLanguage(config.language));
       setTheme(config.theme);
       setAutoRefresh(String(config.auto_refresh_minutes));
-      setExtraRefreshCount(String(config.extra_refresh_count ?? 0));
-      setCodexExtraRefreshCount(String(config.codex_extra_refresh_count ?? 0));
-      setGhcpExtraRefreshCount(String(config.ghcp_extra_refresh_count ?? 0));
-      setWindsurfExtraRefreshCount(String(config.windsurf_extra_refresh_count ?? 0));
-      setKiroExtraRefreshCount(String(config.kiro_extra_refresh_count ?? 0));
+
       setCodexAutoRefresh(String(config.codex_auto_refresh_minutes ?? 10));
       setGhcpAutoRefresh(String(config.ghcp_auto_refresh_minutes ?? 10));
       setWindsurfAutoRefresh(String(config.windsurf_auto_refresh_minutes ?? 10));
@@ -599,7 +591,7 @@ export function SettingsPage() {
       setKiroQuotaAlertEnabled(config.kiro_quota_alert_enabled ?? false);
       setKiroQuotaAlertThreshold(String(config.kiro_quota_alert_threshold ?? 20));
 
-      setUiAutoRefresh(Boolean(config.ui_auto_refresh));
+
       setSwitchSortField(config.switch_sort_field || 'created_at');
       setSwitchSortDesc(Boolean(config.switch_sort_desc));
       setSwitchFullQuotaFirst(config.switch_full_quota_first ?? true);
@@ -949,21 +941,6 @@ export function SettingsPage() {
                       </div>
                       <div className="row-control">
                         <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
-                          <select
-                            className="settings-select"
-                            style={{ minWidth: '70px', width: 'auto' }}
-                            value={extraRefreshCount}
-                            onChange={(e) => setExtraRefreshCount(e.target.value)}
-                          >
-                            <option value="0">0</option>
-                            <option value="1">1</option>
-                            <option value="2">2</option>
-                            <option value="3">3</option>
-                            <option value="4">4</option>
-                            <option value="5">5</option>
-                            <option value="10">10</option>
-                            <option value="20">20</option>
-                          </select>
                           {autoRefreshCustomMode ? (
                             <div className="settings-inline-input" style={{ minWidth: '120px', width: 'auto' }}>
                               <input
@@ -1041,22 +1018,6 @@ export function SettingsPage() {
                       </div>
                     </div>
 
-                    <div className="settings-row">
-                      <div className="row-label">
-                        <div className="row-title">{t('settings.general.uiAutoRefresh', 'UI定时刷新')}</div>
-                        <div className="row-desc">{t('settings.general.uiAutoRefreshDesc', '启用后每个刷新周期都会更新页面数据（如倒计时），不启用则页面保持稳定')}</div>
-                      </div>
-                      <div className="row-control">
-                        <label className="switch">
-                          <input
-                            type="checkbox"
-                            checked={uiAutoRefresh}
-                            onChange={(e) => setUiAutoRefresh(e.target.checked)}
-                          />
-                          <span className="slider"></span>
-                        </label>
-                      </div>
-                    </div>
 
                     <div className="settings-row">
                       <div className="row-label">

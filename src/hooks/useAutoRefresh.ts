@@ -241,21 +241,24 @@ export function useAutoRefresh() {
    */
   const scheduleAligned = (
     intervalMs: number,
-    callback: () => Promise<void> | void,
+    callback: () => Promise<number | void> | number | void,
     ref: React.MutableRefObject<number | null>,
     skipTrayCheck = false,
   ) => {
+    const scheduleNext = (nextMs: number) => {
+      const now = Date.now();
+      const next = Math.ceil(now / nextMs) * nextMs;
+      const delay = next - now || nextMs;
+      ref.current = window.setTimeout(tick, delay);
+    };
+
     const tick = async () => {
       // 窗口隐藏到托盘时跳过本次刷新（可通过配置关闭此行为）
       if (!skipTrayCheck) {
         try {
           const visible = await getCurrentWindow().isVisible();
           if (!visible) {
-            // 继续调度下一次，但跳过本次执行
-            const now = Date.now();
-            const next = Math.ceil(now / intervalMs) * intervalMs;
-            const delay = next - now || intervalMs;
-            ref.current = window.setTimeout(tick, delay);
+            scheduleNext(intervalMs);
             return;
           }
         } catch { /* 查询失败时正常执行 */ }
@@ -265,25 +268,18 @@ export function useAutoRefresh() {
       try {
         const idleSeconds = await invoke<number>('get_user_idle_seconds');
         if (idleSeconds >= 600) {
-          const now = Date.now();
-          const next = Math.ceil(now / intervalMs) * intervalMs;
-          const delay = next - now || intervalMs;
-          ref.current = window.setTimeout(tick, delay);
+          scheduleNext(intervalMs);
           return;
         }
       } catch { /* 查询失败时正常执行 */ }
 
-      await callback();
+      const result = await callback();
       if (ref.current === null) return; // 已被清理
-      const now = Date.now();
-      const next = Math.ceil(now / intervalMs) * intervalMs;
-      const delay = next - now || intervalMs;
-      ref.current = window.setTimeout(tick, delay);
+      // 回调返回正数时用作下一次间隔，否则沿用默认间隔
+      const nextInterval = (typeof result === 'number' && result > 0) ? result : intervalMs;
+      scheduleNext(nextInterval);
     };
-    const now = Date.now();
-    const next = Math.ceil(now / intervalMs) * intervalMs;
-    const delay = next - now || intervalMs;
-    ref.current = window.setTimeout(tick, delay);
+    scheduleNext(intervalMs);
   };
 
   const clearAllTimers = useCallback(() => {
@@ -325,12 +321,12 @@ export function useAutoRefresh() {
           clearAllTimers();
 
           if (config.auto_refresh_minutes > 0) {
-            const extraCount = config.extra_refresh_count ?? 0;
             const traySkip = config.refresh_when_tray ?? false;
-            console.log(`[AutoRefresh] Antigravity 已启用: 每 ${config.auto_refresh_minutes} 分钟（刷新数量: ${extraCount}，托盘跳过: ${traySkip}）`);
+            console.log(`[AutoRefresh] Antigravity 已启用: 每 ${config.auto_refresh_minutes} 分钟（动态间隔，托盘跳过: ${traySkip}）`);
             const agMs = config.auto_refresh_minutes * 60 * 1000;
+            const FAST_INTERVAL = 60_000; // 有候选正常刷新后 1 分钟再来
 
-            scheduleAligned(agMs, async () => {
+            scheduleAligned(agMs, async (): Promise<number | void> => {
               if (agRefreshingRef.current) {
                 return;
               }
@@ -340,59 +336,52 @@ export function useAutoRefresh() {
                 // 每次定时刷新时更新当前帐号的 last_used_at
                 await invoke('touch_current_last_used').catch(() => { });
 
-                // 统一筛选所有帐号，只刷新配额已重置的
-                if (extraCount > 0) {
-                  // 静默获取帐号列表用于筛选，不触发 store 更新（避免 UI 闪动）
-                  const allAccounts = await invoke<Account[]>('list_accounts');
-                  const currentAccount = useAccountStore.getState().currentAccount;
-                  // 读取快速切号的排序配置（field + desc 两维）
-                  const sortField = (config.switch_sort_field === 'last_used_at' ? 'last_used_at' : 'created_at') as 'created_at' | 'last_used_at';
-                  const sortDesc = config.switch_sort_desc ?? false;
-                  const includeFullQuota = config.refresh_include_full ?? false;
-                  const fallbackCurrent = config.refresh_fallback_current ?? false;
-                  const candidates = findSmartRefreshCandidates(allAccounts, currentAccount?.id, sortField, sortDesc, includeFullQuota);
-                  // 候选列表为空时，按配置决定是否用当前账号保底
-                  const toRefresh = candidates.length > 0
-                    ? candidates.slice(0, extraCount)
-                    : (fallbackCurrent && currentAccount ? [currentAccount] : []);
+                // 静默获取帐号列表用于筛选，不触发 store 更新（避免 UI 闪动）
+                const allAccounts = await invoke<Account[]>('list_accounts');
+                const currentAccount = useAccountStore.getState().currentAccount;
+                // 读取快速切号的排序配置（field + desc 两维）
+                const sortField = (config.switch_sort_field === 'last_used_at' ? 'last_used_at' : 'created_at') as 'created_at' | 'last_used_at';
+                const sortDesc = config.switch_sort_desc ?? false;
+                const includeFullQuota = config.refresh_include_full ?? false;
+                const fallbackCurrent = config.refresh_fallback_current ?? false;
+                const candidates = findSmartRefreshCandidates(allAccounts, currentAccount?.id, sortField, sortDesc, includeFullQuota);
+                // 候选列表为空时，按配置决定是否用当前账号保底
+                const toRefresh = candidates.length > 0
+                  ? candidates.slice(0, 1)
+                  : (fallbackCurrent && currentAccount ? [currentAccount] : []);
 
-                  if (toRefresh.length > 0) {
-                    const isFallback = candidates.length === 0;
-                    console.log(isFallback
-                      ? `[AutoRefresh] 无候选账号，当前号保底刷新: ${currentAccount?.email}`
-                      : `[AutoRefresh] 刷新 ${toRefresh.length} 个已重置账号（满额也刷新: ${config.refresh_include_full ?? false}）`);
-                    for (const candidate of toRefresh) {
-                      try {
-                        await invoke('fetch_account_quota', { accountId: candidate.id });
-                        console.log(`[AutoRefresh] 账号 ${candidate.email} 配额已刷新`);
-                      } catch (e) {
-                        console.error(`[AutoRefresh] 账号 ${candidate.email} 刷新失败:`, e);
-                      }
-                    }
-                    // 有账号额度被刷新时，如果开了自动切号，先执行切号检查再更新 UI
-                    if (config.auto_switch_enabled) {
-                      try {
-                        await syncCurrentFromClient();
-                        await invoke('refresh_current_quota');
-                      } catch (e) {
-                        console.error('[AutoRefresh] 自动切号检查失败:', e);
-                      }
-                    }
-                    // 更新前端 UI
-                    await fetchAccounts();
-                    await fetchCurrentAccount();
-                  } else {
-                    console.log('[AutoRefresh] 无配额已重置的候选账号');
-                    // 启用 UI 定时刷新时，即使无帐号被刷新也更新 UI 数据（如倒计时）
-                    if (config.ui_auto_refresh) {
-                      await fetchAccounts();
-                      await fetchCurrentAccount();
+                if (toRefresh.length > 0) {
+                  const isFallback = candidates.length === 0;
+                  console.log(isFallback
+                    ? `[AutoRefresh] 无候选账号，当前号保底刷新: ${currentAccount?.email}`
+                    : `[AutoRefresh] 刷新已重置账号（满额也刷新: ${config.refresh_include_full ?? false}）`);
+                  for (const candidate of toRefresh) {
+                    try {
+                      await invoke('fetch_account_quota', { accountId: candidate.id });
+                      console.log(`[AutoRefresh] 账号 ${candidate.email} 配额已刷新`);
+                    } catch (e) {
+                      console.error(`[AutoRefresh] 账号 ${candidate.email} 刷新失败:`, e);
                     }
                   }
-                } else if (config.ui_auto_refresh) {
-                  // 刷新数量为 0 但启用了 UI 定时刷新
+                  // 有账号额度被刷新时，如果开了自动切号，先执行切号检查再更新 UI
+                  if (config.auto_switch_enabled) {
+                    try {
+                      await syncCurrentFromClient();
+                      await invoke('refresh_current_quota');
+                    } catch (e) {
+                      console.error('[AutoRefresh] 自动切号检查失败:', e);
+                    }
+                  }
+                  // 更新前端 UI
                   await fetchAccounts();
                   await fetchCurrentAccount();
+                  // 动态间隔：保底刷新 → 设置间隔，正常候选 → 1 分钟
+                  const nextMs = isFallback ? agMs : FAST_INTERVAL;
+                  console.log(`[AutoRefresh] 下次刷新间隔: ${nextMs / 1000}s（${isFallback ? '保底' : '正常候选'}）`);
+                  return nextMs;
+                } else {
+                  console.log(`[AutoRefresh] 无配额已重置的候选账号，下次刷新间隔: ${agMs / 1000}s`);
+                  return agMs;
                 }
               } catch (e) {
                 console.error('[AutoRefresh] 刷新失败:', e);
@@ -405,67 +394,66 @@ export function useAutoRefresh() {
           }
 
           if (config.codex_auto_refresh_minutes > 0) {
-            const codexExtraCount = config.codex_extra_refresh_count ?? 0;
-            console.log(`[AutoRefresh] Codex 已启用: 每 ${config.codex_auto_refresh_minutes} 分钟（刷新数量: ${codexExtraCount}）`);
+            console.log(`[AutoRefresh] Codex 已启用: 每 ${config.codex_auto_refresh_minutes} 分钟（动态间隔）`);
             const codexMs = config.codex_auto_refresh_minutes * 60 * 1000;
+            const CODEX_FAST_INTERVAL = 60_000;
 
             // skipTrayCheck=true: 窗口不可见时也刷新
-            scheduleAligned(codexMs, async () => {
+            scheduleAligned(codexMs, async (): Promise<number | void> => {
               if (codexRefreshingRef.current) {
                 return;
               }
               codexRefreshingRef.current = true;
 
               try {
-                if (codexExtraCount === 0) {
-                  // 数量为 0：不刷新
-                  console.log('[AutoRefresh] Codex 刷新数量为 0，跳过');
-                } else {
-                  // 筛选候选账号：额度 < 100% 且至少一个窗口的 reset_time 已过期
-                  const nowMs = Date.now();
-                  const nowSec = Math.floor(nowMs / 1000);
-                  const state = useCodexAccountStore.getState();
-                  const currentAccount = state.currentAccount;
+                // 筛选候选账号：额度 < 100% 且至少一个窗口的 reset_time 已过期
+                const nowMs = Date.now();
+                const nowSec = Math.floor(nowMs / 1000);
+                const state = useCodexAccountStore.getState();
+                const currentAccount = state.currentAccount;
 
-                  const candidates = [...state.accounts].filter((acc) => {
-                    const q = (acc as { quota?: { hourly_percentage: number; weekly_percentage: number; hourly_reset_time?: number; weekly_reset_time?: number } }).quota;
-                    if (!q) return false;
-                    const minPct = Math.min(q.hourly_percentage, q.weekly_percentage);
-                    if (minPct >= 100) return false; // 额度已满，无需刷新
-                    // 至少一个窗口的 reset_time 已过期（timestamp 单位：秒）
-                    const hourlyExpired = q.hourly_reset_time != null && q.hourly_reset_time <= nowSec;
-                    const weeklyExpired = q.weekly_reset_time != null && q.weekly_reset_time <= nowSec;
-                    return hourlyExpired || weeklyExpired;
-                  }).sort((a, b) => {
-                    // 按 last_updated 升序（最久未刷新的优先）
-                    const la = (a as { quota?: { last_updated?: number } }).quota?.last_updated ?? 0;
-                    const lb = (b as { quota?: { last_updated?: number } }).quota?.last_updated ?? 0;
-                    return la - lb;
-                  });
+                const candidates = [...state.accounts].filter((acc) => {
+                  const q = (acc as { quota?: { hourly_percentage: number; weekly_percentage: number; hourly_reset_time?: number; weekly_reset_time?: number } }).quota;
+                  if (!q) return false;
+                  const minPct = Math.min(q.hourly_percentage, q.weekly_percentage);
+                  if (minPct >= 100) return false; // 额度已满，无需刷新
+                  // 至少一个窗口的 reset_time 已过期（timestamp 单位：秒）
+                  const hourlyExpired = q.hourly_reset_time != null && q.hourly_reset_time <= nowSec;
+                  const weeklyExpired = q.weekly_reset_time != null && q.weekly_reset_time <= nowSec;
+                  return hourlyExpired || weeklyExpired;
+                }).sort((a, b) => {
+                  // 按 last_updated 升序（最久未刷新的优先）
+                  const la = (a as { quota?: { last_updated?: number } }).quota?.last_updated ?? 0;
+                  const lb = (b as { quota?: { last_updated?: number } }).quota?.last_updated ?? 0;
+                  return la - lb;
+                });
 
-                  // 候选为空时，用当前账号保底
-                  const toRefresh = candidates.length > 0
-                    ? candidates.slice(0, codexExtraCount)
-                    : (currentAccount ? [currentAccount] : []);
+                // 候选为空时，用当前账号保底
+                const toRefresh = candidates.length > 0
+                  ? candidates.slice(0, 1)
+                  : (currentAccount ? [currentAccount] : []);
 
-                  if (toRefresh.length > 0) {
-                    const isFallback = candidates.length === 0;
-                    console.log(isFallback
-                      ? `[AutoRefresh] Codex 无候选账号，当前账号保底: ${currentAccount?.email}`
-                      : `[AutoRefresh] Codex 刷新 ${toRefresh.length} 个已重置账号（共 ${candidates.length} 个候选）`);
-                    for (const acc of toRefresh) {
-                      try {
-                        await refreshCodexQuota((acc as { id: string }).id);
-                        console.log(`[AutoRefresh] Codex 账号 ${(acc as { email: string }).email} 配额已刷新`);
-                      } catch (e) {
-                        console.error(`[AutoRefresh] Codex 账号 ${(acc as { email: string }).email} 刷新失败:`, e);
-                      }
+                if (toRefresh.length > 0) {
+                  const isFallback = candidates.length === 0;
+                  console.log(isFallback
+                    ? `[AutoRefresh] Codex 无候选账号，当前账号保底: ${currentAccount?.email}`
+                    : `[AutoRefresh] Codex 刷新已重置账号（共 ${candidates.length} 个候选）`);
+                  for (const acc of toRefresh) {
+                    try {
+                      await refreshCodexQuota((acc as { id: string }).id);
+                      console.log(`[AutoRefresh] Codex 账号 ${(acc as { email: string }).email} 配额已刷新`);
+                    } catch (e) {
+                      console.error(`[AutoRefresh] Codex 账号 ${(acc as { email: string }).email} 刷新失败:`, e);
                     }
-                    await fetchCodexAccounts();
-                    await fetchCodexCurrentAccount();
-                  } else {
-                    console.log('[AutoRefresh] Codex 无候选账号且无当前账号，跳过');
                   }
+                  await fetchCodexAccounts();
+                  await fetchCodexCurrentAccount();
+                  const nextMs = isFallback ? codexMs : CODEX_FAST_INTERVAL;
+                  console.log(`[AutoRefresh] Codex 下次刷新间隔: ${nextMs / 1000}s（${isFallback ? '保底' : '正常候选'}）`);
+                  return nextMs;
+                } else {
+                  console.log(`[AutoRefresh] Codex 无候选账号且无当前账号，下次刷新间隔: ${codexMs / 1000}s`);
+                  return codexMs;
                 }
               } catch (e) {
                 console.error('[AutoRefresh] Codex 刷新失败:', e);
@@ -478,21 +466,21 @@ export function useAutoRefresh() {
           }
 
           if (config.ghcp_auto_refresh_minutes > 0) {
-            const ghcpExtraCount = config.ghcp_extra_refresh_count ?? 0;
-            console.log(`[AutoRefresh] GitHub Copilot 已启用: 每 ${config.ghcp_auto_refresh_minutes} 分钟（刷新数量: ${ghcpExtraCount}）`);
+            console.log(`[AutoRefresh] GitHub Copilot 已启用: 每 ${config.ghcp_auto_refresh_minutes} 分钟（动态间隔）`);
             const ghcpMs = config.ghcp_auto_refresh_minutes * 60 * 1000;
+            const GHCP_FAST_INTERVAL = 60_000;
 
-            scheduleAligned(ghcpMs, async () => {
+            scheduleAligned(ghcpMs, async (): Promise<number | void> => {
               if (ghcpRefreshingRef.current) {
                 return;
               }
               ghcpRefreshingRef.current = true;
 
               try {
-                console.log('[AutoRefresh] 触发 GitHub Copilot Token 刷新...');
-                if (ghcpExtraCount > 0) {
-                  const allAccounts = useGitHubCopilotAccountStore.getState().accounts;
-                  const toRefresh = allAccounts.slice(0, ghcpExtraCount);
+                const allAccounts = useGitHubCopilotAccountStore.getState().accounts;
+                const toRefresh = allAccounts.slice(0, 1);
+                if (toRefresh.length > 0) {
+                  console.log('[AutoRefresh] 触发 GitHub Copilot Token 刷新...');
                   for (const acc of toRefresh) {
                     try {
                       await refreshGhcpToken((acc as { id: string }).id);
@@ -501,8 +489,9 @@ export function useAutoRefresh() {
                     }
                   }
                   await fetchGhcpAccounts();
+                  return GHCP_FAST_INTERVAL;
                 } else {
-                  //console.log('[AutoRefresh] GitHub Copilot 刷新数量为 0，跳过');
+                  return ghcpMs;
                 }
               } catch (e) {
                 console.error('[AutoRefresh] GitHub Copilot 刷新失败:', e);
@@ -515,21 +504,21 @@ export function useAutoRefresh() {
           }
 
           if (config.windsurf_auto_refresh_minutes > 0) {
-            const windsurfExtraCount = config.windsurf_extra_refresh_count ?? 0;
-            console.log(`[AutoRefresh] Windsurf 已启用: 每 ${config.windsurf_auto_refresh_minutes} 分钟（刷新数量: ${windsurfExtraCount}）`);
+            console.log(`[AutoRefresh] Windsurf 已启用: 每 ${config.windsurf_auto_refresh_minutes} 分钟（动态间隔）`);
             const windsurfMs = config.windsurf_auto_refresh_minutes * 60 * 1000;
+            const WINDSURF_FAST_INTERVAL = 60_000;
 
-            scheduleAligned(windsurfMs, async () => {
+            scheduleAligned(windsurfMs, async (): Promise<number | void> => {
               if (windsurfRefreshingRef.current) {
                 return;
               }
               windsurfRefreshingRef.current = true;
 
               try {
-                console.log('[AutoRefresh] 触发 Windsurf 配额刷新...');
-                if (windsurfExtraCount > 0) {
-                  const allAccounts = useWindsurfAccountStore.getState().accounts;
-                  const toRefresh = allAccounts.slice(0, windsurfExtraCount);
+                const allAccounts = useWindsurfAccountStore.getState().accounts;
+                const toRefresh = allAccounts.slice(0, 1);
+                if (toRefresh.length > 0) {
+                  console.log('[AutoRefresh] 触发 Windsurf 配额刷新...');
                   for (const acc of toRefresh) {
                     try {
                       await refreshWindsurfToken((acc as { id: string }).id);
@@ -538,8 +527,9 @@ export function useAutoRefresh() {
                     }
                   }
                   await fetchWindsurfAccounts();
+                  return WINDSURF_FAST_INTERVAL;
                 } else {
-                  //console.log('[AutoRefresh] Windsurf 刷新数量为 0，跳过');
+                  return windsurfMs;
                 }
               } catch (e) {
                 console.error('[AutoRefresh] Windsurf 刷新失败:', e);
@@ -552,21 +542,21 @@ export function useAutoRefresh() {
           }
 
           if (config.kiro_auto_refresh_minutes > 0) {
-            const kiroExtraCount = config.kiro_extra_refresh_count ?? 0;
-            console.log(`[AutoRefresh] Kiro 已启用: 每 ${config.kiro_auto_refresh_minutes} 分钟（刷新数量: ${kiroExtraCount}）`);
+            console.log(`[AutoRefresh] Kiro 已启用: 每 ${config.kiro_auto_refresh_minutes} 分钟（动态间隔）`);
             const kiroMs = config.kiro_auto_refresh_minutes * 60 * 1000;
+            const KIRO_FAST_INTERVAL = 60_000;
 
-            scheduleAligned(kiroMs, async () => {
+            scheduleAligned(kiroMs, async (): Promise<number | void> => {
               if (kiroRefreshingRef.current) {
                 return;
               }
               kiroRefreshingRef.current = true;
 
               try {
-                console.log('[AutoRefresh] 触发 Kiro 配额刷新...');
-                if (kiroExtraCount > 0) {
-                  const allAccounts = useKiroAccountStore.getState().accounts;
-                  const toRefresh = allAccounts.slice(0, kiroExtraCount);
+                const allAccounts = useKiroAccountStore.getState().accounts;
+                const toRefresh = allAccounts.slice(0, 1);
+                if (toRefresh.length > 0) {
+                  console.log('[AutoRefresh] 触发 Kiro 配额刷新...');
                   for (const acc of toRefresh) {
                     try {
                       await refreshKiroToken((acc as { id: string }).id);
@@ -575,8 +565,9 @@ export function useAutoRefresh() {
                     }
                   }
                   await fetchKiroAccounts();
+                  return KIRO_FAST_INTERVAL;
                 } else {
-                  //console.log('[AutoRefresh] Kiro 刷新数量为 0，跳过');
+                  return kiroMs;
                 }
               } catch (e) {
                 console.error('[AutoRefresh] Kiro 刷新失败:', e);

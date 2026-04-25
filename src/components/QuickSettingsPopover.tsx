@@ -192,11 +192,11 @@ export function QuickSettingsPopover({ type }: QuickSettingsPopoverProps) {
           windsurfQuotaAlertThreshold: merged.windsurf_quota_alert_threshold,
           kiroQuotaAlertEnabled: merged.kiro_quota_alert_enabled,
           kiroQuotaAlertThreshold: merged.kiro_quota_alert_threshold,
-          extraRefreshCount: merged.extra_refresh_count,
-          codexExtraRefreshCount: merged.codex_extra_refresh_count,
-          ghcpExtraRefreshCount: merged.ghcp_extra_refresh_count,
-          windsurfExtraRefreshCount: merged.windsurf_extra_refresh_count,
-          kiroExtraRefreshCount: merged.kiro_extra_refresh_count,
+          extraRefreshCount: 1,
+          codexExtraRefreshCount: 1,
+          ghcpExtraRefreshCount: 1,
+          windsurfExtraRefreshCount: 1,
+          kiroExtraRefreshCount: 1,
           refreshSortOldestFirst: merged.refresh_sort_oldest_first,
           refreshWhenTray: merged.refresh_when_tray ?? true,
           uiAutoRefresh: merged.ui_auto_refresh ?? false,
@@ -286,15 +286,6 @@ export function QuickSettingsPopover({ type }: QuickSettingsPopoverProps) {
     return getRefreshKeyForType(type);
   };
 
-  const getExtraRefreshCountKey = (): keyof GeneralConfig => {
-    switch (type) {
-      case 'antigravity': return 'extra_refresh_count';
-      case 'codex': return 'codex_extra_refresh_count';
-      case 'github_copilot': return 'ghcp_extra_refresh_count';
-      case 'windsurf': return 'windsurf_extra_refresh_count';
-      case 'kiro': return 'kiro_extra_refresh_count';
-    }
-  };
 
   const getQuotaAlertThresholdKeyForType = (t: QuickSettingsType): QuotaAlertThresholdKey => {
     switch (t) {
@@ -538,24 +529,9 @@ export function QuickSettingsPopover({ type }: QuickSettingsPopoverProps) {
               <div className="qs-field-group">
                 <div className="qs-row">
                   <div className="qs-row-label">
-                    <span>{t('quickSettings.refreshCountAndInterval', '刷新数量/间隔')}</span>
+                    <span>{t('quickSettings.refreshInterval', '刷新间隔')}</span>
                   </div>
                   <div className="qs-row-control" style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                    <select
-                      className="qs-select"
-                      style={{ minWidth: 56 }}
-                      value={String(config[getExtraRefreshCountKey()] ?? 0)}
-                      onChange={(e) => saveConfig({ [getExtraRefreshCountKey()]: parseInt(e.target.value, 10) })}
-                    >
-                      <option value="0">0</option>
-                      <option value="1">1</option>
-                      <option value="2">2</option>
-                      <option value="3">3</option>
-                      <option value="4">4</option>
-                      <option value="5">5</option>
-                      <option value="10">10</option>
-                      <option value="20">20</option>
-                    </select>
                     {showRefreshInput ? (
                       <div className="qs-inline-input">
                         <input
@@ -600,21 +576,6 @@ export function QuickSettingsPopover({ type }: QuickSettingsPopoverProps) {
 
                 {type === 'antigravity' && (
                   <>
-                    <div className="qs-row" style={{ marginTop: 8 }}>
-                      <div className="qs-row-label">
-                        <span>{t('settings.general.uiAutoRefresh', 'UI定时刷新')}</span>
-                      </div>
-                      <div className="qs-row-control">
-                        <label className="qs-switch">
-                          <input
-                            type="checkbox"
-                            checked={Boolean(config.ui_auto_refresh)}
-                            onChange={(e) => saveConfig({ ui_auto_refresh: e.target.checked })}
-                          />
-                          <span className="qs-switch-slider"></span>
-                        </label>
-                      </div>
-                    </div>
                     <div className="qs-row" style={{ marginTop: 8 }}>
                       <div className="qs-row-label">
                         <span>{t('settings.general.refreshOptions', '配额刷新选项')}</span>
