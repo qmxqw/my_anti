@@ -75,13 +75,13 @@ function findSmartRefreshCandidates(
   const partial = candidates.filter(hasPartialQuota).sort(sortFn);
   // 满额账号按 quota.last_updated（上次刷新时间）升序排：最久未刷新的优先
   // 刷完后 last_updated 更新变大，下次自动轮到其他账号
-  const FIVE_HOURS_MS = 5 * 60 * 60 * 1000;
+  const TWENTY_HOURS_MS = 20 * 60 * 60 * 1000;
   const full = candidates.filter((a) => {
     if (hasPartialQuota(a)) return false;
-    // 满额账号：距上次刷新不足 5 小时则跳过
+    // 满额账号：距上次刷新不足 20 小时则跳过
     // last_updated 是秒级时间戳（Rust chrono::timestamp()），需 ×1000 转毫秒
     const lastUpdatedMs = (a.quota?.last_updated ?? 0) * 1000;
-    return (now - lastUpdatedMs) >= FIVE_HOURS_MS;
+    return (now - lastUpdatedMs) >= TWENTY_HOURS_MS;
   }).sort(
     (a, b) => (a.quota?.last_updated ?? 0) - (b.quota?.last_updated ?? 0),
   );
